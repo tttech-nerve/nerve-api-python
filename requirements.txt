@@ -1,0 +1,5 @@
+PyYAML >=6.0.2, <7.0.0
+paramiko >=3.5.1, <4.0.0
+sshtunnel >=0.4.0, <0.5.0
+scp >=0.15.0, <0.16.0
+requests-toolbelt >=1.0.0, <2.0.0
