@@ -73,7 +73,7 @@ The `nerve_lib` provides functions to manage the NERVE Management System and NER
 from nerve_lib import MSHandle
 from nerve_lib import MSWorkloads
 
-with MSHandle("testms.nerve.cloud") as ms_handle:
+with MSHandle("testms.nerve.cloud", "ms-username", "ms-password") as ms_handle:
     wl = MSWorkloads(ms_handle)
     wl_config = wl.gen_workload_configuration(
         "docker",
@@ -89,7 +89,7 @@ with MSHandle("testms.nerve.cloud") as ms_handle:
 from nerve_lib import MSHandle
 from nerve_lib import MSNode
 
-with MSHandle("testms.nerve.cloud") as ms_handle:
+with MSHandle("testms.nerve.cloud", "ms-username", "ms-password") as ms_handle:
     nodes = MSNode(ms_handle)
     nodes.get_nodes_by_name("MFN")
 ```
