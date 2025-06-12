@@ -1,0 +1,735 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>nerve_lib.manage_open_search API documentation</title>
+<meta name="description" content="Manage OpenSearch releated function on MS …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>nerve_lib.manage_open_search</code></h1>
+</header>
+<section id="section-intro">
+<p>Manage OpenSearch releated function on MS.</p>
+<h2 id="example">Example:</h2>
+<pre><code>&gt;&gt;&gt; from nerve_lib import MSHandle
+&gt;&gt;&gt; from nerve_lib import MSOpenSearch
+&gt;&gt;&gt; with MSHandle("testms.nerve.cloud") as ms_handle:
+&gt;&gt;&gt;     opensearch = MSOpenSearch(ms_handle)
+&gt;&gt;&gt;     opensearch.get_audit()
+&lt;dict of audit request&gt;
+</code></pre>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="nerve_lib.manage_open_search.MSOpenSearch"><code class="flex name class">
+<span>class <span class="ident">MSOpenSearch</span></span>
+<span>(</span><span>ms_handle)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class MSOpenSearch:
+    &#34;&#34;&#34;Create opensearch requets.
+
+    Parameters
+    ----------
+    ms_handle :
+        management system handle &#39;nerve_lib.general_utils.MSHandle(...)&#39;.
+    &#34;&#34;&#34;
+
+    def __init__(self, ms_handle):
+        self.ms = ms_handle
+        self._log = logging.getLogger(&#34;User&#34;)
+
+        self.query_filter = [{&#34;match_all&#34;: {}}]
+        self.query_must = []
+        self.query_must_not = []
+        self.query_should = []
+
+    def __post_payload(self, url, payload):
+        &#34;&#34;&#34;Send post command to opensearch.
+
+        If the request is redirected (code-302 found), a login on ms will be performed.
+        &#34;&#34;&#34;
+        response = self.ms.post(
+            url,
+            json=payload,
+            headers={&#34;Content-Type&#34;: &#34;application/json&#34;, &#34;osd-xsrf&#34;: &#34;true&#34;},
+            allow_redirects=False,
+            accepted_status=[requests.codes.ok, requests.codes.found],
+        )
+        if response.status_code == requests.codes.found:
+            self.ms.login()
+            response = self.ms.post(
+                url,
+                json=payload,
+                headers={&#34;Content-Type&#34;: &#34;application/json&#34;, &#34;osd-xsrf&#34;: &#34;true&#34;},
+                allow_redirects=False,
+                accepted_status=[requests.codes.ok],
+            )
+        return response.json()
+
+    @staticmethod
+    def create_search_bestfield(keyword):
+        &#34;&#34;&#34;Search for simple keyword.
+
+        If keyword contains multiple works, each word will create a match.
+        &#34;&#34;&#34;
+        return {&#34;multi_match&#34;: {&#34;type&#34;: &#34;best_fields&#34;, &#34;query&#34;: keyword, &#34;lenient&#34;: True}}
+
+    @staticmethod
+    def create_search_multimatch_phrase(phrase):
+        &#34;&#34;&#34;Search for keyword(s) phrase.
+
+        Phrase can have multiple works, result will contain matches of the complete phrase.
+        &#34;&#34;&#34;
+        return {&#34;multi_match&#34;: {&#34;type&#34;: &#34;phrase&#34;, &#34;query&#34;: phrase, &#34;lenient&#34;: True}}
+
+    @staticmethod
+    def create_filter_matchphrase(field, phrase):
+        &#34;&#34;&#34;Define which field should be filtered by a phrase.&#34;&#34;&#34;
+        return {&#34;match_phrase&#34;: {field: phrase}}
+
+    def _get_index(self, index: str, past_hours: int, search_filters: list = []):
+        &#34;&#34;&#34;Read specific index from open-search.&#34;&#34;&#34;
+        # Get the current time in UTC
+        current_time = datetime.utcnow()
+        past_time = current_time - timedelta(hours=past_hours)
+
+        # Format the time as a string
+        past_time = past_time.strftime(&#34;%Y-%m-%dT%H:%M:%S.%f&#34;)[:-3] + &#34;Z&#34;
+        current_time = current_time.strftime(&#34;%Y-%m-%dT%H:%M:%S.%f&#34;)[:-3] + &#34;Z&#34;
+
+        filter_list = deepcopy(self.query_filter)
+        for filter_item in search_filters:
+            filter_list.append(filter_item)
+
+        filter_list.append({
+            &#34;range&#34;: {
+                &#34;@timestamp&#34;: {
+                    &#34;gte&#34;: past_time,
+                    &#34;lte&#34;: current_time,
+                    &#34;format&#34;: &#34;strict_date_optional_time&#34;,
+                },
+            },
+        })
+
+        payload = {
+            &#34;params&#34;: {
+                &#34;index&#34;: index,
+                &#34;body&#34;: {
+                    &#34;size&#34;: 10000,
+                    &#34;sort&#34;: [{&#34;@timestamp&#34;: {&#34;order&#34;: &#34;desc&#34;, &#34;unmapped_type&#34;: &#34;boolean&#34;}}],
+                    &#34;query&#34;: {
+                        &#34;bool&#34;: {
+                            &#34;filter&#34;: filter_list,
+                            &#34;must&#34;: self.query_must,
+                            &#34;must_not&#34;: self.query_must_not,
+                            &#34;should&#34;: self.query_should,
+                        },
+                    },
+                    &#34;highlight&#34;: {
+                        &#34;pre_tags&#34;: [&#34;@opensearch-dashboards-highlighted-field@&#34;],
+                        &#34;post_tags&#34;: [&#34;@/opensearch-dashboards-highlighted-field@&#34;],
+                        &#34;fields&#34;: {&#34;*&#34;: {}},
+                    },
+                },
+            },
+        }
+        return self.__post_payload(&#34;/opensearch/internal/search/opensearch&#34;, payload)
+
+    def get_audit(self, past_hours: int = 5, search_filters: list = []):
+        &#34;&#34;&#34;Get audit logs from open search.&#34;&#34;&#34;
+        return self._get_index(index=&#34;audit-ms*&#34;, past_hours=past_hours, search_filters=search_filters)
+
+    def get_audit_node(self, past_hours: int = 5, search_filters: list = []):
+        &#34;&#34;&#34;Get audit logs node from open search.&#34;&#34;&#34;
+        return self._get_index(index=&#34;audit-node*&#34;, past_hours=past_hours, search_filters=search_filters)
+
+    def get_filebeat(self, past_hours: int = 5, search_filters: list = []):
+        &#34;&#34;&#34;Get filebeat logs from open search.&#34;&#34;&#34;
+        return self._get_index(index=&#34;filebeat*&#34;, past_hours=past_hours, search_filters=search_filters)
+
+    def get_nerve(self, past_hours: int = 5, search_filters: list = []):
+        &#34;&#34;&#34;Get nerve logs from open search.&#34;&#34;&#34;
+        return self._get_index(index=&#34;nerve-ms-*&#34;, past_hours=past_hours, search_filters=search_filters)
+
+    def get_fluentbit(self, past_hours: int = 5, search_filters: list = []):
+        &#34;&#34;&#34;Get filebeat logs from open search.&#34;&#34;&#34;
+        return self._get_index(index=&#34;docker-log*&#34;, past_hours=past_hours, search_filters=search_filters)
+
+    def get_audit_docker(self, past_hours: int = 5, search_filters: list = []):
+        &#34;&#34;&#34;Get audit logs node from open search.&#34;&#34;&#34;
+        return self._get_index(
+            index=&#34;audit-docker-log*&#34;, past_hours=past_hours, search_filters=search_filters
+        )
+
+    def filter_audit_hits(self, past_hours=5, node=False, docker=False, **kwargs):
+        &#34;&#34;&#34;Filter hits of audit log matching different keywords.
+
+        &gt;&gt;&gt; kwargs = {&#34;Event ID&#34;: 1012}
+        &gt;&gt;&gt; opensearch.filter_audit_hits(index=0, kwargs)
+        &#34;&#34;&#34;
+        if node:
+            response_data = self.get_audit_node(past_hours)
+        elif docker:
+            response_data = self.get_audit_docker(past_hours)
+        else:
+            response_data = self.get_audit(past_hours)
+
+        hits_indexs = [hits[&#34;_source&#34;] for hits in response_data[&#34;rawResponse&#34;][&#34;hits&#34;][&#34;hits&#34;]]
+
+        matching_hits = []
+
+        for hits_index in hits_indexs:
+            add_match = True
+            for name, value in kwargs.items():
+                if hits_index.get(name) != value:
+                    add_match = False
+            if add_match:
+                matching_hits.append(hits_index)
+        return matching_hits
+
+    def filter_docker_logs(self, past_hours=5, container_name=None, **kwargs):
+        &#34;&#34;&#34;Filter hits of filebeats log matching different keywords.
+
+        &gt;&gt;&gt; kwargs = {&#34;partial_message&#34;: &#34;partial text of the message&#34;}
+        &gt;&gt;&gt; opensearch.filter_docker_logs(past_hours=5, container_name=&#34;my_container&#34;, **kwargs)
+        &#34;&#34;&#34;
+        if self.ms.version_smaller_than(&#34;2.10.0&#34;):
+            response_data = self.get_filebeat(past_hours)
+        else:
+            response_data = self.get_fluentbit(past_hours)
+
+        hits = response_data[&#34;rawResponse&#34;][&#34;hits&#34;][&#34;hits&#34;]
+        matching_hits = []
+
+        for hit in hits:
+            hit_source = hit[&#34;_source&#34;]
+
+            if self.ms.version_smaller_than(&#34;2.10.0&#34;):
+                container = hit_source.get(&#34;container&#34;, {})
+                message = hit_source.get(&#34;message&#34;, &#34;&#34;)
+            else:
+                container = hit_source.get(&#34;container_name&#34;, {})
+                message = hit_source.get(&#34;log&#34;, &#34;&#34;)
+
+            if isinstance(container, dict):
+                if container_name and container.get(&#34;name&#34;) != container_name:
+                    continue
+            elif container_name and container != container_name:
+                continue
+
+            partial_message = kwargs.get(&#34;partial_message&#34;, &#34;&#34;)
+
+            # Check if the partial message is contained within the hit message
+            if partial_message and partial_message in message:
+                add_match = True
+                for name, value in kwargs.items():
+                    if name != &#34;partial_message&#34; and hit_source.get(name) != value:
+                        add_match = False
+                        break
+                if add_match:
+                    matching_hits.append(hit_source)
+
+        return matching_hits
+
+    def messages_audit(self, message_level: str = &#34;&#34;, past_hours: int = 5, search_filters: list = []):
+        &#34;&#34;&#34;Get messages from audit logs.
+
+        message_level str, optional:
+            one of &#34;info&#34;, &#34;warn&#34;, &#34;error&#34;
+        &#34;&#34;&#34;
+        all_filters = deepcopy(search_filters)
+        if message_level:
+            all_filters.append(self.create_filter_matchphrase(&#34;message&#34;, f&#34;&#39;level&#39;:&#39;{message_level}&#39;&#34;))
+        response_data = self.get_audit(past_hours, all_filters)
+        return [msg[&#34;_source&#34;] for msg in response_data[&#34;rawResponse&#34;][&#34;hits&#34;][&#34;hits&#34;]]
+
+    def messages_filebeat(self, severity_level: str = &#34;&#34;, past_hours: int = 5, search_filters: list = []):
+        &#34;&#34;&#34;Get messages from filebeat logs.
+
+        severtiy_level: one of [&#34;Informational&#34;,&#34;Error&#34;,&#34;Warning&#34;].
+        &#34;&#34;&#34;
+        all_filters = deepcopy(search_filters)
+        if severity_level:
+            all_filters.append(
+                self.create_filter_matchphrase(&#34;syslog.severity_label&#34;, severity_level.title()),
+            )
+        response_data = self.get_filebeat(past_hours, all_filters)
+        return [msg[&#34;_source&#34;] for msg in response_data[&#34;rawResponse&#34;][&#34;hits&#34;][&#34;hits&#34;]]
+
+    def messages_nerve(self, message_level: str = &#34;&#34;, past_hours: int = 5, search_filters: list = []):
+        &#34;&#34;&#34;Get messages from nerve logs.&#34;&#34;&#34;
+        all_filters = deepcopy(search_filters)
+        if message_level:
+            all_filters.append(self.create_filter_matchphrase(&#34;message&#34;, f&#34;&#39;level&#39;:&#39;{message_level}&#39;&#34;))
+        response_data = self.get_nerve(past_hours, all_filters)
+        return [json.loads(msg[&#34;_source&#34;][&#34;message&#34;]) for msg in response_data[&#34;rawResponse&#34;][&#34;hits&#34;][&#34;hits&#34;]]
+
+    def create_index(self, index_name):
+        &#34;&#34;&#34;Create a new OpenSearch Index.&#34;&#34;&#34;
+        payload = {
+            &#34;data&#34;: {
+                &#34;index&#34;: index_name,
+                &#34;body&#34;: {
+                    &#34;settings&#34;: {
+                        &#34;index.number_of_shards&#34;: 1,
+                        &#34;index.number_of_replicas&#34;: 1,
+                        &#34;index.refresh_interval&#34;: &#34;1s&#34;,
+                    },
+                    &#34;mappings&#34;: {&#34;properties&#34;: {}},
+                },
+            },
+            &#34;endpoint&#34;: &#34;indices.create&#34;,
+        }
+
+        return self.__post_payload(&#34;/opensearch/api/ism/apiCaller&#34;, payload)
+
+    def delete_index(self, index_name):
+        &#34;&#34;&#34;Delete an OpenSearch Index.&#34;&#34;&#34;
+        payload = {&#34;data&#34;: {&#34;index&#34;: index_name}, &#34;endpoint&#34;: &#34;indices.delete&#34;}
+
+        return self.__post_payload(&#34;/opensearch/api/ism/apiCaller&#34;, payload)</code></pre>
+</details>
+<div class="desc"><p>Create opensearch requets.</p>
+<h2 id="parameters">Parameters</h2>
+<p>ms_handle :
+management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
+<h3>Static methods</h3>
+<dl>
+<dt id="nerve_lib.manage_open_search.MSOpenSearch.create_filter_matchphrase"><code class="name flex">
+<span>def <span class="ident">create_filter_matchphrase</span></span>(<span>field, phrase)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@staticmethod
+def create_filter_matchphrase(field, phrase):
+    &#34;&#34;&#34;Define which field should be filtered by a phrase.&#34;&#34;&#34;
+    return {&#34;match_phrase&#34;: {field: phrase}}</code></pre>
+</details>
+<div class="desc"><p>Define which field should be filtered by a phrase.</p></div>
+</dd>
+<dt id="nerve_lib.manage_open_search.MSOpenSearch.create_search_bestfield"><code class="name flex">
+<span>def <span class="ident">create_search_bestfield</span></span>(<span>keyword)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@staticmethod
+def create_search_bestfield(keyword):
+    &#34;&#34;&#34;Search for simple keyword.
+
+    If keyword contains multiple works, each word will create a match.
+    &#34;&#34;&#34;
+    return {&#34;multi_match&#34;: {&#34;type&#34;: &#34;best_fields&#34;, &#34;query&#34;: keyword, &#34;lenient&#34;: True}}</code></pre>
+</details>
+<div class="desc"><p>Search for simple keyword.</p>
+<p>If keyword contains multiple works, each word will create a match.</p></div>
+</dd>
+<dt id="nerve_lib.manage_open_search.MSOpenSearch.create_search_multimatch_phrase"><code class="name flex">
+<span>def <span class="ident">create_search_multimatch_phrase</span></span>(<span>phrase)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@staticmethod
+def create_search_multimatch_phrase(phrase):
+    &#34;&#34;&#34;Search for keyword(s) phrase.
+
+    Phrase can have multiple works, result will contain matches of the complete phrase.
+    &#34;&#34;&#34;
+    return {&#34;multi_match&#34;: {&#34;type&#34;: &#34;phrase&#34;, &#34;query&#34;: phrase, &#34;lenient&#34;: True}}</code></pre>
+</details>
+<div class="desc"><p>Search for keyword(s) phrase.</p>
+<p>Phrase can have multiple works, result will contain matches of the complete phrase.</p></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="nerve_lib.manage_open_search.MSOpenSearch.create_index"><code class="name flex">
+<span>def <span class="ident">create_index</span></span>(<span>self, index_name)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def create_index(self, index_name):
+    &#34;&#34;&#34;Create a new OpenSearch Index.&#34;&#34;&#34;
+    payload = {
+        &#34;data&#34;: {
+            &#34;index&#34;: index_name,
+            &#34;body&#34;: {
+                &#34;settings&#34;: {
+                    &#34;index.number_of_shards&#34;: 1,
+                    &#34;index.number_of_replicas&#34;: 1,
+                    &#34;index.refresh_interval&#34;: &#34;1s&#34;,
+                },
+                &#34;mappings&#34;: {&#34;properties&#34;: {}},
+            },
+        },
+        &#34;endpoint&#34;: &#34;indices.create&#34;,
+    }
+
+    return self.__post_payload(&#34;/opensearch/api/ism/apiCaller&#34;, payload)</code></pre>
+</details>
+<div class="desc"><p>Create a new OpenSearch Index.</p></div>
+</dd>
+<dt id="nerve_lib.manage_open_search.MSOpenSearch.delete_index"><code class="name flex">
+<span>def <span class="ident">delete_index</span></span>(<span>self, index_name)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def delete_index(self, index_name):
+    &#34;&#34;&#34;Delete an OpenSearch Index.&#34;&#34;&#34;
+    payload = {&#34;data&#34;: {&#34;index&#34;: index_name}, &#34;endpoint&#34;: &#34;indices.delete&#34;}
+
+    return self.__post_payload(&#34;/opensearch/api/ism/apiCaller&#34;, payload)</code></pre>
+</details>
+<div class="desc"><p>Delete an OpenSearch Index.</p></div>
+</dd>
+<dt id="nerve_lib.manage_open_search.MSOpenSearch.filter_audit_hits"><code class="name flex">
+<span>def <span class="ident">filter_audit_hits</span></span>(<span>self, past_hours=5, node=False, docker=False, **kwargs)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def filter_audit_hits(self, past_hours=5, node=False, docker=False, **kwargs):
+    &#34;&#34;&#34;Filter hits of audit log matching different keywords.
+
+    &gt;&gt;&gt; kwargs = {&#34;Event ID&#34;: 1012}
+    &gt;&gt;&gt; opensearch.filter_audit_hits(index=0, kwargs)
+    &#34;&#34;&#34;
+    if node:
+        response_data = self.get_audit_node(past_hours)
+    elif docker:
+        response_data = self.get_audit_docker(past_hours)
+    else:
+        response_data = self.get_audit(past_hours)
+
+    hits_indexs = [hits[&#34;_source&#34;] for hits in response_data[&#34;rawResponse&#34;][&#34;hits&#34;][&#34;hits&#34;]]
+
+    matching_hits = []
+
+    for hits_index in hits_indexs:
+        add_match = True
+        for name, value in kwargs.items():
+            if hits_index.get(name) != value:
+                add_match = False
+        if add_match:
+            matching_hits.append(hits_index)
+    return matching_hits</code></pre>
+</details>
+<div class="desc"><p>Filter hits of audit log matching different keywords.</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; kwargs = {&quot;Event ID&quot;: 1012}
+&gt;&gt;&gt; opensearch.filter_audit_hits(index=0, kwargs)
+</code></pre></div>
+</dd>
+<dt id="nerve_lib.manage_open_search.MSOpenSearch.filter_docker_logs"><code class="name flex">
+<span>def <span class="ident">filter_docker_logs</span></span>(<span>self, past_hours=5, container_name=None, **kwargs)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def filter_docker_logs(self, past_hours=5, container_name=None, **kwargs):
+    &#34;&#34;&#34;Filter hits of filebeats log matching different keywords.
+
+    &gt;&gt;&gt; kwargs = {&#34;partial_message&#34;: &#34;partial text of the message&#34;}
+    &gt;&gt;&gt; opensearch.filter_docker_logs(past_hours=5, container_name=&#34;my_container&#34;, **kwargs)
+    &#34;&#34;&#34;
+    if self.ms.version_smaller_than(&#34;2.10.0&#34;):
+        response_data = self.get_filebeat(past_hours)
+    else:
+        response_data = self.get_fluentbit(past_hours)
+
+    hits = response_data[&#34;rawResponse&#34;][&#34;hits&#34;][&#34;hits&#34;]
+    matching_hits = []
+
+    for hit in hits:
+        hit_source = hit[&#34;_source&#34;]
+
+        if self.ms.version_smaller_than(&#34;2.10.0&#34;):
+            container = hit_source.get(&#34;container&#34;, {})
+            message = hit_source.get(&#34;message&#34;, &#34;&#34;)
+        else:
+            container = hit_source.get(&#34;container_name&#34;, {})
+            message = hit_source.get(&#34;log&#34;, &#34;&#34;)
+
+        if isinstance(container, dict):
+            if container_name and container.get(&#34;name&#34;) != container_name:
+                continue
+        elif container_name and container != container_name:
+            continue
+
+        partial_message = kwargs.get(&#34;partial_message&#34;, &#34;&#34;)
+
+        # Check if the partial message is contained within the hit message
+        if partial_message and partial_message in message:
+            add_match = True
+            for name, value in kwargs.items():
+                if name != &#34;partial_message&#34; and hit_source.get(name) != value:
+                    add_match = False
+                    break
+            if add_match:
+                matching_hits.append(hit_source)
+
+    return matching_hits</code></pre>
+</details>
+<div class="desc"><p>Filter hits of filebeats log matching different keywords.</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; kwargs = {&quot;partial_message&quot;: &quot;partial text of the message&quot;}
+&gt;&gt;&gt; opensearch.filter_docker_logs(past_hours=5, container_name=&quot;my_container&quot;, **kwargs)
+</code></pre></div>
+</dd>
+<dt id="nerve_lib.manage_open_search.MSOpenSearch.get_audit"><code class="name flex">
+<span>def <span class="ident">get_audit</span></span>(<span>self, past_hours: int = 5, search_filters: list = [])</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_audit(self, past_hours: int = 5, search_filters: list = []):
+    &#34;&#34;&#34;Get audit logs from open search.&#34;&#34;&#34;
+    return self._get_index(index=&#34;audit-ms*&#34;, past_hours=past_hours, search_filters=search_filters)</code></pre>
+</details>
+<div class="desc"><p>Get audit logs from open search.</p></div>
+</dd>
+<dt id="nerve_lib.manage_open_search.MSOpenSearch.get_audit_docker"><code class="name flex">
+<span>def <span class="ident">get_audit_docker</span></span>(<span>self, past_hours: int = 5, search_filters: list = [])</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_audit_docker(self, past_hours: int = 5, search_filters: list = []):
+    &#34;&#34;&#34;Get audit logs node from open search.&#34;&#34;&#34;
+    return self._get_index(
+        index=&#34;audit-docker-log*&#34;, past_hours=past_hours, search_filters=search_filters
+    )</code></pre>
+</details>
+<div class="desc"><p>Get audit logs node from open search.</p></div>
+</dd>
+<dt id="nerve_lib.manage_open_search.MSOpenSearch.get_audit_node"><code class="name flex">
+<span>def <span class="ident">get_audit_node</span></span>(<span>self, past_hours: int = 5, search_filters: list = [])</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_audit_node(self, past_hours: int = 5, search_filters: list = []):
+    &#34;&#34;&#34;Get audit logs node from open search.&#34;&#34;&#34;
+    return self._get_index(index=&#34;audit-node*&#34;, past_hours=past_hours, search_filters=search_filters)</code></pre>
+</details>
+<div class="desc"><p>Get audit logs node from open search.</p></div>
+</dd>
+<dt id="nerve_lib.manage_open_search.MSOpenSearch.get_filebeat"><code class="name flex">
+<span>def <span class="ident">get_filebeat</span></span>(<span>self, past_hours: int = 5, search_filters: list = [])</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_filebeat(self, past_hours: int = 5, search_filters: list = []):
+    &#34;&#34;&#34;Get filebeat logs from open search.&#34;&#34;&#34;
+    return self._get_index(index=&#34;filebeat*&#34;, past_hours=past_hours, search_filters=search_filters)</code></pre>
+</details>
+<div class="desc"><p>Get filebeat logs from open search.</p></div>
+</dd>
+<dt id="nerve_lib.manage_open_search.MSOpenSearch.get_fluentbit"><code class="name flex">
+<span>def <span class="ident">get_fluentbit</span></span>(<span>self, past_hours: int = 5, search_filters: list = [])</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_fluentbit(self, past_hours: int = 5, search_filters: list = []):
+    &#34;&#34;&#34;Get filebeat logs from open search.&#34;&#34;&#34;
+    return self._get_index(index=&#34;docker-log*&#34;, past_hours=past_hours, search_filters=search_filters)</code></pre>
+</details>
+<div class="desc"><p>Get filebeat logs from open search.</p></div>
+</dd>
+<dt id="nerve_lib.manage_open_search.MSOpenSearch.get_nerve"><code class="name flex">
+<span>def <span class="ident">get_nerve</span></span>(<span>self, past_hours: int = 5, search_filters: list = [])</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_nerve(self, past_hours: int = 5, search_filters: list = []):
+    &#34;&#34;&#34;Get nerve logs from open search.&#34;&#34;&#34;
+    return self._get_index(index=&#34;nerve-ms-*&#34;, past_hours=past_hours, search_filters=search_filters)</code></pre>
+</details>
+<div class="desc"><p>Get nerve logs from open search.</p></div>
+</dd>
+<dt id="nerve_lib.manage_open_search.MSOpenSearch.messages_audit"><code class="name flex">
+<span>def <span class="ident">messages_audit</span></span>(<span>self, message_level: str = '', past_hours: int = 5, search_filters: list = [])</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def messages_audit(self, message_level: str = &#34;&#34;, past_hours: int = 5, search_filters: list = []):
+    &#34;&#34;&#34;Get messages from audit logs.
+
+    message_level str, optional:
+        one of &#34;info&#34;, &#34;warn&#34;, &#34;error&#34;
+    &#34;&#34;&#34;
+    all_filters = deepcopy(search_filters)
+    if message_level:
+        all_filters.append(self.create_filter_matchphrase(&#34;message&#34;, f&#34;&#39;level&#39;:&#39;{message_level}&#39;&#34;))
+    response_data = self.get_audit(past_hours, all_filters)
+    return [msg[&#34;_source&#34;] for msg in response_data[&#34;rawResponse&#34;][&#34;hits&#34;][&#34;hits&#34;]]</code></pre>
+</details>
+<div class="desc"><p>Get messages from audit logs.</p>
+<p>message_level str, optional:
+one of "info", "warn", "error"</p></div>
+</dd>
+<dt id="nerve_lib.manage_open_search.MSOpenSearch.messages_filebeat"><code class="name flex">
+<span>def <span class="ident">messages_filebeat</span></span>(<span>self, severity_level: str = '', past_hours: int = 5, search_filters: list = [])</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def messages_filebeat(self, severity_level: str = &#34;&#34;, past_hours: int = 5, search_filters: list = []):
+    &#34;&#34;&#34;Get messages from filebeat logs.
+
+    severtiy_level: one of [&#34;Informational&#34;,&#34;Error&#34;,&#34;Warning&#34;].
+    &#34;&#34;&#34;
+    all_filters = deepcopy(search_filters)
+    if severity_level:
+        all_filters.append(
+            self.create_filter_matchphrase(&#34;syslog.severity_label&#34;, severity_level.title()),
+        )
+    response_data = self.get_filebeat(past_hours, all_filters)
+    return [msg[&#34;_source&#34;] for msg in response_data[&#34;rawResponse&#34;][&#34;hits&#34;][&#34;hits&#34;]]</code></pre>
+</details>
+<div class="desc"><p>Get messages from filebeat logs.</p>
+<p>severtiy_level: one of ["Informational","Error","Warning"].</p></div>
+</dd>
+<dt id="nerve_lib.manage_open_search.MSOpenSearch.messages_nerve"><code class="name flex">
+<span>def <span class="ident">messages_nerve</span></span>(<span>self, message_level: str = '', past_hours: int = 5, search_filters: list = [])</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def messages_nerve(self, message_level: str = &#34;&#34;, past_hours: int = 5, search_filters: list = []):
+    &#34;&#34;&#34;Get messages from nerve logs.&#34;&#34;&#34;
+    all_filters = deepcopy(search_filters)
+    if message_level:
+        all_filters.append(self.create_filter_matchphrase(&#34;message&#34;, f&#34;&#39;level&#39;:&#39;{message_level}&#39;&#34;))
+    response_data = self.get_nerve(past_hours, all_filters)
+    return [json.loads(msg[&#34;_source&#34;][&#34;message&#34;]) for msg in response_data[&#34;rawResponse&#34;][&#34;hits&#34;][&#34;hits&#34;]]</code></pre>
+</details>
+<div class="desc"><p>Get messages from nerve logs.</p></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul>
+<li><a href="#example">Example:</a></li>
+</ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="nerve_lib" href="index.html">nerve_lib</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="nerve_lib.manage_open_search.MSOpenSearch" href="#nerve_lib.manage_open_search.MSOpenSearch">MSOpenSearch</a></code></h4>
+<ul class="">
+<li><code><a title="nerve_lib.manage_open_search.MSOpenSearch.create_filter_matchphrase" href="#nerve_lib.manage_open_search.MSOpenSearch.create_filter_matchphrase">create_filter_matchphrase</a></code></li>
+<li><code><a title="nerve_lib.manage_open_search.MSOpenSearch.create_index" href="#nerve_lib.manage_open_search.MSOpenSearch.create_index">create_index</a></code></li>
+<li><code><a title="nerve_lib.manage_open_search.MSOpenSearch.create_search_bestfield" href="#nerve_lib.manage_open_search.MSOpenSearch.create_search_bestfield">create_search_bestfield</a></code></li>
+<li><code><a title="nerve_lib.manage_open_search.MSOpenSearch.create_search_multimatch_phrase" href="#nerve_lib.manage_open_search.MSOpenSearch.create_search_multimatch_phrase">create_search_multimatch_phrase</a></code></li>
+<li><code><a title="nerve_lib.manage_open_search.MSOpenSearch.delete_index" href="#nerve_lib.manage_open_search.MSOpenSearch.delete_index">delete_index</a></code></li>
+<li><code><a title="nerve_lib.manage_open_search.MSOpenSearch.filter_audit_hits" href="#nerve_lib.manage_open_search.MSOpenSearch.filter_audit_hits">filter_audit_hits</a></code></li>
+<li><code><a title="nerve_lib.manage_open_search.MSOpenSearch.filter_docker_logs" href="#nerve_lib.manage_open_search.MSOpenSearch.filter_docker_logs">filter_docker_logs</a></code></li>
+<li><code><a title="nerve_lib.manage_open_search.MSOpenSearch.get_audit" href="#nerve_lib.manage_open_search.MSOpenSearch.get_audit">get_audit</a></code></li>
+<li><code><a title="nerve_lib.manage_open_search.MSOpenSearch.get_audit_docker" href="#nerve_lib.manage_open_search.MSOpenSearch.get_audit_docker">get_audit_docker</a></code></li>
+<li><code><a title="nerve_lib.manage_open_search.MSOpenSearch.get_audit_node" href="#nerve_lib.manage_open_search.MSOpenSearch.get_audit_node">get_audit_node</a></code></li>
+<li><code><a title="nerve_lib.manage_open_search.MSOpenSearch.get_filebeat" href="#nerve_lib.manage_open_search.MSOpenSearch.get_filebeat">get_filebeat</a></code></li>
+<li><code><a title="nerve_lib.manage_open_search.MSOpenSearch.get_fluentbit" href="#nerve_lib.manage_open_search.MSOpenSearch.get_fluentbit">get_fluentbit</a></code></li>
+<li><code><a title="nerve_lib.manage_open_search.MSOpenSearch.get_nerve" href="#nerve_lib.manage_open_search.MSOpenSearch.get_nerve">get_nerve</a></code></li>
+<li><code><a title="nerve_lib.manage_open_search.MSOpenSearch.messages_audit" href="#nerve_lib.manage_open_search.MSOpenSearch.messages_audit">messages_audit</a></code></li>
+<li><code><a title="nerve_lib.manage_open_search.MSOpenSearch.messages_filebeat" href="#nerve_lib.manage_open_search.MSOpenSearch.messages_filebeat">messages_filebeat</a></code></li>
+<li><code><a title="nerve_lib.manage_open_search.MSOpenSearch.messages_nerve" href="#nerve_lib.manage_open_search.MSOpenSearch.messages_nerve">messages_nerve</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

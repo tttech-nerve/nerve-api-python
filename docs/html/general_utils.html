@@ -1,0 +1,2179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>nerve_lib.general_utils API documentation</title>
+<meta name="description" content="Provides several classes to access a node or a management system …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>nerve_lib.general_utils</code></h1>
+</header>
+<section id="section-intro">
+<p>Provides several classes to access a node or a management system.</p>
+<pre><code>- class NodeHandle: Allows Nerve Node access over localUI or SSH. a ssh-tunnel to the localUI is
+    automatically created
+- class MSHandle: Allows to access a Nerve Management System
+
+The creation of a class will also setup the "setup_logging" to allow a automatic logging output.
+The logging level can be changed by setting the required loglevel using an ENV-var before
+loading the module, or by changing the level of the root logger, e.g.
+
+&gt;&gt;&gt; import logging
+&gt;&gt;&gt;
+&gt;&gt;&gt; logging.root.handlers[0].setLevel("WARNING")
+</code></pre>
+<p>Usable ENV Vars:
+- LOGGING_LEVEL: Default log-level to be used, if not defined, level INFO is selected.
+- DEBUG_LOG_FILE: file name of a log file which will contain all logs including debug output
+- SSH_USR: username of a node for ssh-access
+- SSH_PSW: password of a node for ssh-access
+- NODE_USR: username to access localUI of a node
+- NODE_PSW: password to access localUI of a node
+- MS_USR: username for a management system
+- MS_PSW: password of a management system</p>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="nerve_lib.general_utils.setup_logging"><code class="name flex">
+<span>def <span class="ident">setup_logging</span></span>(<span>compact=False)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def setup_logging(compact=False):
+    &#34;&#34;&#34;Create logging output configuration if it does not exist already.
+
+    Usable ENV Vars:
+        - LOGGING_LEVEL: Default log-level to be used, if not defined, level INFO is selected.
+        - DEBUG_LOG_FILE: file name of a log file which will contain all logs including debug output
+    &#34;&#34;&#34;
+    # remove all handlers which are NOTSET
+    logging.root.handlers = [handler for handler in logging.root.handlers if handler.level != logging.NOTSET]
+
+    # add stream handler
+    stream_handler_configured = any([
+        isinstance(handler, logging.StreamHandler) for handler in logging.root.handlers
+    ])
+    if not stream_handler_configured:
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format=&#34;{levelname:&lt;7} {name:&lt;20.20} :: {message}&#34;
+            if compact
+            else &#34;{levelname:&lt;7} {name:&lt;35.35} {filename:&gt;20.20}-{lineno:&lt;4} :: {message}&#34;,
+            style=&#34;{&#34;,
+        )
+        logging.root.handlers[-1].setLevel(os.environ.get(&#34;LOGGING_LEVEL&#34;, &#34;INFO&#34;).upper())
+        logging.getLogger(&#34;paramiko&#34;).setLevel(logging.WARNING)
+        logging.getLogger(&#34;pykeepass&#34;).setLevel(logging.WARNING)
+        logging.getLogger(&#34;urllib3&#34;).setLevel(logging.WARNING)
+
+    # add file handler
+    if os.environ.get(&#34;DEBUG_LOG_FILE&#34;, &#34;&#34;):
+        file_handler_configured = any([
+            isinstance(handler, logging.FileHandler) for handler in logging.root.handlers
+        ])
+        if not file_handler_configured:
+            logger = logging.getLogger()
+            file_handler = logging.FileHandler(os.environ.get(&#34;DEBUG_LOG_FILE&#34;))
+            formatter = logging.Formatter(
+                &#34;{asctime} {levelname:&lt;7} {name:&lt;25} {filename:&gt;25.25}-{lineno:&lt;4} :: {message}&#34;,
+                style=&#34;{&#34;,
+            )
+            file_handler.setFormatter(formatter)
+            file_handler.setLevel(logging.DEBUG)
+            logger.addHandler(file_handler)</code></pre>
+</details>
+<div class="desc"><p>Create logging output configuration if it does not exist already.</p>
+<p>Usable ENV Vars:
+- LOGGING_LEVEL: Default log-level to be used, if not defined, level INFO is selected.
+- DEBUG_LOG_FILE: file name of a log file which will contain all logs including debug output</p></div>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="nerve_lib.general_utils.CheckStatusCodeError"><code class="flex name class">
+<span>class <span class="ident">CheckStatusCodeError</span></span>
+<span>(</span><span>message: str, status_code: int, response_text: str)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class CheckStatusCodeError(Exception):
+    &#34;&#34;&#34;Error for Invalid response status codes.
+
+    msg.status_code: received status_code
+    msg.value: string error message
+    &#34;&#34;&#34;
+
+    def __init__(self, message: str, status_code: int, response_text: str):
+        super().__init__(message)
+
+        self.status_code = status_code
+        self.value = message
+        self.response_text = response_text</code></pre>
+</details>
+<div class="desc"><p>Error for Invalid response status codes.</p>
+<p>msg.status_code: received status_code
+msg.value: string error message</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="nerve_lib.general_utils.MSHandle"><code class="flex name class">
+<span>class <span class="ident">MSHandle</span></span>
+<span>(</span><span>ms_url: str, user: str = '', password: str = '')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class MSHandle(RequestGeneral):
+    &#34;&#34;&#34;Connect to a MS and handle requests.
+
+    Parameters
+    ----------
+    ms_url : str
+        MS URL to connect to, e.g. test.nerve.cloud.
+    user : str, optional
+        username to login on MS. The default is ENV-var MS_USR.
+    password : str, optional
+        password to logon on MS. The default is ENV-var MS_PSW.
+    &#34;&#34;&#34;
+
+    def __init__(self, ms_url: str, user: str = &#34;&#34;, password: str = &#34;&#34;):
+        if ms_url.startswith(&#34;http&#34;):
+            self.ms_url = ms_url.split(&#34;://&#34;)[1]
+            super().__init__(url=ms_url, api_path=&#34;/&#34;, log=logging.getLogger(f&#34;MS-{ms_url}&#34;))
+        else:
+            self.ms_url = ms_url
+            super().__init__(url=f&#34;https://{ms_url}&#34;, api_path=&#34;/&#34;, log=logging.getLogger(f&#34;MS-{ms_url}&#34;))
+            self._log.debug(&#34;no http/https in URL, adding https://&#34;)
+
+        self.verify = False
+
+        self.usr = user or os.environ.get(&#34;MS_USR&#34;)
+        self.psw = password or os.environ.get(&#34;MS_PSW&#34;)
+
+        self._finalizer = weakref.finalize(self, self._cleanup, self._log)
+
+        self.__ms_version = None
+
+    def __enter__(self):
+        &#34;&#34;&#34;Enter function when using with statement.&#34;&#34;&#34;
+        return self
+
+    def __exit__(self, *args):
+        &#34;&#34;&#34;Exit function when using with statement.&#34;&#34;&#34;
+        self._finalizer()
+
+    @staticmethod
+    def _cleanup(log):
+        &#34;&#34;&#34;Safely cleanup class.
+
+        If the class shall be manually cleaned, call this function:
+
+        &gt;&gt;&gt; node._finalizer()
+        &#34;&#34;&#34;
+        log.debug(&#34;Removing MS Handle&#34;)
+
+    @property
+    def version(self) -&gt; str:
+        &#34;&#34;&#34;Get the version of the MS.
+
+        Returns
+        -------
+        str
+            version of the MS.
+        &#34;&#34;&#34;
+        if not self.__ms_version:
+            self.__ms_version = self.get(&#34;/nerve/update/cloud/current-version&#34;).json().get(&#34;currentVersion&#34;)
+        return self.__ms_version
+
+    def version_smaller_than(self, version: str) -&gt; bool:
+        &#34;&#34;&#34;Check if the MS version is smaller than the provided version.
+
+        Parameters
+        ----------
+        version : str
+            version to be checked.
+
+        Returns
+        -------
+        bool
+            True if the MS version is smaller than the provided version.
+        &#34;&#34;&#34;
+        if not self.version:
+            self._log.info(&#34;No valid version found, assuming version is latest&#34;)
+            return False
+        current_version = self.version.split(&#34;-&#34;)[0].split(&#34;.&#34;)
+        comp_version = version.split(&#34;-&#34;)[0].split(&#34;.&#34;)
+
+        if len(current_version) != 3:  # noqa: PLR2004
+            return False  # e.g integration, master
+        if len(comp_version) != 3:  # noqa: PLR2004
+            return True  # e.g integration, master
+
+        for i in range(3):
+            if int(current_version[i]) &lt; int(comp_version[i]):
+                return True
+            if int(current_version[i]) &gt; int(comp_version[i]):
+                return False
+        return False
+
+    def request(self, method, url, *args, **kwargs) -&gt; type:
+        &#34;&#34;&#34;Execute a request on the MS.&#34;&#34;&#34;
+        accepted_status = kwargs.get(&#34;accepted_status&#34;, [requests.codes.ok, requests.codes.no_content])
+        adding_error_handling = []
+        for error_code in [requests.codes.forbidden]:
+            if error_code not in accepted_status:
+                accepted_status.append(error_code)
+                adding_error_handling.append(error_code)
+        kwargs[&#34;accepted_status&#34;] = accepted_status
+
+        time_start = time.time()
+        timeout = 60
+        retry_count = 0
+        while (time.time() - time_start) &lt; timeout:
+            response = super().request(method, url, *args, **kwargs)
+            if response.status_code in adding_error_handling:
+                if retry_count &gt; 0:
+                    break
+                if response.status_code == requests.codes.forbidden:
+                    self._log.debug(&#34;No valid login, trying to login on MS: %s&#34;, response.text)
+                    self.login()
+                    retry_count += 1
+                else:
+                    self._log.warning(
+                        &#34;%s: %s failed with exit code %s [%d], retry executed in 10 sec&#34;,
+                        method.upper(),
+                        url,
+                        responses[response.status_code],
+                        response.status_code,
+                    )
+                    time.sleep(10)
+                    retry_count += 1
+            else:
+                break
+
+        if not time.time() - time_start &lt; timeout or retry_count &gt; 0:  # If login did not work (timeouted out)
+            for error_code in adding_error_handling:
+                del accepted_status[accepted_status.index(error_code)]
+            super()._check_response(method, response, accepted_status)
+        return response
+
+    def login(self) -&gt; type:
+        &#34;&#34;&#34;Login on MS.&#34;&#34;&#34;
+        self._log.debug(&#34;login on MS&#34;)
+
+        response = self.post(
+            url=&#34;/auth/login&#34;,
+            json={&#34;identity&#34;: self.usr, &#34;secret&#34;: self.psw},
+            accepted_status=[requests.codes.ok],
+        )
+        self._add_header[&#34;sessionid&#34;] = f&#34;{response.headers[&#39;sessionId&#39;]}&#34;
+
+        return response
+
+    def logout(self):
+        &#34;&#34;&#34;Logout from MS.&#34;&#34;&#34;
+        self._log.debug(&#34;Logout from MS&#34;)
+        if self.version_smaller_than(&#34;2.10.0&#34;):
+            return self.get(&#34;/auth/logout&#34;, accepted_status=[requests.codes.ok])
+        return self.get(&#34;/auth/logout&#34;, accepted_status=[requests.codes.no_content])</code></pre>
+</details>
+<div class="desc"><p>Connect to a MS and handle requests.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>ms_url</code></strong> :&ensp;<code>str</code></dt>
+<dd>MS URL to connect to, e.g. test.nerve.cloud.</dd>
+<dt><strong><code>user</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>username to login on MS. The default is ENV-var MS_USR.</dd>
+<dt><strong><code>password</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>password to logon on MS. The default is ENV-var MS_PSW.</dd>
+</dl></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="nerve_lib.general_utils.RequestGeneral" href="#nerve_lib.general_utils.RequestGeneral">RequestGeneral</a></li>
+<li>requests.sessions.Session</li>
+<li>requests.sessions.SessionRedirectMixin</li>
+</ul>
+<h3>Instance variables</h3>
+<dl>
+<dt id="nerve_lib.general_utils.MSHandle.version"><code class="name">prop <span class="ident">version</span> : str</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def version(self) -&gt; str:
+    &#34;&#34;&#34;Get the version of the MS.
+
+    Returns
+    -------
+    str
+        version of the MS.
+    &#34;&#34;&#34;
+    if not self.__ms_version:
+        self.__ms_version = self.get(&#34;/nerve/update/cloud/current-version&#34;).json().get(&#34;currentVersion&#34;)
+    return self.__ms_version</code></pre>
+</details>
+<div class="desc"><p>Get the version of the MS.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>str</code></dt>
+<dd>version of the MS.</dd>
+</dl></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="nerve_lib.general_utils.MSHandle.login"><code class="name flex">
+<span>def <span class="ident">login</span></span>(<span>self) ‑> type</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def login(self) -&gt; type:
+    &#34;&#34;&#34;Login on MS.&#34;&#34;&#34;
+    self._log.debug(&#34;login on MS&#34;)
+
+    response = self.post(
+        url=&#34;/auth/login&#34;,
+        json={&#34;identity&#34;: self.usr, &#34;secret&#34;: self.psw},
+        accepted_status=[requests.codes.ok],
+    )
+    self._add_header[&#34;sessionid&#34;] = f&#34;{response.headers[&#39;sessionId&#39;]}&#34;
+
+    return response</code></pre>
+</details>
+<div class="desc"><p>Login on MS.</p></div>
+</dd>
+<dt id="nerve_lib.general_utils.MSHandle.logout"><code class="name flex">
+<span>def <span class="ident">logout</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def logout(self):
+    &#34;&#34;&#34;Logout from MS.&#34;&#34;&#34;
+    self._log.debug(&#34;Logout from MS&#34;)
+    if self.version_smaller_than(&#34;2.10.0&#34;):
+        return self.get(&#34;/auth/logout&#34;, accepted_status=[requests.codes.ok])
+    return self.get(&#34;/auth/logout&#34;, accepted_status=[requests.codes.no_content])</code></pre>
+</details>
+<div class="desc"><p>Logout from MS.</p></div>
+</dd>
+<dt id="nerve_lib.general_utils.MSHandle.request"><code class="name flex">
+<span>def <span class="ident">request</span></span>(<span>self, method, url, *args, **kwargs) ‑> type</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def request(self, method, url, *args, **kwargs) -&gt; type:
+    &#34;&#34;&#34;Execute a request on the MS.&#34;&#34;&#34;
+    accepted_status = kwargs.get(&#34;accepted_status&#34;, [requests.codes.ok, requests.codes.no_content])
+    adding_error_handling = []
+    for error_code in [requests.codes.forbidden]:
+        if error_code not in accepted_status:
+            accepted_status.append(error_code)
+            adding_error_handling.append(error_code)
+    kwargs[&#34;accepted_status&#34;] = accepted_status
+
+    time_start = time.time()
+    timeout = 60
+    retry_count = 0
+    while (time.time() - time_start) &lt; timeout:
+        response = super().request(method, url, *args, **kwargs)
+        if response.status_code in adding_error_handling:
+            if retry_count &gt; 0:
+                break
+            if response.status_code == requests.codes.forbidden:
+                self._log.debug(&#34;No valid login, trying to login on MS: %s&#34;, response.text)
+                self.login()
+                retry_count += 1
+            else:
+                self._log.warning(
+                    &#34;%s: %s failed with exit code %s [%d], retry executed in 10 sec&#34;,
+                    method.upper(),
+                    url,
+                    responses[response.status_code],
+                    response.status_code,
+                )
+                time.sleep(10)
+                retry_count += 1
+        else:
+            break
+
+    if not time.time() - time_start &lt; timeout or retry_count &gt; 0:  # If login did not work (timeouted out)
+        for error_code in adding_error_handling:
+            del accepted_status[accepted_status.index(error_code)]
+        super()._check_response(method, response, accepted_status)
+    return response</code></pre>
+</details>
+<div class="desc"><p>Execute a request on the MS.</p></div>
+</dd>
+<dt id="nerve_lib.general_utils.MSHandle.version_smaller_than"><code class="name flex">
+<span>def <span class="ident">version_smaller_than</span></span>(<span>self, version: str) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def version_smaller_than(self, version: str) -&gt; bool:
+    &#34;&#34;&#34;Check if the MS version is smaller than the provided version.
+
+    Parameters
+    ----------
+    version : str
+        version to be checked.
+
+    Returns
+    -------
+    bool
+        True if the MS version is smaller than the provided version.
+    &#34;&#34;&#34;
+    if not self.version:
+        self._log.info(&#34;No valid version found, assuming version is latest&#34;)
+        return False
+    current_version = self.version.split(&#34;-&#34;)[0].split(&#34;.&#34;)
+    comp_version = version.split(&#34;-&#34;)[0].split(&#34;.&#34;)
+
+    if len(current_version) != 3:  # noqa: PLR2004
+        return False  # e.g integration, master
+    if len(comp_version) != 3:  # noqa: PLR2004
+        return True  # e.g integration, master
+
+    for i in range(3):
+        if int(current_version[i]) &lt; int(comp_version[i]):
+            return True
+        if int(current_version[i]) &gt; int(comp_version[i]):
+            return False
+    return False</code></pre>
+</details>
+<div class="desc"><p>Check if the MS version is smaller than the provided version.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>version</code></strong> :&ensp;<code>str</code></dt>
+<dd>version to be checked.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>bool</code></dt>
+<dd>True if the MS version is smaller than the provided version.</dd>
+</dl></div>
+</dd>
+</dl>
+</dd>
+<dt id="nerve_lib.general_utils.ManageSshTunnel"><code class="flex name class">
+<span>class <span class="ident">ManageSshTunnel</span></span>
+<span>(</span><span>user: str | None = None, password: str | None = None, log: type | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ManageSshTunnel:
+    &#34;&#34;&#34;Manage SSH Tunnels required to access e.g. localUI of a node.
+
+    Parameters
+    ----------
+    user : str, optional
+        ssh user to connect to the device. The default is None.
+    password : str, optional
+        ssh password to connect to the device. The default is None.
+    log : type, optional
+        handle of logging.getLogger(...). The default is None.
+    &#34;&#34;&#34;
+
+    def __init__(
+        self, user: Optional[str] = None, password: Optional[str] = None, log: Optional[type] = None
+    ):
+        setup_logging()
+        if not log:
+            log = logging.getLogger(&#34;SSH-Tunnel&#34;)
+        self._log = log
+        self.__log_forwarder = logging.getLogger(&#34;SSHTunnelForwarder&#34;)
+        self.__log_forwarder.setLevel(logging.CRITICAL)
+
+        sshtunnel.SSH_TIMEOUT = 10
+        sshtunnel.TUNNEL_TIMEOUT = 10
+
+        self._ssh_usr = user or os.environ.get(&#34;SSH_USR&#34;)
+        self._ssh_psw = password or os.environ.get(&#34;SSH_PSW&#34;)
+
+        # for debugging
+        # sshtunnel.DEFAULT_LOGLEVEL = 1
+
+        # timeout bellow will not work.. so timeout will be ~120 sec.
+        # https://github.com/pahaz/sshtunnel/issues/228
+
+        self._tunnels = {}
+        self._finalizer = weakref.finalize(self, self._cleanup, self._log, self._tunnels)
+
+    def __enter__(self):
+        &#34;&#34;&#34;Enter function when using with statement.&#34;&#34;&#34;
+        return self
+
+    def __exit__(self, *args):
+        &#34;&#34;&#34;Exit function when using with statement.&#34;&#34;&#34;
+        self._finalizer()
+
+    @staticmethod
+    def _cleanup(log, tunnels):
+        &#34;&#34;&#34;Safely cleanup class.
+
+        If the class shall be manually cleaned, call this function:
+
+        &gt;&gt;&gt; ssh_tunnel._finalizer()
+        &#34;&#34;&#34;
+        for tunnel_key, tunnel in tunnels.items():
+            log.debug(&#34;Closing Tunnel %s&#34;, tunnel_key)
+            if tunnel.is_active or tunnel.is_alive:
+                tunnel.stop()
+        tunnels = {}
+
+    def create_tunnel(
+        self,
+        ip_address,
+        remote_bind: tuple[str, int],
+        local_port: Optional[int] = None,
+    ) -&gt; type:
+        &#34;&#34;&#34;Create a specific ssh-tunnel to a node.
+
+        Example:
+
+        &gt;&gt;&gt; ssh_tunnel = ManageSshTunnel(usr, password, logging.getLogger(&#34;CustomName&#34;))
+        &gt;&gt;&gt; ssh_tunnel.create_tunnel(&#34;172.16.0.1&#34;, (&#34;172.20.2.1&#34;, 3333), 3333)
+        &lt;returns tunnel-handle&gt;
+
+        Parameters
+        ----------
+        ip_address : str
+            ip-address of the node.
+        remote_bind : tuple[str, int]
+            tuple containing node containers ip address and port to connect to.
+        local_bind : tuple[str, int]
+            tuple containing local ip address and port to connect to.
+
+        Returns
+        -------
+        type
+            SSHTunnel handle.
+
+        &#34;&#34;&#34;
+        if not local_port:
+            local_port = remote_bind[1]
+
+        # ensure that IP is a string and port is an integer
+        ip_address = (
+            (str(ip_address[0]), int(ip_address[1])) if type(ip_address) is tuple else str(ip_address)
+        )
+
+        remote_bind = (str(remote_bind[0]), int(remote_bind[1]))
+        local_bind = (&#34;127.0.0.1&#34;, int(local_port))
+
+        tunnel_key = f&#34;{ip_address}:: {remote_bind[0]}:{remote_bind[1]} -&gt; {local_bind[1]}&#34;
+
+        if tunnel_key in self._tunnels:
+            self._log.debug(&#34;Tunnel %s existed, nothing todo&#34;, tunnel_key)
+            return self._tunnels[tunnel_key]
+        self._log.debug(&#34;Creating ssh tunnel for %s&#34;, tunnel_key)
+
+        try:
+            tunnel = SSHTunnelForwarder(
+                ssh_address_or_host=ip_address,
+                ssh_username=self._ssh_usr,
+                ssh_password=self._ssh_psw,
+                remote_bind_address=remote_bind,
+                local_bind_address=local_bind,
+                logger=self.__log_forwarder,
+            )
+
+            tunnel.start()
+            self._log.debug(&#34;- is ssh tunnel active/alive?: %s/%s&#34;, tunnel.is_active, tunnel.is_alive)
+            if tunnel.is_active and tunnel.is_alive:
+                self._tunnels[tunnel_key] = tunnel
+
+                return self._tunnels.get(tunnel_key)
+
+            self._log.error(&#34;Could not establish tunnel, tunnel not active&#34;)
+            return None
+        except Exception as ex_msg:
+            self._log.error(&#34;Could not establish tunnel: %s&#34;, ex_msg)
+            return None
+
+    def remove_tunnel(self, local_port: int) -&gt; None:
+        &#34;&#34;&#34;Remove a tunnel and close the connection.
+
+        Parameters
+        ----------
+        local_bind : tuple[str, int]
+            local bind information (ip-address, port).
+        &#34;&#34;&#34;
+        for tunnel_key, tunnel in self._tunnels.items():
+            if tunnel.local_bind_address == (&#34;127.0.0.1&#34;, local_port):
+                self._log.info(&#34;Removing tunnel %s&#34;, tunnel_key)
+                try:
+                    if tunnel.is_active or tunnel.is_alive:
+                        tunnel.stop()
+                except sshtunnel.BaseSSHTunnelForwarderError:
+                    self._log.warning(&#34;Could not stop tunnel before removing&#34;)
+                del self._tunnels[tunnel_key]
+                return
+        self._log.warning(&#34;Tunnel with local port %s does not exist&#34;, local_port)
+
+    def refresh_tunnels(self) -&gt; bool:
+        &#34;&#34;&#34;Check if created tunnels are active and stop/start them in case they are not running.
+
+        Returns
+        -------
+        bool
+            If false: Refreshing tunnel failed, a warning is printed in addition.
+
+        &#34;&#34;&#34;
+        ret_val = True
+        for tunnel_key, tunnel in self._tunnels.items():
+            if tunnel.is_active and tunnel.tunnel_is_up[tunnel.local_bind_address] and tunnel.is_alive:
+                continue
+
+            self._log.info(&#34;Refreshing tunnel %s&#34;, tunnel_key)
+            try:
+                tunnel.stop()
+                tunnel.start()
+            except sshtunnel.BaseSSHTunnelForwarderError:
+                self._log.warning(&#34;Could not refresh tunnel, device is probably not reachable&#34;)
+                ret_val = False
+        return ret_val</code></pre>
+</details>
+<div class="desc"><p>Manage SSH Tunnels required to access e.g. localUI of a node.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>user</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>ssh user to connect to the device. The default is None.</dd>
+<dt><strong><code>password</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>ssh password to connect to the device. The default is None.</dd>
+<dt><strong><code>log</code></strong> :&ensp;<code>type</code>, optional</dt>
+<dd>handle of logging.getLogger(&hellip;). The default is None.</dd>
+</dl></div>
+<h3>Methods</h3>
+<dl>
+<dt id="nerve_lib.general_utils.ManageSshTunnel.create_tunnel"><code class="name flex">
+<span>def <span class="ident">create_tunnel</span></span>(<span>self, ip_address, remote_bind: tuple[str, int], local_port: int | None = None) ‑> type</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def create_tunnel(
+    self,
+    ip_address,
+    remote_bind: tuple[str, int],
+    local_port: Optional[int] = None,
+) -&gt; type:
+    &#34;&#34;&#34;Create a specific ssh-tunnel to a node.
+
+    Example:
+
+    &gt;&gt;&gt; ssh_tunnel = ManageSshTunnel(usr, password, logging.getLogger(&#34;CustomName&#34;))
+    &gt;&gt;&gt; ssh_tunnel.create_tunnel(&#34;172.16.0.1&#34;, (&#34;172.20.2.1&#34;, 3333), 3333)
+    &lt;returns tunnel-handle&gt;
+
+    Parameters
+    ----------
+    ip_address : str
+        ip-address of the node.
+    remote_bind : tuple[str, int]
+        tuple containing node containers ip address and port to connect to.
+    local_bind : tuple[str, int]
+        tuple containing local ip address and port to connect to.
+
+    Returns
+    -------
+    type
+        SSHTunnel handle.
+
+    &#34;&#34;&#34;
+    if not local_port:
+        local_port = remote_bind[1]
+
+    # ensure that IP is a string and port is an integer
+    ip_address = (
+        (str(ip_address[0]), int(ip_address[1])) if type(ip_address) is tuple else str(ip_address)
+    )
+
+    remote_bind = (str(remote_bind[0]), int(remote_bind[1]))
+    local_bind = (&#34;127.0.0.1&#34;, int(local_port))
+
+    tunnel_key = f&#34;{ip_address}:: {remote_bind[0]}:{remote_bind[1]} -&gt; {local_bind[1]}&#34;
+
+    if tunnel_key in self._tunnels:
+        self._log.debug(&#34;Tunnel %s existed, nothing todo&#34;, tunnel_key)
+        return self._tunnels[tunnel_key]
+    self._log.debug(&#34;Creating ssh tunnel for %s&#34;, tunnel_key)
+
+    try:
+        tunnel = SSHTunnelForwarder(
+            ssh_address_or_host=ip_address,
+            ssh_username=self._ssh_usr,
+            ssh_password=self._ssh_psw,
+            remote_bind_address=remote_bind,
+            local_bind_address=local_bind,
+            logger=self.__log_forwarder,
+        )
+
+        tunnel.start()
+        self._log.debug(&#34;- is ssh tunnel active/alive?: %s/%s&#34;, tunnel.is_active, tunnel.is_alive)
+        if tunnel.is_active and tunnel.is_alive:
+            self._tunnels[tunnel_key] = tunnel
+
+            return self._tunnels.get(tunnel_key)
+
+        self._log.error(&#34;Could not establish tunnel, tunnel not active&#34;)
+        return None
+    except Exception as ex_msg:
+        self._log.error(&#34;Could not establish tunnel: %s&#34;, ex_msg)
+        return None</code></pre>
+</details>
+<div class="desc"><p>Create a specific ssh-tunnel to a node.</p>
+<p>Example:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; ssh_tunnel = ManageSshTunnel(usr, password, logging.getLogger(&quot;CustomName&quot;))
+&gt;&gt;&gt; ssh_tunnel.create_tunnel(&quot;172.16.0.1&quot;, (&quot;172.20.2.1&quot;, 3333), 3333)
+&lt;returns tunnel-handle&gt;
+</code></pre>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>ip_address</code></strong> :&ensp;<code>str</code></dt>
+<dd>ip-address of the node.</dd>
+<dt><strong><code>remote_bind</code></strong> :&ensp;<code>tuple[str, int]</code></dt>
+<dd>tuple containing node containers ip address and port to connect to.</dd>
+<dt><strong><code>local_bind</code></strong> :&ensp;<code>tuple[str, int]</code></dt>
+<dd>tuple containing local ip address and port to connect to.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>type</code></dt>
+<dd>SSHTunnel handle.</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.general_utils.ManageSshTunnel.refresh_tunnels"><code class="name flex">
+<span>def <span class="ident">refresh_tunnels</span></span>(<span>self) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def refresh_tunnels(self) -&gt; bool:
+    &#34;&#34;&#34;Check if created tunnels are active and stop/start them in case they are not running.
+
+    Returns
+    -------
+    bool
+        If false: Refreshing tunnel failed, a warning is printed in addition.
+
+    &#34;&#34;&#34;
+    ret_val = True
+    for tunnel_key, tunnel in self._tunnels.items():
+        if tunnel.is_active and tunnel.tunnel_is_up[tunnel.local_bind_address] and tunnel.is_alive:
+            continue
+
+        self._log.info(&#34;Refreshing tunnel %s&#34;, tunnel_key)
+        try:
+            tunnel.stop()
+            tunnel.start()
+        except sshtunnel.BaseSSHTunnelForwarderError:
+            self._log.warning(&#34;Could not refresh tunnel, device is probably not reachable&#34;)
+            ret_val = False
+    return ret_val</code></pre>
+</details>
+<div class="desc"><p>Check if created tunnels are active and stop/start them in case they are not running.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>bool</code></dt>
+<dd>If false: Refreshing tunnel failed, a warning is printed in addition.</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.general_utils.ManageSshTunnel.remove_tunnel"><code class="name flex">
+<span>def <span class="ident">remove_tunnel</span></span>(<span>self, local_port: int) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def remove_tunnel(self, local_port: int) -&gt; None:
+    &#34;&#34;&#34;Remove a tunnel and close the connection.
+
+    Parameters
+    ----------
+    local_bind : tuple[str, int]
+        local bind information (ip-address, port).
+    &#34;&#34;&#34;
+    for tunnel_key, tunnel in self._tunnels.items():
+        if tunnel.local_bind_address == (&#34;127.0.0.1&#34;, local_port):
+            self._log.info(&#34;Removing tunnel %s&#34;, tunnel_key)
+            try:
+                if tunnel.is_active or tunnel.is_alive:
+                    tunnel.stop()
+            except sshtunnel.BaseSSHTunnelForwarderError:
+                self._log.warning(&#34;Could not stop tunnel before removing&#34;)
+            del self._tunnels[tunnel_key]
+            return
+    self._log.warning(&#34;Tunnel with local port %s does not exist&#34;, local_port)</code></pre>
+</details>
+<div class="desc"><p>Remove a tunnel and close the connection.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>local_bind</code></strong> :&ensp;<code>tuple[str, int]</code></dt>
+<dd>local bind information (ip-address, port).</dd>
+</dl></div>
+</dd>
+</dl>
+</dd>
+<dt id="nerve_lib.general_utils.NodeHandle"><code class="flex name class">
+<span>class <span class="ident">NodeHandle</span></span>
+<span>(</span><span>ip_addr: str,<br>user: str | None = None,<br>password: str | None = None,<br>ssh_user: str | None = None,<br>ssh_password: str | None = None,<br>api_path: str = '/',<br>serial_number: str | None = None,<br>local_ui_port: int = 3333,<br>local_ui_ip_addr: str = '172.20.2.1',<br>local_bind_port: int = 3333)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class NodeHandle(RequestGeneral):
+    &#34;&#34;&#34;Node requests and ssh connection management.
+
+    Example:
+
+    &gt;&gt;&gt; node = NodeHandle(&#34;10.248.100.123&#34;, api_path=&#34;/licenses/api/&#34;) # login data provided over ENV vars
+    &gt;&gt;&gt; node.get(&#34;getActiveLicenses&#34;) # Get current used license info
+    &lt;Response [200]&gt;
+    &gt;&gt;&gt; node.get(&#34;/api/dna/status&#34;) # Get status of dna (not using api_path as the url starts with &#34;/&#34;)
+    &lt;Creating tunnel&gt;
+    &lt;Login to device&gt;
+    &lt;Response [200]&gt;
+
+    Parameters
+    ----------
+    ip_addr : str
+        ip address of the node to connect to.
+    user : str, optional
+        localUI username. The default is ENV-var NODE_USR.
+    password : str, optional
+        localUI password. The default is ENV-var NODE_PSW.
+    ssh_user : str, optional
+        ssh username. The default is ENV-var SSH_USR.
+    ssh_password : str, optional
+        ssh password. The default is ENV-var SSH_PSW.
+    api_path : str, optional
+        default api_path to execute requests on. The default is &#34;/&#34;.
+    serial_number : str, optional
+        serial-number of nerve node. The default is None.
+    local_ui_port : int, optional
+        localUI port of the node. The default is 3333.
+    local_ui_ip_addr : str, optional
+        LocalUI ip address of the node. The default is &#34;172.20.2.1&#34;.
+    local_bind_port : int, optional
+        bind port of localUI in local connection. The default is 3333.
+    &#34;&#34;&#34;
+
+    def __init__(
+        self,
+        ip_addr: str,
+        user: Optional[str] = None,
+        password: Optional[str] = None,
+        ssh_user: Optional[str] = None,
+        ssh_password: Optional[str] = None,
+        api_path: str = &#34;/&#34;,
+        serial_number: Optional[str] = None,
+        local_ui_port: int = 3333,
+        local_ui_ip_addr: str = &#34;172.20.2.1&#34;,
+        local_bind_port: int = 3333,
+    ):
+        self.ssh_tunnel = ManageSshTunnel(
+            user=ssh_user,
+            password=ssh_password,
+            log=logging.getLogger(f&#34;SSH-Tunnel-{serial_number}&#34;),
+        )
+        self.ssh = SshGeneral(ip_addr, user=ssh_user, password=ssh_password)
+
+        self.ip_addr = ip_addr
+        self.usr = user or os.environ.get(&#34;NODE_USR&#34;)
+        self.psw = password or os.environ.get(&#34;NODE_PSW&#34;)
+        try:
+            self.serial_number = serial_number or json.loads(
+                self.ssh.execute(&#34;cat /etc/node_config.json&#34;),
+            ).get(&#34;serialId&#34;, &#34;unknown-sid&#34;)
+        except json.decoder.JSONDecodeError:
+            self.serial_number = &#34;unknown-sid&#34;
+
+        self.local_ui_port = local_ui_port
+        self.local_ui_ip_addr = local_ui_ip_addr
+        self.local_bind_port = local_bind_port
+        self.tunnel_node_created = False
+
+        super().__init__(
+            url=f&#34;http://127.0.0.1:{local_bind_port}&#34;,
+            api_path=api_path,
+            log=logging.getLogger(f&#34;Node-{serial_number}&#34;),
+        )
+
+        self._finalizer = weakref.finalize(self, self._cleanup, self._log, self.ssh_tunnel)
+
+    def __enter__(self):
+        &#34;&#34;&#34;Enter function when using with statement.&#34;&#34;&#34;
+        return self
+
+    def __exit__(self, *args):
+        &#34;&#34;&#34;Exit function when using with statement.&#34;&#34;&#34;
+        self._finalizer()
+
+    @staticmethod
+    def _cleanup(log, tunnels):
+        &#34;&#34;&#34;Safely cleanup class.
+
+        If the class shall be manually cleaned, call this function:
+
+        &gt;&gt;&gt; node._finalizer()
+        &#34;&#34;&#34;
+        log.debug(&#34;Removing ssh-tunnels&#34;)
+        tunnels._finalizer()
+
+    def create_tunnel_node(self):
+        &#34;&#34;&#34;Create a ssh-tunnel to the localUI of a node.&#34;&#34;&#34;
+        if not self.tunnel_node_created:
+            remote_bind = (self.local_ui_ip_addr, self.local_ui_port)
+            if self.ssh_tunnel.create_tunnel(self.ip_addr, remote_bind, self.local_bind_port) is not None:
+                self.tunnel_node_created = True
+        return self.tunnel_node_created
+
+    def request(self, method, url, *args, **kwargs) -&gt; type:
+        &#34;&#34;&#34;Execute a request on the node.&#34;&#34;&#34;
+        if not self.create_tunnel_node():
+            msg = &#34;Tunnel could not be created, no request can be executed on local-ui&#34;
+            raise Exception(msg)
+
+        accepted_status = kwargs.get(
+            &#34;accepted_status&#34;,
+            [requests.codes.ok, requests.codes.no_content, requests.codes.created],
+        )
+        adding_error_handling = []
+        for error_code in [
+            requests.codes.unauthorized,
+            requests.codes.not_allowed,
+            requests.codes.bad_gateway,
+        ]:
+            if error_code not in accepted_status:
+                accepted_status.append(error_code)
+                adding_error_handling.append(error_code)
+
+        kwargs[&#34;accepted_status&#34;] = accepted_status
+
+        time_start = time.time()
+        timeout = 60
+        connection_error_count = 0
+        retry_count = 0
+        while (time.time() - time_start) &lt; timeout:
+            try:
+                response = super().request(method, url, *args, **kwargs)
+                if response.status_code in adding_error_handling:
+                    if retry_count &gt; 0:
+                        break
+                    if response.status_code in {requests.codes.unauthorized}:
+                        time.sleep(1)
+                        self.login()
+                        retry_count += 1
+                    else:
+                        self._log.warning(
+                            &#34;%s: %s failed with exit code %s [%d], retry executed in 10 sec&#34;,
+                            method.upper(),
+                            url,
+                            responses[response.status_code],
+                            response.status_code,
+                        )
+                        time.sleep(10)
+                        retry_count += 1
+                else:
+                    break
+            except requests.exceptions.ConnectionError as ex_msg:
+                if (
+                    connection_error_count &lt; 1
+                    and kwargs.get(&#34;content_type&#34;, &#34;application/json&#34;) == &#34;application/json&#34;
+                ):
+                    connection_error_count += 1
+                    self._log.warning(
+                        &#34;Received a ConnectionError when accessing %s:%s, execute command again&#34;,
+                        method,
+                        url,
+                    )
+                    if (time.time() - time_start) &lt; (timeout - 10):
+                        self.ssh_tunnel.refresh_tunnels()
+                        time.sleep(1)
+                        continue
+
+                self._log.error(
+                    &#34;Received a ConnectionError after %ssec when executing the command %s:%s&#34;,
+                    int(time.time() - time_start),
+                    method,
+                    url,
+                )
+                raise ex_msg
+
+        if not time.time() - time_start &lt; timeout or retry_count &gt; 0:  # If login did not work (timed out)
+            for error_code in adding_error_handling:
+                del accepted_status[accepted_status.index(error_code)]
+            super()._check_response(method, response, accepted_status)
+        return response
+
+    def login(self):
+        &#34;&#34;&#34;Login to Node.&#34;&#34;&#34;
+        self._log.debug(&#34;login with URL %s&#34;, self.url)
+        self.ssh_tunnel.refresh_tunnels()
+
+        basic_auth_text = f&#34;{self.usr}:{self.psw}&#34;
+        headers = {
+            &#34;Content-Type&#34;: &#34;application/json&#34;,
+            &#34;accept&#34;: &#34;application/json, text/plain, */*&#34;,
+            &#34;Authorization&#34;: f&#34;Basic {base64.b64encode(basic_auth_text.encode(&#39;utf-8&#39;)).decode(&#39;utf-8&#39;)}&#34;,
+        }
+
+        try:
+            self._add_cookies = {}
+            response = self.post(
+                &#34;/api/auth/login&#34;,
+                json={&#34;username&#34;: self.usr, &#34;password&#34;: self.psw},
+                headers=headers,
+                accepted_status=[requests.codes.ok],
+                timeout=(7.5, 4),
+            )
+            self._add_cookies = response.cookies
+
+        except urllib3.exceptions.MaxRetryError:
+            self._log.error(&#34;Login failed, max retry exceeded&#34;)
+            time.sleep(5)
+        except urllib3.exceptions.NewConnectionError:
+            self._log.error(&#34;Login failed, can&#39;t establish new connection&#34;)
+            time.sleep(5)
+        except requests.exceptions.ConnectionError:
+            self._log.error(&#34;Login failed, request ConnectionError is raised!&#34;)
+            time.sleep(5)
+
+    def logout(self):
+        &#34;&#34;&#34;Logout from Node.&#34;&#34;&#34;
+        self._log.debug(&#34;Logout from Node&#34;)
+        return self.get(&#34;/api/auth/logout&#34;, accepted_status=[requests.codes.no_content])</code></pre>
+</details>
+<div class="desc"><p>Node requests and ssh connection management.</p>
+<p>Example:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; node = NodeHandle(&quot;10.248.100.123&quot;, api_path=&quot;/licenses/api/&quot;) # login data provided over ENV vars
+&gt;&gt;&gt; node.get(&quot;getActiveLicenses&quot;) # Get current used license info
+&lt;Response [200]&gt;
+&gt;&gt;&gt; node.get(&quot;/api/dna/status&quot;) # Get status of dna (not using api_path as the url starts with &quot;/&quot;)
+&lt;Creating tunnel&gt;
+&lt;Login to device&gt;
+&lt;Response [200]&gt;
+</code></pre>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>ip_addr</code></strong> :&ensp;<code>str</code></dt>
+<dd>ip address of the node to connect to.</dd>
+<dt><strong><code>user</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>localUI username. The default is ENV-var NODE_USR.</dd>
+<dt><strong><code>password</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>localUI password. The default is ENV-var NODE_PSW.</dd>
+<dt><strong><code>ssh_user</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>ssh username. The default is ENV-var SSH_USR.</dd>
+<dt><strong><code>ssh_password</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>ssh password. The default is ENV-var SSH_PSW.</dd>
+<dt><strong><code>api_path</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>default api_path to execute requests on. The default is "/".</dd>
+<dt><strong><code>serial_number</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>serial-number of nerve node. The default is None.</dd>
+<dt><strong><code>local_ui_port</code></strong> :&ensp;<code>int</code>, optional</dt>
+<dd>localUI port of the node. The default is 3333.</dd>
+<dt><strong><code>local_ui_ip_addr</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>LocalUI ip address of the node. The default is "172.20.2.1".</dd>
+<dt><strong><code>local_bind_port</code></strong> :&ensp;<code>int</code>, optional</dt>
+<dd>bind port of localUI in local connection. The default is 3333.</dd>
+</dl></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="nerve_lib.general_utils.RequestGeneral" href="#nerve_lib.general_utils.RequestGeneral">RequestGeneral</a></li>
+<li>requests.sessions.Session</li>
+<li>requests.sessions.SessionRedirectMixin</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="nerve_lib.general_utils.NodeHandle.create_tunnel_node"><code class="name flex">
+<span>def <span class="ident">create_tunnel_node</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def create_tunnel_node(self):
+    &#34;&#34;&#34;Create a ssh-tunnel to the localUI of a node.&#34;&#34;&#34;
+    if not self.tunnel_node_created:
+        remote_bind = (self.local_ui_ip_addr, self.local_ui_port)
+        if self.ssh_tunnel.create_tunnel(self.ip_addr, remote_bind, self.local_bind_port) is not None:
+            self.tunnel_node_created = True
+    return self.tunnel_node_created</code></pre>
+</details>
+<div class="desc"><p>Create a ssh-tunnel to the localUI of a node.</p></div>
+</dd>
+<dt id="nerve_lib.general_utils.NodeHandle.login"><code class="name flex">
+<span>def <span class="ident">login</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def login(self):
+    &#34;&#34;&#34;Login to Node.&#34;&#34;&#34;
+    self._log.debug(&#34;login with URL %s&#34;, self.url)
+    self.ssh_tunnel.refresh_tunnels()
+
+    basic_auth_text = f&#34;{self.usr}:{self.psw}&#34;
+    headers = {
+        &#34;Content-Type&#34;: &#34;application/json&#34;,
+        &#34;accept&#34;: &#34;application/json, text/plain, */*&#34;,
+        &#34;Authorization&#34;: f&#34;Basic {base64.b64encode(basic_auth_text.encode(&#39;utf-8&#39;)).decode(&#39;utf-8&#39;)}&#34;,
+    }
+
+    try:
+        self._add_cookies = {}
+        response = self.post(
+            &#34;/api/auth/login&#34;,
+            json={&#34;username&#34;: self.usr, &#34;password&#34;: self.psw},
+            headers=headers,
+            accepted_status=[requests.codes.ok],
+            timeout=(7.5, 4),
+        )
+        self._add_cookies = response.cookies
+
+    except urllib3.exceptions.MaxRetryError:
+        self._log.error(&#34;Login failed, max retry exceeded&#34;)
+        time.sleep(5)
+    except urllib3.exceptions.NewConnectionError:
+        self._log.error(&#34;Login failed, can&#39;t establish new connection&#34;)
+        time.sleep(5)
+    except requests.exceptions.ConnectionError:
+        self._log.error(&#34;Login failed, request ConnectionError is raised!&#34;)
+        time.sleep(5)</code></pre>
+</details>
+<div class="desc"><p>Login to Node.</p></div>
+</dd>
+<dt id="nerve_lib.general_utils.NodeHandle.logout"><code class="name flex">
+<span>def <span class="ident">logout</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def logout(self):
+    &#34;&#34;&#34;Logout from Node.&#34;&#34;&#34;
+    self._log.debug(&#34;Logout from Node&#34;)
+    return self.get(&#34;/api/auth/logout&#34;, accepted_status=[requests.codes.no_content])</code></pre>
+</details>
+<div class="desc"><p>Logout from Node.</p></div>
+</dd>
+<dt id="nerve_lib.general_utils.NodeHandle.request"><code class="name flex">
+<span>def <span class="ident">request</span></span>(<span>self, method, url, *args, **kwargs) ‑> type</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def request(self, method, url, *args, **kwargs) -&gt; type:
+    &#34;&#34;&#34;Execute a request on the node.&#34;&#34;&#34;
+    if not self.create_tunnel_node():
+        msg = &#34;Tunnel could not be created, no request can be executed on local-ui&#34;
+        raise Exception(msg)
+
+    accepted_status = kwargs.get(
+        &#34;accepted_status&#34;,
+        [requests.codes.ok, requests.codes.no_content, requests.codes.created],
+    )
+    adding_error_handling = []
+    for error_code in [
+        requests.codes.unauthorized,
+        requests.codes.not_allowed,
+        requests.codes.bad_gateway,
+    ]:
+        if error_code not in accepted_status:
+            accepted_status.append(error_code)
+            adding_error_handling.append(error_code)
+
+    kwargs[&#34;accepted_status&#34;] = accepted_status
+
+    time_start = time.time()
+    timeout = 60
+    connection_error_count = 0
+    retry_count = 0
+    while (time.time() - time_start) &lt; timeout:
+        try:
+            response = super().request(method, url, *args, **kwargs)
+            if response.status_code in adding_error_handling:
+                if retry_count &gt; 0:
+                    break
+                if response.status_code in {requests.codes.unauthorized}:
+                    time.sleep(1)
+                    self.login()
+                    retry_count += 1
+                else:
+                    self._log.warning(
+                        &#34;%s: %s failed with exit code %s [%d], retry executed in 10 sec&#34;,
+                        method.upper(),
+                        url,
+                        responses[response.status_code],
+                        response.status_code,
+                    )
+                    time.sleep(10)
+                    retry_count += 1
+            else:
+                break
+        except requests.exceptions.ConnectionError as ex_msg:
+            if (
+                connection_error_count &lt; 1
+                and kwargs.get(&#34;content_type&#34;, &#34;application/json&#34;) == &#34;application/json&#34;
+            ):
+                connection_error_count += 1
+                self._log.warning(
+                    &#34;Received a ConnectionError when accessing %s:%s, execute command again&#34;,
+                    method,
+                    url,
+                )
+                if (time.time() - time_start) &lt; (timeout - 10):
+                    self.ssh_tunnel.refresh_tunnels()
+                    time.sleep(1)
+                    continue
+
+            self._log.error(
+                &#34;Received a ConnectionError after %ssec when executing the command %s:%s&#34;,
+                int(time.time() - time_start),
+                method,
+                url,
+            )
+            raise ex_msg
+
+    if not time.time() - time_start &lt; timeout or retry_count &gt; 0:  # If login did not work (timed out)
+        for error_code in adding_error_handling:
+            del accepted_status[accepted_status.index(error_code)]
+        super()._check_response(method, response, accepted_status)
+    return response</code></pre>
+</details>
+<div class="desc"><p>Execute a request on the node.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="nerve_lib.general_utils.RequestGeneral"><code class="flex name class">
+<span>class <span class="ident">RequestGeneral</span></span>
+<span>(</span><span>url: str, api_path: str, log: type)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class RequestGeneral(requests.Session):
+    &#34;&#34;&#34;Manage Requests to Nodes and MS.
+
+    The class can be added as super-class to other instances.
+    It will handle some basic request operations
+    and create exceptions in case the return status is unexpected.
+
+    Parameters
+    ----------
+    url : str
+        URL to execute requests mehtods on.
+    api_path : str
+        default api-path to be used.
+        If requests executed with url &#34;/path&#34; will overwrite the api_path.
+        Creating a request with url &#34;path&#34; will create a request on /api_path/path.
+    log : type
+        logging.getLogger(...) handle to be used.
+
+    Returns
+    -------
+    None.
+
+    &#34;&#34;&#34;
+
+    def __init__(self, url: str, api_path: str, log: type):
+        setup_logging()
+        super().__init__()
+
+        self.url = url
+        self.api_url = urljoin(self.url, api_path)
+        self._log = log
+
+        self._add_header = {
+            &#34;Content-Type&#34;: &#34;application/json&#34;,
+            &#34;accept&#34;: &#34;application/json, text/plain, */*&#34;,
+        }
+        self._add_cookies = {}
+        self._add_auth = {}
+
+    def request(
+        self,
+        method: str,
+        url: str,
+        accepted_status: list = [requests.codes.ok, requests.codes.no_content],
+        content_type: str = &#34;application/json&#34;,
+        **kwargs,
+    ) -&gt; type:
+        &#34;&#34;&#34;Overwrite default request function.
+
+        Function is extended with checking for accepted_status and adds different Headers required for
+        connecting to the device.
+
+        Parameters
+        ----------
+        method : str
+            method for the new :class:`Request` object..
+        url : str
+            URL for the new Request object..
+        accepted_status : list, optional
+            list of allowed status responses, others will create an error.
+            The default is [requests.codes.ok, requests.codes.no_content].
+        content_type : str, optional
+            conent type of the request. The default is &#34;application/json&#34;.
+        **kwargs : TYPE
+            additional key values as defined in requests.request object.
+
+        Returns
+        -------
+        type
+            requests.Response object.
+
+        &#34;&#34;&#34;
+        url = self._prepare_url(url)
+        self._add_header[&#34;Content-Type&#34;] = content_type
+        if &#34;timeout&#34; not in kwargs:
+            kwargs[&#34;timeout&#34;] = (7.5, 5) if method.upper() == &#34;GET&#34; else (7.5, 30)
+        if &#34;headers&#34; not in kwargs:
+            kwargs[&#34;headers&#34;] = self._add_header
+        if &#34;cookies&#34; not in kwargs and self._add_cookies:
+            kwargs[&#34;cookies&#34;] = self._add_cookies
+        if &#34;auth&#34; not in kwargs and self._add_auth:
+            kwargs[&#34;auth&#34;] = self._add_auth
+        time_start = time.time()
+        try:
+            self._log.log(
+                1,
+                &#34;Execute %s:%s with:\nheaders: %s\ncookies: %s&#34;,
+                method,
+                url,
+                kwargs.get(&#34;headers&#34;),
+                kwargs.get(&#34;cookies&#34;),
+            )
+            response = super().request(method, url, **kwargs)
+        except requests.ReadTimeout:
+            self._log.warning(
+                &#34;ReadTimeout was raised (response-time: %s-%s %s), trying to execute command again, ...&#34;,
+                method.upper(),
+                url,
+                round(time.time() - time_start, 2),
+            )
+            response = super().request(method, url, **kwargs)
+        except requests.ConnectTimeout:
+            self._log.warning(
+                &#34;ConnectTimeout was raised (response-time: %s-%s %s), trying to execute command again, ...&#34;,
+                method.upper(),
+                url,
+                round(time.time() - time_start, 2),
+            )
+            response = super().request(method, url, **kwargs)
+
+        return self._check_response(method, response, accepted_status)
+
+    def _prepare_url(self, url: str) -&gt; str:
+        &#34;&#34;&#34;Create URL to be used in a request.
+
+        Parameters
+        ----------
+        url : str
+            URL of request.
+
+        Returns
+        -------
+        str
+            URL for actual created request to the device.
+        &#34;&#34;&#34;
+        if &#34;http&#34; not in url:
+            url = urljoin(self.api_url, url)
+
+        return url
+
+    def _shorten_string(self, input_str: str, max_length: int = 1000) -&gt; str:
+        &#34;&#34;&#34;Reduce string length.
+
+        Parameters
+        ----------
+        input_str : str
+            full input string.
+        max_length : int, optional
+            maximal number of chars to be printed. The default is 1000.
+
+        Returns
+        -------
+        str
+            shortend string with info that it had been cut for printing.
+        &#34;&#34;&#34;
+        if (length := len(input_str)) &gt; max_length:
+            self._log.debug(&#34;cutting Original string: %s&#34;, input_str)
+            input_str = input_str[:max_length]
+            return f&#34;{input_str} ...[output str-len: {length}char]&#34;
+        return input_str
+
+    def _check_response(self, method: str, response: type, accepted_status: list) -&gt; type:
+        # calling_function = inspect.stack()[1][3].upper()
+        if response.status_code not in accepted_status:
+            err_msg = f&#34;FAILED! - {method.upper()} {response.url} {response.reason}&#34;
+            err_msg += f&#34;-&gt; [{responses[response.status_code]}:{response.status_code}]&#34;
+
+            response_text_complete = &#34;&#34;
+            if response.status_code != requests.codes.no_content:
+                response_text_complete = response.text
+                try:
+                    err_msg += f&#34;: {self._shorten_string(json.dumps(response.json(), indent=4))}&#34;
+                except requests.exceptions.JSONDecodeError:
+                    err_msg += f&#34;: {self._shorten_string(response.text)}&#34;
+                except json.decoder.JSONDecodeError:
+                    err_msg += f&#34;: {self._shorten_string(response.text)}&#34;
+            raise CheckStatusCodeError(err_msg, response.status_code, response_text_complete)
+        return response</code></pre>
+</details>
+<div class="desc"><p>Manage Requests to Nodes and MS.</p>
+<p>The class can be added as super-class to other instances.
+It will handle some basic request operations
+and create exceptions in case the return status is unexpected.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>url</code></strong> :&ensp;<code>str</code></dt>
+<dd>URL to execute requests mehtods on.</dd>
+<dt><strong><code>api_path</code></strong> :&ensp;<code>str</code></dt>
+<dd>default api-path to be used.
+If requests executed with url "/path" will overwrite the api_path.
+Creating a request with url "path" will create a request on /api_path/path.</dd>
+<dt><strong><code>log</code></strong> :&ensp;<code>type</code></dt>
+<dd>logging.getLogger(&hellip;) handle to be used.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>None.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>requests.sessions.Session</li>
+<li>requests.sessions.SessionRedirectMixin</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="nerve_lib.general_utils.MSHandle" href="#nerve_lib.general_utils.MSHandle">MSHandle</a></li>
+<li><a title="nerve_lib.general_utils.NodeHandle" href="#nerve_lib.general_utils.NodeHandle">NodeHandle</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="nerve_lib.general_utils.RequestGeneral.request"><code class="name flex">
+<span>def <span class="ident">request</span></span>(<span>self,<br>method: str,<br>url: str,<br>accepted_status: list = [200, 204],<br>content_type: str = 'application/json',<br>**kwargs) ‑> type</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def request(
+    self,
+    method: str,
+    url: str,
+    accepted_status: list = [requests.codes.ok, requests.codes.no_content],
+    content_type: str = &#34;application/json&#34;,
+    **kwargs,
+) -&gt; type:
+    &#34;&#34;&#34;Overwrite default request function.
+
+    Function is extended with checking for accepted_status and adds different Headers required for
+    connecting to the device.
+
+    Parameters
+    ----------
+    method : str
+        method for the new :class:`Request` object..
+    url : str
+        URL for the new Request object..
+    accepted_status : list, optional
+        list of allowed status responses, others will create an error.
+        The default is [requests.codes.ok, requests.codes.no_content].
+    content_type : str, optional
+        conent type of the request. The default is &#34;application/json&#34;.
+    **kwargs : TYPE
+        additional key values as defined in requests.request object.
+
+    Returns
+    -------
+    type
+        requests.Response object.
+
+    &#34;&#34;&#34;
+    url = self._prepare_url(url)
+    self._add_header[&#34;Content-Type&#34;] = content_type
+    if &#34;timeout&#34; not in kwargs:
+        kwargs[&#34;timeout&#34;] = (7.5, 5) if method.upper() == &#34;GET&#34; else (7.5, 30)
+    if &#34;headers&#34; not in kwargs:
+        kwargs[&#34;headers&#34;] = self._add_header
+    if &#34;cookies&#34; not in kwargs and self._add_cookies:
+        kwargs[&#34;cookies&#34;] = self._add_cookies
+    if &#34;auth&#34; not in kwargs and self._add_auth:
+        kwargs[&#34;auth&#34;] = self._add_auth
+    time_start = time.time()
+    try:
+        self._log.log(
+            1,
+            &#34;Execute %s:%s with:\nheaders: %s\ncookies: %s&#34;,
+            method,
+            url,
+            kwargs.get(&#34;headers&#34;),
+            kwargs.get(&#34;cookies&#34;),
+        )
+        response = super().request(method, url, **kwargs)
+    except requests.ReadTimeout:
+        self._log.warning(
+            &#34;ReadTimeout was raised (response-time: %s-%s %s), trying to execute command again, ...&#34;,
+            method.upper(),
+            url,
+            round(time.time() - time_start, 2),
+        )
+        response = super().request(method, url, **kwargs)
+    except requests.ConnectTimeout:
+        self._log.warning(
+            &#34;ConnectTimeout was raised (response-time: %s-%s %s), trying to execute command again, ...&#34;,
+            method.upper(),
+            url,
+            round(time.time() - time_start, 2),
+        )
+        response = super().request(method, url, **kwargs)
+
+    return self._check_response(method, response, accepted_status)</code></pre>
+</details>
+<div class="desc"><p>Overwrite default request function.</p>
+<p>Function is extended with checking for accepted_status and adds different Headers required for
+connecting to the device.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>method</code></strong> :&ensp;<code>str</code></dt>
+<dd>method for the new :class:<code>Request</code> object..</dd>
+<dt><strong><code>url</code></strong> :&ensp;<code>str</code></dt>
+<dd>URL for the new Request object..</dd>
+<dt><strong><code>accepted_status</code></strong> :&ensp;<code>list</code>, optional</dt>
+<dd>list of allowed status responses, others will create an error.
+The default is [requests.codes.ok, requests.codes.no_content].</dd>
+<dt><strong><code>content_type</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>conent type of the request. The default is "application/json".</dd>
+<dt><strong><code>**kwargs</code></strong> :&ensp;<code>TYPE</code></dt>
+<dd>additional key values as defined in requests.request object.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>type</code></dt>
+<dd>requests.Response object.</dd>
+</dl></div>
+</dd>
+</dl>
+</dd>
+<dt id="nerve_lib.general_utils.SshGeneral"><code class="flex name class">
+<span>class <span class="ident">SshGeneral</span></span>
+<span>(</span><span>ip_addr: str, user: str = '', password: str = '')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SshGeneral:
+    &#34;&#34;&#34;Allow to access a device over ssh and execute commands.
+
+    Parameters
+    ----------
+    ip_addr : str
+        IP address of the device.
+    user : str
+        ssh username to login.
+    password : str
+        ssh password to login.
+    &#34;&#34;&#34;
+
+    def __init__(self, ip_addr: str, user: str = &#34;&#34;, password: str = &#34;&#34;):
+        setup_logging()
+        self.ip_addr = ip_addr
+        self._ssh_usr = user or os.environ.get(&#34;SSH_USR&#34;)
+        self._ssh_psw = password or os.environ.get(&#34;SSH_PSW&#34;)
+        self._log = logging.getLogger(f&#34;SSH-{ip_addr}&#34;)
+
+    def __enter__(self):
+        &#34;&#34;&#34;Enter function when using with statement.&#34;&#34;&#34;
+        return self
+
+    def __exit__(self, *args):
+        &#34;&#34;&#34;Exit function when using with statement.&#34;&#34;&#34;
+
+    def connect(self, timeout: float = 30.0, key: Optional[str] = None, compress: bool = False) -&gt; type:
+        &#34;&#34;&#34;Create an ssh connection to a device.
+
+        Parameters
+        ----------
+        timeout : float, optional
+            an optional timeout (in seconds) for the TCP connect. The default is 30.0.
+        key : str, optional
+            an optional private key to use for authentication. The default is None.
+        compress : bool, optional
+            set to True to turn on compression. The default is False.
+
+        Returns
+        -------
+        type
+            get handle of a paramiko.SSHClient object.
+
+        &#34;&#34;&#34;
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ip_addr = self.ip_addr[0] if type(self.ip_addr) is tuple else self.ip_addr
+        port = self.ip_addr[1] if type(self.ip_addr) is tuple else 22
+        if key is not None:
+            k = paramiko.RSAKey.from_private_key_file(key)
+            ssh.connect(
+                ip_addr,
+                port=port,
+                username=self._ssh_usr,
+                pkey=k,
+                timeout=timeout,
+                compress=compress,
+            )
+        else:
+            ssh.connect(
+                ip_addr,
+                port=port,
+                username=self._ssh_usr,
+                password=self._ssh_psw,
+                timeout=timeout,
+                compress=compress,
+            )
+
+        return ssh
+
+    def execute(
+        self,
+        cmd: str,
+        timeout: float = 30.0,
+        ssh: Optional[type] = None,
+        as_sudo: bool = False,
+        compress: bool = False,
+        sudo_psw: Optional[str] = None,
+    ) -&gt; str:
+        &#34;&#34;&#34;Execute a ssh command on a device.
+
+        Parameters
+        ----------
+        cmd : str
+            command to be executed.
+        timeout : float, optional
+            set command&#39;s channel timeout. See .Channel.settimeout. The default is 30.0.
+        ssh : type, optional
+            paramiko.SSHCLient. If defined an already existing connection will be used. The default is None.
+        as_sudo : bool, optional
+            Set to True to execute a command as sudo. The default is False.
+        compress : bool, optional
+            set to True to turn on compression. The default is False.
+        sudo_psw : str, optional
+            If as_sudo is used, the sudo password can be provided here. The default is None.
+
+        Returns
+        -------
+        str
+            concatenated output of stdout and stderr.
+        &#34;&#34;&#34;
+        if as_sudo:
+            if sudo_psw is None:
+                sudo_psw = self._ssh_psw
+            cmd = f&#34;echo {sudo_psw} | sudo -S {cmd}&#34;
+        output = &#34;&#34;
+        ssh_ = ssh or self.connect(timeout, compress=compress)
+
+        _stdin, stdout, stderr = ssh_.exec_command(cmd, timeout=timeout)
+        output += &#34;&#34;.join(stdout.readlines())
+        output += &#34;&#34;.join(stderr.readlines())
+        if not ssh:
+            ssh_.close()
+        return output.replace(&#34;[sudo] password for admin: &#34;, &#34;&#34;)
+
+    def reboot(self):
+        &#34;&#34;&#34;Execute a reboot command over ssh on a device.&#34;&#34;&#34;
+        self._log.info(&#34;Rebooting the DUT&#34;)
+        self.execute(&#34;reboot&#34;, as_sudo=True)
+        time.sleep(30)
+
+    def check_port_open(self, port: int) -&gt; bool:
+        &#34;&#34;&#34;Test is port open on Node, e.g. port 22 (SSH).
+
+        Parameters
+        ----------
+        port : int
+            port to be checked.
+
+        Returns
+        -------
+        bool
+            validates if port is open.
+        &#34;&#34;&#34;
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(3)
+        try:
+            ip_addr = self.ip_addr[0] if type(self.ip_addr) is tuple else self.ip_addr
+            s.connect((ip_addr, int(port)))
+            s.shutdown(socket.SHUT_RDWR)
+            return True
+        except Exception:
+            return False
+        finally:
+            s.close()
+
+    def copy(self, file_name: str, file_path: str = &#34;images/&#34;, max_retries: int = 3) -&gt; bool:
+        &#34;&#34;&#34;Copy a file via SCP to a device.
+
+        Parameters
+        ----------
+        file_name : str
+            name of the file, will be the name in home directory of the device.
+        file_path : str, optional
+            local-file path. The default is &#34;images/&#34;.
+        max_retries : int, optional
+            executing a retry in case the copy action failes. The default is 3.
+
+        Returns
+        -------
+        bool
+            validates if the copy execution was successful.
+        &#34;&#34;&#34;
+        retry_count = 0
+        while True:
+            self._log.info(&#34;    - Copy file %s&#34;, file_name)
+            try:
+                with (
+                    self.connect() as connection,
+                    SCPClient(connection.get_transport(), socket_timeout=60.0) as scp,
+                ):
+                    scp.put(os.path.join(file_path, file_name), file_name)
+                return True
+            except Exception as ex_msg:
+                self._log.error(&#34;Failed to copy file to device: %s&#34;, ex_msg)
+                if retry_count &gt;= max_retries:
+                    return False
+                retry_count += 1
+                self._log.info(&#34;copy file failed, executing retry in 20 sec...&#34;)
+                time.sleep(20)</code></pre>
+</details>
+<div class="desc"><p>Allow to access a device over ssh and execute commands.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>ip_addr</code></strong> :&ensp;<code>str</code></dt>
+<dd>IP address of the device.</dd>
+<dt><strong><code>user</code></strong> :&ensp;<code>str</code></dt>
+<dd>ssh username to login.</dd>
+<dt><strong><code>password</code></strong> :&ensp;<code>str</code></dt>
+<dd>ssh password to login.</dd>
+</dl></div>
+<h3>Methods</h3>
+<dl>
+<dt id="nerve_lib.general_utils.SshGeneral.check_port_open"><code class="name flex">
+<span>def <span class="ident">check_port_open</span></span>(<span>self, port: int) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def check_port_open(self, port: int) -&gt; bool:
+    &#34;&#34;&#34;Test is port open on Node, e.g. port 22 (SSH).
+
+    Parameters
+    ----------
+    port : int
+        port to be checked.
+
+    Returns
+    -------
+    bool
+        validates if port is open.
+    &#34;&#34;&#34;
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.settimeout(3)
+    try:
+        ip_addr = self.ip_addr[0] if type(self.ip_addr) is tuple else self.ip_addr
+        s.connect((ip_addr, int(port)))
+        s.shutdown(socket.SHUT_RDWR)
+        return True
+    except Exception:
+        return False
+    finally:
+        s.close()</code></pre>
+</details>
+<div class="desc"><p>Test is port open on Node, e.g. port 22 (SSH).</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>port</code></strong> :&ensp;<code>int</code></dt>
+<dd>port to be checked.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>bool</code></dt>
+<dd>validates if port is open.</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.general_utils.SshGeneral.connect"><code class="name flex">
+<span>def <span class="ident">connect</span></span>(<span>self, timeout: float = 30.0, key: str | None = None, compress: bool = False) ‑> type</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def connect(self, timeout: float = 30.0, key: Optional[str] = None, compress: bool = False) -&gt; type:
+    &#34;&#34;&#34;Create an ssh connection to a device.
+
+    Parameters
+    ----------
+    timeout : float, optional
+        an optional timeout (in seconds) for the TCP connect. The default is 30.0.
+    key : str, optional
+        an optional private key to use for authentication. The default is None.
+    compress : bool, optional
+        set to True to turn on compression. The default is False.
+
+    Returns
+    -------
+    type
+        get handle of a paramiko.SSHClient object.
+
+    &#34;&#34;&#34;
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ip_addr = self.ip_addr[0] if type(self.ip_addr) is tuple else self.ip_addr
+    port = self.ip_addr[1] if type(self.ip_addr) is tuple else 22
+    if key is not None:
+        k = paramiko.RSAKey.from_private_key_file(key)
+        ssh.connect(
+            ip_addr,
+            port=port,
+            username=self._ssh_usr,
+            pkey=k,
+            timeout=timeout,
+            compress=compress,
+        )
+    else:
+        ssh.connect(
+            ip_addr,
+            port=port,
+            username=self._ssh_usr,
+            password=self._ssh_psw,
+            timeout=timeout,
+            compress=compress,
+        )
+
+    return ssh</code></pre>
+</details>
+<div class="desc"><p>Create an ssh connection to a device.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>timeout</code></strong> :&ensp;<code>float</code>, optional</dt>
+<dd>an optional timeout (in seconds) for the TCP connect. The default is 30.0.</dd>
+<dt><strong><code>key</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>an optional private key to use for authentication. The default is None.</dd>
+<dt><strong><code>compress</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>set to True to turn on compression. The default is False.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>type</code></dt>
+<dd>get handle of a paramiko.SSHClient object.</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.general_utils.SshGeneral.copy"><code class="name flex">
+<span>def <span class="ident">copy</span></span>(<span>self, file_name: str, file_path: str = 'images/', max_retries: int = 3) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def copy(self, file_name: str, file_path: str = &#34;images/&#34;, max_retries: int = 3) -&gt; bool:
+    &#34;&#34;&#34;Copy a file via SCP to a device.
+
+    Parameters
+    ----------
+    file_name : str
+        name of the file, will be the name in home directory of the device.
+    file_path : str, optional
+        local-file path. The default is &#34;images/&#34;.
+    max_retries : int, optional
+        executing a retry in case the copy action failes. The default is 3.
+
+    Returns
+    -------
+    bool
+        validates if the copy execution was successful.
+    &#34;&#34;&#34;
+    retry_count = 0
+    while True:
+        self._log.info(&#34;    - Copy file %s&#34;, file_name)
+        try:
+            with (
+                self.connect() as connection,
+                SCPClient(connection.get_transport(), socket_timeout=60.0) as scp,
+            ):
+                scp.put(os.path.join(file_path, file_name), file_name)
+            return True
+        except Exception as ex_msg:
+            self._log.error(&#34;Failed to copy file to device: %s&#34;, ex_msg)
+            if retry_count &gt;= max_retries:
+                return False
+            retry_count += 1
+            self._log.info(&#34;copy file failed, executing retry in 20 sec...&#34;)
+            time.sleep(20)</code></pre>
+</details>
+<div class="desc"><p>Copy a file via SCP to a device.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>file_name</code></strong> :&ensp;<code>str</code></dt>
+<dd>name of the file, will be the name in home directory of the device.</dd>
+<dt><strong><code>file_path</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>local-file path. The default is "images/".</dd>
+<dt><strong><code>max_retries</code></strong> :&ensp;<code>int</code>, optional</dt>
+<dd>executing a retry in case the copy action failes. The default is 3.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>bool</code></dt>
+<dd>validates if the copy execution was successful.</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.general_utils.SshGeneral.execute"><code class="name flex">
+<span>def <span class="ident">execute</span></span>(<span>self,<br>cmd: str,<br>timeout: float = 30.0,<br>ssh: type | None = None,<br>as_sudo: bool = False,<br>compress: bool = False,<br>sudo_psw: str | None = None) ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def execute(
+    self,
+    cmd: str,
+    timeout: float = 30.0,
+    ssh: Optional[type] = None,
+    as_sudo: bool = False,
+    compress: bool = False,
+    sudo_psw: Optional[str] = None,
+) -&gt; str:
+    &#34;&#34;&#34;Execute a ssh command on a device.
+
+    Parameters
+    ----------
+    cmd : str
+        command to be executed.
+    timeout : float, optional
+        set command&#39;s channel timeout. See .Channel.settimeout. The default is 30.0.
+    ssh : type, optional
+        paramiko.SSHCLient. If defined an already existing connection will be used. The default is None.
+    as_sudo : bool, optional
+        Set to True to execute a command as sudo. The default is False.
+    compress : bool, optional
+        set to True to turn on compression. The default is False.
+    sudo_psw : str, optional
+        If as_sudo is used, the sudo password can be provided here. The default is None.
+
+    Returns
+    -------
+    str
+        concatenated output of stdout and stderr.
+    &#34;&#34;&#34;
+    if as_sudo:
+        if sudo_psw is None:
+            sudo_psw = self._ssh_psw
+        cmd = f&#34;echo {sudo_psw} | sudo -S {cmd}&#34;
+    output = &#34;&#34;
+    ssh_ = ssh or self.connect(timeout, compress=compress)
+
+    _stdin, stdout, stderr = ssh_.exec_command(cmd, timeout=timeout)
+    output += &#34;&#34;.join(stdout.readlines())
+    output += &#34;&#34;.join(stderr.readlines())
+    if not ssh:
+        ssh_.close()
+    return output.replace(&#34;[sudo] password for admin: &#34;, &#34;&#34;)</code></pre>
+</details>
+<div class="desc"><p>Execute a ssh command on a device.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>cmd</code></strong> :&ensp;<code>str</code></dt>
+<dd>command to be executed.</dd>
+<dt><strong><code>timeout</code></strong> :&ensp;<code>float</code>, optional</dt>
+<dd>set command's channel timeout. See .Channel.settimeout. The default is 30.0.</dd>
+<dt><strong><code>ssh</code></strong> :&ensp;<code>type</code>, optional</dt>
+<dd>paramiko.SSHCLient. If defined an already existing connection will be used. The default is None.</dd>
+<dt><strong><code>as_sudo</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>Set to True to execute a command as sudo. The default is False.</dd>
+<dt><strong><code>compress</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>set to True to turn on compression. The default is False.</dd>
+<dt><strong><code>sudo_psw</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>If as_sudo is used, the sudo password can be provided here. The default is None.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>str</code></dt>
+<dd>concatenated output of stdout and stderr.</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.general_utils.SshGeneral.reboot"><code class="name flex">
+<span>def <span class="ident">reboot</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def reboot(self):
+    &#34;&#34;&#34;Execute a reboot command over ssh on a device.&#34;&#34;&#34;
+    self._log.info(&#34;Rebooting the DUT&#34;)
+    self.execute(&#34;reboot&#34;, as_sudo=True)
+    time.sleep(30)</code></pre>
+</details>
+<div class="desc"><p>Execute a reboot command over ssh on a device.</p></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="nerve_lib" href="index.html">nerve_lib</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="nerve_lib.general_utils.setup_logging" href="#nerve_lib.general_utils.setup_logging">setup_logging</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="nerve_lib.general_utils.CheckStatusCodeError" href="#nerve_lib.general_utils.CheckStatusCodeError">CheckStatusCodeError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="nerve_lib.general_utils.MSHandle" href="#nerve_lib.general_utils.MSHandle">MSHandle</a></code></h4>
+<ul class="">
+<li><code><a title="nerve_lib.general_utils.MSHandle.login" href="#nerve_lib.general_utils.MSHandle.login">login</a></code></li>
+<li><code><a title="nerve_lib.general_utils.MSHandle.logout" href="#nerve_lib.general_utils.MSHandle.logout">logout</a></code></li>
+<li><code><a title="nerve_lib.general_utils.MSHandle.request" href="#nerve_lib.general_utils.MSHandle.request">request</a></code></li>
+<li><code><a title="nerve_lib.general_utils.MSHandle.version" href="#nerve_lib.general_utils.MSHandle.version">version</a></code></li>
+<li><code><a title="nerve_lib.general_utils.MSHandle.version_smaller_than" href="#nerve_lib.general_utils.MSHandle.version_smaller_than">version_smaller_than</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="nerve_lib.general_utils.ManageSshTunnel" href="#nerve_lib.general_utils.ManageSshTunnel">ManageSshTunnel</a></code></h4>
+<ul class="">
+<li><code><a title="nerve_lib.general_utils.ManageSshTunnel.create_tunnel" href="#nerve_lib.general_utils.ManageSshTunnel.create_tunnel">create_tunnel</a></code></li>
+<li><code><a title="nerve_lib.general_utils.ManageSshTunnel.refresh_tunnels" href="#nerve_lib.general_utils.ManageSshTunnel.refresh_tunnels">refresh_tunnels</a></code></li>
+<li><code><a title="nerve_lib.general_utils.ManageSshTunnel.remove_tunnel" href="#nerve_lib.general_utils.ManageSshTunnel.remove_tunnel">remove_tunnel</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="nerve_lib.general_utils.NodeHandle" href="#nerve_lib.general_utils.NodeHandle">NodeHandle</a></code></h4>
+<ul class="">
+<li><code><a title="nerve_lib.general_utils.NodeHandle.create_tunnel_node" href="#nerve_lib.general_utils.NodeHandle.create_tunnel_node">create_tunnel_node</a></code></li>
+<li><code><a title="nerve_lib.general_utils.NodeHandle.login" href="#nerve_lib.general_utils.NodeHandle.login">login</a></code></li>
+<li><code><a title="nerve_lib.general_utils.NodeHandle.logout" href="#nerve_lib.general_utils.NodeHandle.logout">logout</a></code></li>
+<li><code><a title="nerve_lib.general_utils.NodeHandle.request" href="#nerve_lib.general_utils.NodeHandle.request">request</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="nerve_lib.general_utils.RequestGeneral" href="#nerve_lib.general_utils.RequestGeneral">RequestGeneral</a></code></h4>
+<ul class="">
+<li><code><a title="nerve_lib.general_utils.RequestGeneral.request" href="#nerve_lib.general_utils.RequestGeneral.request">request</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="nerve_lib.general_utils.SshGeneral" href="#nerve_lib.general_utils.SshGeneral">SshGeneral</a></code></h4>
+<ul class="">
+<li><code><a title="nerve_lib.general_utils.SshGeneral.check_port_open" href="#nerve_lib.general_utils.SshGeneral.check_port_open">check_port_open</a></code></li>
+<li><code><a title="nerve_lib.general_utils.SshGeneral.connect" href="#nerve_lib.general_utils.SshGeneral.connect">connect</a></code></li>
+<li><code><a title="nerve_lib.general_utils.SshGeneral.copy" href="#nerve_lib.general_utils.SshGeneral.copy">copy</a></code></li>
+<li><code><a title="nerve_lib.general_utils.SshGeneral.execute" href="#nerve_lib.general_utils.SshGeneral.execute">execute</a></code></li>
+<li><code><a title="nerve_lib.general_utils.SshGeneral.reboot" href="#nerve_lib.general_utils.SshGeneral.reboot">reboot</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>
