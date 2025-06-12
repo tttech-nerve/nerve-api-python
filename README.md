@@ -1,3 +1,5 @@
+![Nerve](./docs/logo-nerve-black.svg){style="display: block; margin: 0 auto"}
+
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
 [![Python 3.9](https://img.shields.io/badge/python-3.9-blue.svg)](https://www.python.org/downloads/release/python-390/) [![Python 3.10](https://img.shields.io/badge/python-3.10-blue.svg)](https://www.python.org/downloads/release/python-3100/) [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/) [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/release/python-3120/) [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/release/python-3130/)
@@ -12,7 +14,7 @@ The `nerve_lib` provides an interface to the REST API of a [Nerve Management Sys
 - <a href="#h_installation">Installation</a>
     - <a href="#hh_poetry">Poetry</a>
     - <a href="#hh_manual">Manual</a>
-- <a href="#h_documentation">Documentation</a>
+- <a href="#h_usage">Documentation</a>
     - <a href="#hh_overview">Overview</a>
     - <a href="#hh_examples">Examples</a>
 
@@ -40,9 +42,9 @@ If the python project or script is not managed by poetry, the [`nerve_lib`](./ne
 pip install -r requirements.txt
 ```
 
-# Documentation<a name="h_documentation"></a>
+# Usage<a name="h_usage"></a>
 
-The `nerve_lib` provides functions to manage the NERVE Management System and NERVE Nodes via API calls. It is split into different regions to define API interfaces into logical groups. [Overview](#hh_overview) and [Examples](#hh_examples) provide a very rough guideline on how to use the library. For details have a look at the code documentation. To browse the documentation it is recommended to clone the repository and open [docs/html/index.html](./docs/html/index.html) in a browser (alternatively the less interactive markdown version of the docs can be browsed [here](./docs/markdown/index.md)).
+The `nerve_lib` provides functions to manage the NERVE Management System and NERVE Nodes via API calls. It is split into different regions to define API interfaces into logical groups. [Overview](#hh_overview) and [Examples](#hh_examples) provide a very rough guideline on how to use the library. For details have a look at the code [documentation](./docs/markdown/index.md). A more interactive version of the documentation is available by cloning the repository and opening [docs/html/index.html](./docs/html/index.html) in a browser.
 
 ## Overview<a name="hh_overview"></a>
 | Handle           | Description                                           |
