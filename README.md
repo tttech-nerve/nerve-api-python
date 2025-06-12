@@ -1,5 +1,7 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
+
 [![Python 3.9](https://img.shields.io/badge/python-3.9-blue.svg)](https://www.python.org/downloads/release/python-390/) [![Python 3.10](https://img.shields.io/badge/python-3.10-blue.svg)](https://www.python.org/downloads/release/python-3100/) [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/) [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/release/python-3120/) [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/release/python-3130/)
+
 [![Nerve 2.9](https://img.shields.io/badge/nerve-2.9-blue.svg)](https://docs.nerve.cloud/) [![Nerve 2.10](https://img.shields.io/badge/nerve-2.10-blue.svg)](https://docs.nerve.cloud/) [![Nerve 3.0](https://img.shields.io/badge/nerve-3.0-blue.svg)](https://docs.nerve.cloud/)
 
 # Nerve Lib
@@ -24,7 +26,7 @@ The `nerve_lib` is implemented as a [poetry](https://python-poetry.org/) package
 
 To add the `nerve_lib` to your python project with poetry simply add the dependency with
 ```bash
-poetry add git+ssh:git@github.com:tttech-nerve/nerve-api-python.git#checkin-initial-state
+poetry add git+https://github.com/tttech-nerve/nerve-api-python.git
 ```
 and then install it into the environment with
 ```bash
