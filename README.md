@@ -42,7 +42,7 @@ pip install -r requirements.txt
 
 # Documentation<a name="h_documentation"></a>
 
-The `nerve_lib` provides functions to manage the NERVE Management System and NERVE Nodes via API calls. It is split into different regions to define API interfaces into logical groups.
+The `nerve_lib` provides functions to manage the NERVE Management System and NERVE Nodes via API calls. It is split into different regions to define API interfaces into logical groups. [Overview](#hh_overview) and [Examples](#hh_examples) provide a very rough guideline on how to use the library. For details have a look at the code documentation. To browse the documentation it is recommended to clone the repository and open [docs/html/index.html](./docs/html/index.html) in a browser (alternatively the less interactive markdown version of the docs can be browsed [here](./docs/markdown/index.md)).
 
 ## Overview<a name="hh_overview"></a>
 | Handle           | Description                                           |

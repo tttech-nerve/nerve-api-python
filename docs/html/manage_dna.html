@@ -1,0 +1,655 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>nerve_lib.manage_dna API documentation</title>
+<meta name="description" content="Manage DNA releated function on a Node or MS …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>nerve_lib.manage_dna</code></h1>
+</header>
+<section id="section-intro">
+<p>Manage DNA releated function on a Node or MS.</p>
+<p>Either import DNA (for managing DNA from a management system) or LocalDNA to manage DNA directly on a Node.</p>
+<h2 id="example">Example:</h2>
+<pre><code>&gt;&gt;&gt; from nerve_lib import MSHandle
+&gt;&gt;&gt; from nerve_lib import MSDNA
+&gt;&gt;&gt; with MSHandle("testms.nerve.cloud") as ms_handle:
+&gt;&gt;&gt;     dna = MSDNA(ms_handle, "SERIALNUM123")
+&gt;&gt;&gt;     dna.get_status()
+&lt;status of dna file of device with serial-number SERIALNUM123&gt;
+&gt;&gt;&gt; # Or manage DNA direclty on localUI of a node
+&gt;&gt;&gt; from nerve_lib import NodeHandle
+&gt;&gt;&gt; from nerve_lib import LocalDNA
+&gt;&gt;&gt; with NodeHandle(&lt;ip_address&gt;) as node:
+&gt;&gt;&gt;     dna_local_ui = LocalDNA(node)
+&gt;&gt;&gt;     dna_local_ui.get_status()
+&lt;status of dna file of node&gt;
+</code></pre>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="nerve_lib.manage_dna.DNACommon"><code class="flex name class">
+<span>class <span class="ident">DNACommon</span></span>
+<span>(</span><span>handle, base_url: str, log: type)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class DNACommon:
+    &#34;&#34;&#34;Common class for localUI and MS based DNA handling.
+
+    Parameters
+    ----------
+    handle : type
+        node or ms handle.
+    base_url : str
+        depending on node or ms handle, the base_url must be defined correct.
+    log : type
+        used logger to output logging data.
+    &#34;&#34;&#34;
+
+    def __init__(self, handle, base_url: str, log: type):
+        self.handle = handle
+        self._log = log
+        self.base_url = base_url
+
+    def __get_files(self, location: str) -&gt; dict:
+        &#34;&#34;&#34;Get DNA files as dict instead of zip-bin.
+
+        Parameters
+        ----------
+        location : str
+            current or target, defines which configuration shall be read
+
+        Returns
+        -------
+        dict
+            Read DNA configuration.
+        &#34;&#34;&#34;
+        config_file = {}
+        response = self.handle.get(os.path.join(self.base_url, location), accepted_status=[requests.codes.ok])
+        try:
+            zip_file = ZipFile(BytesIO(response.content))
+            for cfile in zip_file.namelist():
+                self._log.info(&#34;Reading content of %s&#34;, cfile)
+                with zip_file.open(cfile) as file:
+                    config_file[cfile] = yaml.safe_load(file.read())
+            return config_file
+        except BadZipFile:
+            return {}
+
+    def get_current(self) -&gt; dict:
+        &#34;&#34;&#34;Get the current DNA configuration.
+
+        Returns
+        -------
+        dict
+            current configuration.
+        &#34;&#34;&#34;
+        return self.__get_files(&#34;current&#34;)
+
+    def get_target(self) -&gt; dict:
+        &#34;&#34;&#34;Get the target DNA configuration.
+
+        Returns
+        -------
+        dict
+            target configuration.
+        &#34;&#34;&#34;
+        return self.__get_files(&#34;target&#34;)
+
+    def get_status(self) -&gt; dict:
+        &#34;&#34;&#34;Get the DNA configuration status.
+
+        Returns
+        -------
+        dict
+            configuration status.
+        &#34;&#34;&#34;
+        response = self.handle.get(os.path.join(self.base_url, &#34;status&#34;), accepted_status=[requests.codes.ok])
+        return response.json()
+
+    def put_target(
+        self,
+        config_file,
+        continue_after_restart: bool = False,
+        restart_all_wl: bool = False,
+        remove_images: bool = True,
+    ) -&gt; dict:
+        &#34;&#34;&#34;Put new target configuration to the device.
+
+        Parameters
+        ----------
+        config_file : Tuple[str, IO[bytes]] or dict
+            Configuration file to be loaded to the device, either as tuple (filename, file-io stream) or
+            as dictionary containing the configuration string (file-content).
+        continue_after_restart : bool, optional
+            If set to True, the configuration will continue to load after a device restart. The default is False.
+        restart_all_wl : bool, optional
+            If set to True, the configuration will restart all already deployed workloads. The default is False.
+
+        Returns
+        -------
+        dict
+            Configuration response from the device.
+        &#34;&#34;&#34;
+        allowed_codes = [requests.codes.accepted, requests.codes.unauthorized, requests.codes.forbidden]
+        while True:
+            if type(config_file) is dict:
+                # Expect a dict containing the correct config format
+                file_name = &#34;config.zip&#34;
+                zip_bin = BytesIO()
+                with ZipFile(zip_bin, &#34;w&#34;) as zip_object:
+                    # Adding files that need to be zipped
+                    zip_object.writestr(&#34;update_configuration.yaml&#34;, yaml.dump(config_file))
+            elif type(config_file) is tuple:
+                # Expect a File IO stream which contains the zip file
+                file_name = config_file[0]
+                zip_bin = config_file[1]
+                zip_bin.seek(0, 0)
+            else:
+                msg = (
+                    &#34;Invalid Input, config_file should either by a valid dict or a tuple with&#34;
+                    &#34;filename and FileIO stream&#34;
+                )
+                raise ValueError(
+                    msg,
+                )
+            m_enc = MultipartEncoder({&#34;file&#34;: (file_name, zip_bin, &#34;form-data&#34;)})
+
+            params = {
+                &#34;continueInCaseOfRestart&#34;: str(continue_after_restart).lower(),
+                &#34;restartAllWorkloads&#34;: str(restart_all_wl).lower(),
+                &#34;removeDockerImages&#34;: str(remove_images).lower(),
+            }
+
+            response = self.handle.put(
+                os.path.join(self.base_url, &#34;target&#34;),
+                params=params,
+                content_type=m_enc.content_type,
+                data=m_enc,
+                accepted_status=allowed_codes,
+                timeout=(10, 60),
+            )
+            if response.status_code == requests.codes.accepted:
+                break
+
+            self._log.debug(&#34;Not authorized, performing login and retry execution&#34;)
+            self.handle.login()
+            allowed_codes = [requests.codes.accepted]
+        self._log.info(&#34;DNA config applied: %s&#34;, response.json().get(&#34;message&#34;, response.json()))
+        return response.json()
+
+    def put_target_re_apply(self) -&gt; dict:
+        &#34;&#34;&#34;Reaply the target configuration.
+
+        Returns
+        -------
+        dict
+            response of the command.
+        &#34;&#34;&#34;
+        response = self.handle.put(
+            os.path.join(self.base_url, &#34;target/re-apply&#34;),
+            timeout=(7.5, 5),
+            accepted_status=[requests.codes.accepted],
+        )
+        self._log.info(&#34;DNA config reapply triggered: %s&#34;, response.json().get(&#34;message&#34;, response.json()))
+        return response.json()
+
+    def patch_target_cancel(self) -&gt; dict:
+        &#34;&#34;&#34;Cancle an ongoing configuration.
+
+        Returns
+        -------
+        dict
+            response of the command.
+        &#34;&#34;&#34;
+        response = self.handle.patch(
+            os.path.join(self.base_url, &#34;target/cancel&#34;),
+            accepted_status=[requests.codes.accepted],
+        ).json()
+        try:
+            self._log.info(&#34;DNA config canceled: %s&#34;, response.get(&#34;message&#34;, response))
+        except AttributeError:
+            self._log.warning(&#34;DNA config canceled, unexpected response: %s&#34;, response)
+        return response</code></pre>
+</details>
+<div class="desc"><p>Common class for localUI and MS based DNA handling.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>handle</code></strong> :&ensp;<code>type</code></dt>
+<dd>node or ms handle.</dd>
+<dt><strong><code>base_url</code></strong> :&ensp;<code>str</code></dt>
+<dd>depending on node or ms handle, the base_url must be defined correct.</dd>
+<dt><strong><code>log</code></strong> :&ensp;<code>type</code></dt>
+<dd>used logger to output logging data.</dd>
+</dl></div>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="nerve_lib.manage_dna.LocalDNA" href="#nerve_lib.manage_dna.LocalDNA">LocalDNA</a></li>
+<li><a title="nerve_lib.manage_dna.MSDNA" href="#nerve_lib.manage_dna.MSDNA">MSDNA</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="nerve_lib.manage_dna.DNACommon.get_current"><code class="name flex">
+<span>def <span class="ident">get_current</span></span>(<span>self) ‑> dict</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_current(self) -&gt; dict:
+    &#34;&#34;&#34;Get the current DNA configuration.
+
+    Returns
+    -------
+    dict
+        current configuration.
+    &#34;&#34;&#34;
+    return self.__get_files(&#34;current&#34;)</code></pre>
+</details>
+<div class="desc"><p>Get the current DNA configuration.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>dict</code></dt>
+<dd>current configuration.</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.manage_dna.DNACommon.get_status"><code class="name flex">
+<span>def <span class="ident">get_status</span></span>(<span>self) ‑> dict</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_status(self) -&gt; dict:
+    &#34;&#34;&#34;Get the DNA configuration status.
+
+    Returns
+    -------
+    dict
+        configuration status.
+    &#34;&#34;&#34;
+    response = self.handle.get(os.path.join(self.base_url, &#34;status&#34;), accepted_status=[requests.codes.ok])
+    return response.json()</code></pre>
+</details>
+<div class="desc"><p>Get the DNA configuration status.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>dict</code></dt>
+<dd>configuration status.</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.manage_dna.DNACommon.get_target"><code class="name flex">
+<span>def <span class="ident">get_target</span></span>(<span>self) ‑> dict</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_target(self) -&gt; dict:
+    &#34;&#34;&#34;Get the target DNA configuration.
+
+    Returns
+    -------
+    dict
+        target configuration.
+    &#34;&#34;&#34;
+    return self.__get_files(&#34;target&#34;)</code></pre>
+</details>
+<div class="desc"><p>Get the target DNA configuration.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>dict</code></dt>
+<dd>target configuration.</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.manage_dna.DNACommon.patch_target_cancel"><code class="name flex">
+<span>def <span class="ident">patch_target_cancel</span></span>(<span>self) ‑> dict</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def patch_target_cancel(self) -&gt; dict:
+    &#34;&#34;&#34;Cancle an ongoing configuration.
+
+    Returns
+    -------
+    dict
+        response of the command.
+    &#34;&#34;&#34;
+    response = self.handle.patch(
+        os.path.join(self.base_url, &#34;target/cancel&#34;),
+        accepted_status=[requests.codes.accepted],
+    ).json()
+    try:
+        self._log.info(&#34;DNA config canceled: %s&#34;, response.get(&#34;message&#34;, response))
+    except AttributeError:
+        self._log.warning(&#34;DNA config canceled, unexpected response: %s&#34;, response)
+    return response</code></pre>
+</details>
+<div class="desc"><p>Cancle an ongoing configuration.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>dict</code></dt>
+<dd>response of the command.</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.manage_dna.DNACommon.put_target"><code class="name flex">
+<span>def <span class="ident">put_target</span></span>(<span>self,<br>config_file,<br>continue_after_restart: bool = False,<br>restart_all_wl: bool = False,<br>remove_images: bool = True) ‑> dict</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def put_target(
+    self,
+    config_file,
+    continue_after_restart: bool = False,
+    restart_all_wl: bool = False,
+    remove_images: bool = True,
+) -&gt; dict:
+    &#34;&#34;&#34;Put new target configuration to the device.
+
+    Parameters
+    ----------
+    config_file : Tuple[str, IO[bytes]] or dict
+        Configuration file to be loaded to the device, either as tuple (filename, file-io stream) or
+        as dictionary containing the configuration string (file-content).
+    continue_after_restart : bool, optional
+        If set to True, the configuration will continue to load after a device restart. The default is False.
+    restart_all_wl : bool, optional
+        If set to True, the configuration will restart all already deployed workloads. The default is False.
+
+    Returns
+    -------
+    dict
+        Configuration response from the device.
+    &#34;&#34;&#34;
+    allowed_codes = [requests.codes.accepted, requests.codes.unauthorized, requests.codes.forbidden]
+    while True:
+        if type(config_file) is dict:
+            # Expect a dict containing the correct config format
+            file_name = &#34;config.zip&#34;
+            zip_bin = BytesIO()
+            with ZipFile(zip_bin, &#34;w&#34;) as zip_object:
+                # Adding files that need to be zipped
+                zip_object.writestr(&#34;update_configuration.yaml&#34;, yaml.dump(config_file))
+        elif type(config_file) is tuple:
+            # Expect a File IO stream which contains the zip file
+            file_name = config_file[0]
+            zip_bin = config_file[1]
+            zip_bin.seek(0, 0)
+        else:
+            msg = (
+                &#34;Invalid Input, config_file should either by a valid dict or a tuple with&#34;
+                &#34;filename and FileIO stream&#34;
+            )
+            raise ValueError(
+                msg,
+            )
+        m_enc = MultipartEncoder({&#34;file&#34;: (file_name, zip_bin, &#34;form-data&#34;)})
+
+        params = {
+            &#34;continueInCaseOfRestart&#34;: str(continue_after_restart).lower(),
+            &#34;restartAllWorkloads&#34;: str(restart_all_wl).lower(),
+            &#34;removeDockerImages&#34;: str(remove_images).lower(),
+        }
+
+        response = self.handle.put(
+            os.path.join(self.base_url, &#34;target&#34;),
+            params=params,
+            content_type=m_enc.content_type,
+            data=m_enc,
+            accepted_status=allowed_codes,
+            timeout=(10, 60),
+        )
+        if response.status_code == requests.codes.accepted:
+            break
+
+        self._log.debug(&#34;Not authorized, performing login and retry execution&#34;)
+        self.handle.login()
+        allowed_codes = [requests.codes.accepted]
+    self._log.info(&#34;DNA config applied: %s&#34;, response.json().get(&#34;message&#34;, response.json()))
+    return response.json()</code></pre>
+</details>
+<div class="desc"><p>Put new target configuration to the device.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>config_file</code></strong> :&ensp;<code>Tuple[str, IO[bytes]]</code> or <code>dict</code></dt>
+<dd>Configuration file to be loaded to the device, either as tuple (filename, file-io stream) or
+as dictionary containing the configuration string (file-content).</dd>
+<dt><strong><code>continue_after_restart</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>If set to True, the configuration will continue to load after a device restart. The default is False.</dd>
+<dt><strong><code>restart_all_wl</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>If set to True, the configuration will restart all already deployed workloads. The default is False.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>dict</code></dt>
+<dd>Configuration response from the device.</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.manage_dna.DNACommon.put_target_re_apply"><code class="name flex">
+<span>def <span class="ident">put_target_re_apply</span></span>(<span>self) ‑> dict</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def put_target_re_apply(self) -&gt; dict:
+    &#34;&#34;&#34;Reaply the target configuration.
+
+    Returns
+    -------
+    dict
+        response of the command.
+    &#34;&#34;&#34;
+    response = self.handle.put(
+        os.path.join(self.base_url, &#34;target/re-apply&#34;),
+        timeout=(7.5, 5),
+        accepted_status=[requests.codes.accepted],
+    )
+    self._log.info(&#34;DNA config reapply triggered: %s&#34;, response.json().get(&#34;message&#34;, response.json()))
+    return response.json()</code></pre>
+</details>
+<div class="desc"><p>Reaply the target configuration.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>dict</code></dt>
+<dd>response of the command.</dd>
+</dl></div>
+</dd>
+</dl>
+</dd>
+<dt id="nerve_lib.manage_dna.LocalDNA"><code class="flex name class">
+<span>class <span class="ident">LocalDNA</span></span>
+<span>(</span><span>node_handle: type)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class LocalDNA(DNACommon):
+    &#34;&#34;&#34;Manage the DNA of a device directly using localUI API comamnds.
+
+    Parameters
+    ----------
+    node_handle : type
+        handle to the node &#39;nerve_lib.general_utils.NodeHandle(...)&#39;.
+    &#34;&#34;&#34;
+
+    def __init__(self, node_handle: type):
+        super().__init__(
+            node_handle,
+            &#34;/api/dna/&#34;,
+            logging.getLogger(f&#34;LocalDNA-{node_handle.serial_number}&#34;),
+        )
+        node_handle.login()</code></pre>
+</details>
+<div class="desc"><p>Manage the DNA of a device directly using localUI API comamnds.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>node_handle</code></strong> :&ensp;<code>type</code></dt>
+<dd>handle to the node 'nerve_lib.general_utils.NodeHandle(&hellip;)'.</dd>
+</dl></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="nerve_lib.manage_dna.DNACommon" href="#nerve_lib.manage_dna.DNACommon">DNACommon</a></li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="nerve_lib.manage_dna.DNACommon" href="#nerve_lib.manage_dna.DNACommon">DNACommon</a></b></code>:
+<ul class="hlist">
+<li><code><a title="nerve_lib.manage_dna.DNACommon.get_current" href="#nerve_lib.manage_dna.DNACommon.get_current">get_current</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.DNACommon.get_status" href="#nerve_lib.manage_dna.DNACommon.get_status">get_status</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.DNACommon.get_target" href="#nerve_lib.manage_dna.DNACommon.get_target">get_target</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.DNACommon.patch_target_cancel" href="#nerve_lib.manage_dna.DNACommon.patch_target_cancel">patch_target_cancel</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.DNACommon.put_target" href="#nerve_lib.manage_dna.DNACommon.put_target">put_target</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.DNACommon.put_target_re_apply" href="#nerve_lib.manage_dna.DNACommon.put_target_re_apply">put_target_re_apply</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="nerve_lib.manage_dna.MSDNA"><code class="flex name class">
+<span>class <span class="ident">MSDNA</span></span>
+<span>(</span><span>ms_handle: type, node_serial_number: str)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class MSDNA(DNACommon):
+    &#34;&#34;&#34;Management system API commands to handle DNA of a device.
+
+    Parameters
+    ----------
+    ms_handle : type
+        handle to the MS &#39;nerve_lib.general_utils.MSHandle(...)&#39;.
+    node_serial_number : str
+        Serial number of the connected node to execute the DNA functions with.
+    &#34;&#34;&#34;
+
+    def __init__(self, ms_handle: type, node_serial_number: str):
+        super().__init__(
+            ms_handle,
+            f&#34;/nerve/dna/{node_serial_number}/&#34;,
+            logging.getLogger(f&#34;MSDNA-{node_serial_number}&#34;),
+        )</code></pre>
+</details>
+<div class="desc"><p>Management system API commands to handle DNA of a device.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>ms_handle</code></strong> :&ensp;<code>type</code></dt>
+<dd>handle to the MS 'nerve_lib.general_utils.MSHandle(&hellip;)'.</dd>
+<dt><strong><code>node_serial_number</code></strong> :&ensp;<code>str</code></dt>
+<dd>Serial number of the connected node to execute the DNA functions with.</dd>
+</dl></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="nerve_lib.manage_dna.DNACommon" href="#nerve_lib.manage_dna.DNACommon">DNACommon</a></li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="nerve_lib.manage_dna.DNACommon" href="#nerve_lib.manage_dna.DNACommon">DNACommon</a></b></code>:
+<ul class="hlist">
+<li><code><a title="nerve_lib.manage_dna.DNACommon.get_current" href="#nerve_lib.manage_dna.DNACommon.get_current">get_current</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.DNACommon.get_status" href="#nerve_lib.manage_dna.DNACommon.get_status">get_status</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.DNACommon.get_target" href="#nerve_lib.manage_dna.DNACommon.get_target">get_target</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.DNACommon.patch_target_cancel" href="#nerve_lib.manage_dna.DNACommon.patch_target_cancel">patch_target_cancel</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.DNACommon.put_target" href="#nerve_lib.manage_dna.DNACommon.put_target">put_target</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.DNACommon.put_target_re_apply" href="#nerve_lib.manage_dna.DNACommon.put_target_re_apply">put_target_re_apply</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul>
+<li><a href="#example">Example:</a></li>
+</ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="nerve_lib" href="index.html">nerve_lib</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="nerve_lib.manage_dna.DNACommon" href="#nerve_lib.manage_dna.DNACommon">DNACommon</a></code></h4>
+<ul class="two-column">
+<li><code><a title="nerve_lib.manage_dna.DNACommon.get_current" href="#nerve_lib.manage_dna.DNACommon.get_current">get_current</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.DNACommon.get_status" href="#nerve_lib.manage_dna.DNACommon.get_status">get_status</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.DNACommon.get_target" href="#nerve_lib.manage_dna.DNACommon.get_target">get_target</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.DNACommon.patch_target_cancel" href="#nerve_lib.manage_dna.DNACommon.patch_target_cancel">patch_target_cancel</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.DNACommon.put_target" href="#nerve_lib.manage_dna.DNACommon.put_target">put_target</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.DNACommon.put_target_re_apply" href="#nerve_lib.manage_dna.DNACommon.put_target_re_apply">put_target_re_apply</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="nerve_lib.manage_dna.LocalDNA" href="#nerve_lib.manage_dna.LocalDNA">LocalDNA</a></code></h4>
+</li>
+<li>
+<h4><code><a title="nerve_lib.manage_dna.MSDNA" href="#nerve_lib.manage_dna.MSDNA">MSDNA</a></code></h4>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

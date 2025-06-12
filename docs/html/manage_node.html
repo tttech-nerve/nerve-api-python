@@ -1,0 +1,2506 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>nerve_lib.manage_node API documentation</title>
+<meta name="description" content="Manage Node related operations from MS …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>nerve_lib.manage_node</code></h1>
+</header>
+<section id="section-intro">
+<p>Manage Node related operations from MS.</p>
+<h2 id="example">Example:</h2>
+<pre><code>&gt;&gt;&gt; from nerve_lib import MSHandle
+&gt;&gt;&gt; from nerve_lib import MSNode
+&gt;&gt;&gt; with MSHandle("testms.nerve.cloud") as ms_handle:
+&gt;&gt;&gt;     nodes = MSNode(ms_handle)
+&gt;&gt;&gt;     nodes.get_nodes_by_name()
+&lt;dict: node list from MS&gt;
+</code></pre>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="nerve_lib.manage_node.LocalNode"><code class="flex name class">
+<span>class <span class="ident">LocalNode</span></span>
+<span>(</span><span>node_handle: type)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class LocalNode:  # noqa: PLR0904
+    &#34;&#34;&#34;Node related functions from LocalUI.&#34;&#34;&#34;
+
+    def __init__(self, node_handle: type):
+        self.node = node_handle
+        self._log = logging.getLogger(&#34;NodeLocalUi&#34;)
+        self.__node_version = None
+
+    @property
+    def version(self):
+        &#34;&#34;&#34;Read node version.&#34;&#34;&#34;
+        if self.__node_version is None:
+            version_json = self.node.get(&#34;/api/version&#34;).json()
+            if &#34;version&#34; in version_json:
+                self.__node_version = version_json[&#34;version&#34;]  # version &lt; 2.9.0
+            else:
+                self.__node_version = version_json.get(&#34;versionName&#34;)
+        return self.__node_version
+
+    def version_smaller_than(self, version: str) -&gt; bool:
+        &#34;&#34;&#34;Check if the node version is smaller than the provided version.
+
+        Parameters
+        ----------
+        version : str
+            version to be checked.
+
+        Returns
+        -------
+        bool
+            True if the MS version is smaller than the provided version.
+        &#34;&#34;&#34;
+        if not self.version:
+            self._log.warning(&#34;Could not read node version, assuming latest&#34;)
+            return False
+        current_version = self.version.split(&#34;-&#34;)[0].split(&#34;.&#34;)
+        comp_version = version.split(&#34;-&#34;)[0].split(&#34;.&#34;)
+
+        if len(current_version) != 3:  # noqa: PLR2004
+            return False  # e.g integration, master
+        if len(comp_version) != 3:  # noqa: PLR2004
+            return True  # e.g integration, master
+
+        for i in range(3):
+            if int(current_version[i]) &lt; int(comp_version[i]):
+                return True
+            if int(current_version[i]) &gt; int(comp_version[i]):
+                return False
+        return False
+
+    def set_proxy(self, enabled, http_proxy, https_proxy, no_proxy=&#34;&#34;, user=&#34;&#34;, password=&#34;&#34;):
+        &#34;&#34;&#34;Manage Proxy settings on a node.&#34;&#34;&#34;
+        payload = {
+            &#34;enabled&#34;: enabled,
+            &#34;http_proxy&#34;: http_proxy,
+            &#34;https_proxy&#34;: https_proxy,
+            &#34;no_proxy&#34;: no_proxy,
+            &#34;username&#34;: user,
+            &#34;password&#34;: password,
+        }
+
+        self.node.post(
+            &#34;/api/proxy-settings&#34;,
+            json=payload,
+            accepted_status=[requests.codes.ok, requests.codes.no_content],
+        )
+
+    def get_backup_list(self):
+        &#34;&#34;&#34;Read backup list for node.&#34;&#34;&#34;
+        return self.node.get(&#34;/api/repositories&#34;, timeout=(10, 15)).json()
+
+    def set_vm_backup(self, nfs_mountpoint: str, mount_options: str = &#34;rw,nolock&#34;):
+        &#34;&#34;&#34;Set or disable vm-backup.&#34;&#34;&#34;
+        backup_list = self.get_backup_list()[&#34;repositories&#34;]
+        payload = {
+            &#34;path&#34;: nfs_mountpoint,
+            &#34;user&#34;: &#34;&#34;,
+            &#34;password&#34;: &#34;&#34;,
+            &#34;id&#34;: &#34;&#34;,
+            &#34;protocol&#34;: &#34;nfs&#34;,
+            &#34;type&#34;: &#34;vmBackups&#34;,
+            &#34;options&#34;: &#34;&#34;,
+            &#34;isMounted&#34;: True,
+        }
+
+        if nfs_mountpoint:
+            if backup_list:
+                return self.node.put(f&#34;/api/repositories/{backup_list[-1][&#39;id&#39;]}&#34;, json=payload)
+            return self.node.post(&#34;/api/repositories&#34;, json=payload)
+
+        return self.node.delete(f&#34;/api/repositories/{backup_list[-1][&#39;id&#39;]}&#34;)
+
+    def set_configuration(self, ms_url: str):
+        &#34;&#34;&#34;Set onboarding configuration to connect to a management system.&#34;&#34;&#34;
+        payload = {
+            &#34;cloudUrl&#34;: ms_url,
+            &#34;serialNumber&#34;: self.node.serial_number,
+            &#34;protocol&#34;: &#34;wss&#34;,
+            &#34;timezone&#34;: {&#34;name&#34;: &#34;Etc/UTC&#34;},
+        }
+        self.node.post(&#34;/api/setup/configurations&#34;, json=payload, accepted_status=[requests.codes.ok])
+
+    def check_management_system_url(self, ms_url: str):
+        &#34;&#34;&#34;Check if ms_url is valid.&#34;&#34;&#34;
+        response = self.node.get(
+            &#34;/api/setup/configurations/cloud-version&#34;,
+            params={&#34;url&#34;: f&#34;{ms_url}&#34;},
+            json={&#34;url&#34;: f&#34;{ms_url}&#34;},
+            accepted_status=[requests.codes.ok, requests.codes.server_error],
+        )
+        self._log.debug(&#34;check_management_system_url response = %s&#34;, response.json())
+        return response.status_code == requests.codes.ok
+
+    def get_secure_id(self):
+        &#34;&#34;&#34;Read the secure id of a node.&#34;&#34;&#34;
+        if self.version_smaller_than(&#34;2.10.0&#34;):
+            return (
+                self.node.get(&#34;/api/setup/configurations/secureId&#34;, accepted_status=[requests.codes.ok])
+                .json()
+                .get(&#34;secureId&#34;)
+            )
+        return (
+            self.node.get(&#34;/api/setup/configurations/secure-id&#34;, accepted_status=[requests.codes.ok])
+            .json()
+            .get(&#34;secureId&#34;)
+        )
+
+    def get_info(self):
+        &#34;&#34;&#34;Read all node info elements.&#34;&#34;&#34;
+        try:
+            response = self.node.get(&#34;/api/setup/node/info&#34;, accepted_status=[requests.codes.ok])
+            info = response.json()
+        except requests.exceptions.JSONDecodeError as err:
+            self._log.error(&#34;GET /api/setup/node/info: Invalid json: %s&#34;, response.text)
+            raise err
+        return info
+
+    def get_workload_list(self):
+        &#34;&#34;&#34;Read workload list for node.&#34;&#34;&#34;
+        return self.node.get(&#34;/api/workloads&#34;).json()
+
+    def localui_apply_workload_configuration(self, device_id: int, zip_file: str, configurations) -&gt; type:
+        &#34;&#34;&#34;Add a workload configuration via localui.
+
+        Parameters
+        ----------
+        device_id: int
+            Device ID of the workload the configuration shall be applied on.
+        zip_file: str
+            File path to the configuration zip file.
+        configurations: list of str
+            Volume of the workload configurations.
+
+        Returns
+        -------
+        type
+            Result of the POST request.
+        &#34;&#34;&#34;
+        timestamp_ms = int(time.time() * 1000)
+        payload_data = {
+            &#34;user&#34;: &#34;local@nerve.cloud&#34;,
+            &#34;timestamp&#34;: timestamp_ms,
+            &#34;configurations&#34;: configurations,
+            &#34;restartOnConfigurationUpdate&#34;: True,
+        }
+        m_enc = MultipartEncoder(
+            fields={
+                &#34;file&#34;: (zip_file, open(zip_file, &#34;rb&#34;), &#34;application/octet-stream&#34;),
+                &#34;data&#34;: json.dumps(payload_data),
+            },
+        )
+        return self.node.post(
+            f&#34;/api/workloads/{device_id}/apply-configuration&#34;,
+            data=m_enc,
+            content_type=m_enc.content_type,
+            accepted_status=[requests.codes.ok, requests.codes.no_content],
+            timeout=(10, 10),
+        )
+
+    def create_vm_backup(self, workload_name, backup_name):
+        &#34;&#34;&#34;Create a backup of a VM workload over LocalUI.&#34;&#34;&#34;
+        wl = self.get_workload_list()[&#34;workloads&#34;]
+        for workload in wl:
+            if workload_name == workload[&#34;name&#34;]:
+                device_id = workload[&#34;deviceId&#34;]
+
+        payload = {
+            &#34;name&#34;: backup_name,
+        }
+        self._log.info(&#34;Triggering VM Backup of %s to %s&#34;, workload_name, backup_name)
+        return self.node.post(
+            f&#34;/api/workloads/{device_id}/backups&#34;,
+            json=payload,
+            accepted_status=[requests.codes.ok, requests.codes.accepted],
+        ).json()
+
+    def restart_vm_backup(self, workload_name, backup_name):
+        &#34;&#34;&#34;Restart creating backup of a VM workload over LocalUI.&#34;&#34;&#34;
+        wl = self.get_workload_list()[&#34;workloads&#34;]
+        for workload in wl:
+            if workload_name == workload[&#34;name&#34;]:
+                device_id = workload[&#34;deviceId&#34;]
+
+        payload = {
+            &#34;name&#34;: backup_name,
+        }
+        self._log.info(&#34;Retry Triggering VM Backup of %s to %s&#34;, workload_name, backup_name)
+        return self.node.post(
+            f&#34;/api/workloads/{device_id}/backups/restart&#34;,
+            json=payload,
+            accepted_status=[requests.codes.ok, requests.codes.accepted],
+        ).json()
+
+    def vm_backup_status(self, workload_name, backup_name=&#34;&#34;):
+        &#34;&#34;&#34;Get status of backup creation of a VM workload.&#34;&#34;&#34;
+        wl = self.get_workload_list()[&#34;workloads&#34;]
+        for workload in wl:
+            if workload_name == workload[&#34;name&#34;]:
+                device_id = workload[&#34;deviceId&#34;]
+
+        response = self.node.get(
+            f&#34;/api/workloads/{device_id}/backups&#34;,
+            accepted_status=[requests.codes.ok, requests.codes.accepted],
+        ).json()
+
+        if not backup_name:
+            return response
+
+        try:
+            status = next(state for state in response[&#34;backups&#34;] if state.get(&#34;name&#34;) == backup_name)
+        except StopIteration:
+            self._log.error(
+                &#34;Could not read backup status of %s from workload %s&#34;,
+                backup_name,
+                workload_name,
+            )
+            return {}
+
+        self._log.info(
+            &#34;VM Backup status of %s to %s: %s&#34;,
+            workload_name,
+            backup_name,
+            status.get(&#34;status&#34;, &#34;UNKNOWN&#34;),
+        )
+        return status
+
+    def get_vm_backup(self, backup_name):
+        &#34;&#34;&#34;Get VM backup details from repository.&#34;&#34;&#34;
+        response = self.node.get(
+            &#34;/api/repositories/list/backups&#34;,
+            accepted_status=[requests.codes.ok, requests.codes.accepted],
+        ).json()
+
+        for backup in response[&#34;list&#34;]:
+            if backup[&#34;name&#34;] == backup_name:
+                return backup
+        return []
+
+    def deploy_vm_backup(self, backup_name):
+        &#34;&#34;&#34;Deploy a VM backup.&#34;&#34;&#34;
+        payload = {&#34;name&#34;: f&#34;{backup_name}&#34;, &#34;deployAsBackup&#34;: False}
+
+        return self.node.post(
+            &#34;/api/workloads/backups/deploy&#34;,
+            json=payload,
+            accepted_status=[requests.codes.ok, requests.codes.accepted],
+        ).json()
+
+    def get_deploy_backup_status(self, backup_id):
+        &#34;&#34;&#34;Get the state of a deployed backup.&#34;&#34;&#34;
+        response = self.node.get(
+            &#34;/api/workloads&#34;,
+            accepted_status=[requests.codes.ok, requests.codes.accepted],
+        ).json()
+
+        for status in response[&#34;workloads&#34;]:
+            if status[&#34;workloadId&#34;] == backup_id:
+                if &#34;deviceId&#34; in status:
+                    return True
+        return False
+
+    def get_vm_snapshot(self, workload_name):
+        &#34;&#34;&#34;Get a snapshot of a VM workload.&#34;&#34;&#34;
+        wl = self.get_workload_list()[&#34;workloads&#34;]
+        for workload in wl:
+            if workload_name == workload[&#34;name&#34;]:
+                device_id = workload[&#34;deviceId&#34;]
+
+        return self.node.get(
+            f&#34;/api/workloads/{device_id}/snapshots&#34;,
+            accepted_status=[requests.codes.ok],
+        ).json()
+
+    def create_vm_snapshot(self, workload_name, snapshot_name, description=&#34;&#34;):
+        &#34;&#34;&#34;Create a snapshot of a VM workload.&#34;&#34;&#34;
+        wl = self.get_workload_list()[&#34;workloads&#34;]
+        for workload in wl:
+            if workload_name == workload[&#34;name&#34;]:
+                device_id = workload[&#34;deviceId&#34;]
+
+        payload = {
+            &#34;name&#34;: snapshot_name,
+            &#34;description&#34;: description,
+        }
+        return self.node.post(
+            f&#34;/api/workloads/{device_id}/snapshots&#34;,
+            json=payload,
+            accepted_status=[requests.codes.ok, requests.codes.accepted],
+        )
+
+    def delete_vm_snapshot(self, workload_name, snapshot_name):
+        &#34;&#34;&#34;Delete a snapshot of a VM workload.&#34;&#34;&#34;
+        wl = self.get_workload_list()[&#34;workloads&#34;]
+        for workload in wl:
+            if workload_name == workload[&#34;name&#34;]:
+                device_id = workload[&#34;deviceId&#34;]
+
+        params = {&#34;name&#34;: snapshot_name}
+        return self.node.delete(
+            f&#34;/api/workloads/{device_id}/snapshots&#34;,
+            params=params,
+            accepted_status=[requests.codes.ok],
+        )
+
+    def restore_vm_snapshot(self, workload_name, snapshot_name):
+        &#34;&#34;&#34;Restore a snapshot of a VM workload.&#34;&#34;&#34;
+        wl = self.get_workload_list()[&#34;workloads&#34;]
+        for workload in wl:
+            if workload_name == workload[&#34;name&#34;]:
+                device_id = workload[&#34;deviceId&#34;]
+
+        payload = {&#34;name&#34;: snapshot_name}
+        return self.node.put(
+            f&#34;/api/workloads/{device_id}/snapshots&#34;,
+            json=payload,
+            accepted_status=[requests.codes.ok],
+            timeout=(10, 10),
+        )
+
+    def create_schedule_vm_snapshot(
+        self,
+        workload_name,
+        schedule_type,
+        interval=1,
+        day=&#34;Monday&#34;,
+        day_time=&#34;&#34;,
+        day_hours=1,
+        day_minutes=1,
+        vm_state=&#34;Current&#34;,
+        time_zone=&#34;Europe/Belgrade&#34;,
+        timezone_offset=&#34;+2&#34;,
+    ):
+        &#34;&#34;&#34;Create a schedule for snapshots of a VM workload.
+
+        schedule_type: str
+            Type of schedule (Interval, Day)
+        &#34;&#34;&#34;
+        wl = self.get_workload_list()[&#34;workloads&#34;]
+        for workload in wl:
+            if workload_name == workload[&#34;name&#34;]:
+                device_id = workload[&#34;deviceId&#34;]
+
+        payload = {
+            &#34;type&#34;: schedule_type,
+            &#34;intervalTime&#34;: interval,
+            &#34;day&#34;: day,
+            &#34;dayTime&#34;: day_time,
+            &#34;dayHours&#34;: day_hours,
+            &#34;dayMinutes&#34;: day_minutes,
+            &#34;vmState&#34;: vm_state,
+            &#34;timeZone&#34;: time_zone,
+            &#34;timezoneOffset&#34;: timezone_offset,
+        }
+
+        return self.node.post(
+            f&#34;/api/workloads/{device_id}/snapshots/schedule&#34;,
+            json=payload,
+            accepted_status=[requests.codes.ok, requests.codes.accepted, requests.codes.created],
+        )
+
+    def delete_schedule_vm_snapshot(self, workload_name):
+        &#34;&#34;&#34;Delete a schedule for snapshots of a VM workload.&#34;&#34;&#34;
+        wl = self.get_workload_list()[&#34;workloads&#34;]
+        for workload in wl:
+            if workload_name == workload[&#34;name&#34;]:
+                device_id = workload[&#34;deviceId&#34;]
+
+        return self.node.delete(
+            f&#34;/api/workloads/{device_id}/snapshots/schedule&#34;,
+            accepted_status=[requests.codes.ok, requests.codes.accepted],
+        )
+
+    def reboot(self):
+        &#34;&#34;&#34;Reboot the node.&#34;&#34;&#34;
+        payload = {&#34;source&#34;: &#34;local_ui&#34;}
+        return self.node.post(
+            &#34;/api/system/reboot&#34;,
+            json=payload,
+            accepted_status=[requests.codes.ok, requests.codes.accepted],
+        ).json()
+
+    def rc_setting(self, approve: int):
+        &#34;&#34;&#34;Set remote connection approval settings.
+
+                Valid values for &#39;approve&#39; are:
+        0 - Approval of connection set in Management System (default)
+        1 - Always allow remote connections on this node
+        2 - Request approval for every remote connection made to this node.
+        &#34;&#34;&#34;
+        if approve not in {0, 1, 2}:
+            msg = &#34;Invalid value for &#39;approve&#39;. Valid values are 0, 1, and 2.&#34;
+            raise ValueError(msg)
+        payload = {&#34;approve&#34;: approve}
+        return self.node.put(
+            &#34;/api/rc-settings&#34;,
+            json=payload,
+            accepted_status=[requests.codes.ok, requests.codes.accepted],
+        ).json()
+
+    def resolve_remote_connection(self, connection_uid: str, connection_request_uid: str, approved: bool):
+        &#34;&#34;&#34;Approve or reject a remote connection request.
+
+        Parameters
+        ----------
+        connection_uid : str
+            UID of the connection.
+        connection_request_uid : str
+            UID of the connection request.
+        approved : bool
+            True to approve the connection, False to reject it.
+
+        Returns
+        -------
+        dict
+            Response from the API.
+        &#34;&#34;&#34;
+        payload = {
+            &#34;connectionUid&#34;: connection_uid,
+            &#34;approved&#34;: approved,
+            &#34;connectionRequestUid&#34;: connection_request_uid,
+        }
+        return self.node.put(
+            &#34;/api/rc-requests/resolve&#34;,
+            json=payload,
+            accepted_status=[requests.codes.ok, requests.codes.no_content],
+        ).json()
+
+    def terminate_connections(self, rc_list: list):
+        &#34;&#34;&#34;Terminate remote connections.
+
+        Parameters
+        ----------
+        rc_list : list
+            List of dictionaries containing connectionUid and connectionRequestUid.
+
+        Returns
+        -------
+        dict
+            Response from the API.
+        &#34;&#34;&#34;
+        payload = {&#34;rcList&#34;: rc_list}
+        return self.node.post(
+            &#34;/api/rc-connections/terminate-connections&#34;, json=payload, accepted_status=[requests.codes.ok]
+        )
+
+    def change_password(self, username, old_password, new_password):
+        &#34;&#34;&#34;Change the password for a user.&#34;&#34;&#34;
+        payload = {
+            &#34;username&#34;: username,
+            &#34;oldPassword&#34;: old_password,
+            &#34;newPassword&#34;: new_password,
+            &#34;newPasswordConfirmation&#34;: new_password,
+        }
+        return self.node.post(
+            &#34;/api/users/change-password&#34;,
+            json=payload,
+            accepted_status=[requests.codes.ok, requests.codes.accepted],
+        ).json()
+
+    def set_local_repository(self, protocol, repo_type, path, user=None, password=None, options=&#34;&#34;):
+        &#34;&#34;&#34;Set a local repository.&#34;&#34;&#34;
+        payload = {
+            &#34;protocol&#34;: protocol,
+            &#34;type&#34;: repo_type,
+            &#34;path&#34;: path,
+        }
+        if protocol == &#34;nfs&#34;:
+            payload[&#34;options&#34;] = options
+        else:
+            payload[&#34;user&#34;] = user
+            payload[&#34;password&#34;] = password
+        return self.node.post(
+            &#34;/api/repositories&#34;,
+            json=payload,
+            accepted_status=[requests.codes.ok, requests.codes.accepted],
+        ).json()
+
+    def codesys_download(self):
+        &#34;&#34;&#34;Download Codesys app archive.&#34;&#34;&#34;
+        return self.node.get(
+            &#34;/api/workload/codesys/download&#34;,
+            accepted_status=[requests.codes.ok, requests.codes.accepted],
+        )
+
+    def local_node_change_resource_allocation(self, workload_name, cpu: int, memory):
+        &#34;&#34;&#34;Change resource allocation for a workload.&#34;&#34;&#34;
+        wl = self.get_workload_list()[&#34;workloads&#34;]
+        for workload in wl:
+            if workload_name == workload[&#34;name&#34;]:
+                device_id = workload[&#34;deviceId&#34;]
+        payload = {&#34;cpu&#34;: cpu, &#34;memory&#34;: memory}
+
+        return self.node.post(
+            f&#34;/api/workloads/{device_id}/apply-resources&#34;,
+            json=payload,
+        )
+
+    def set_network_configuration(
+        self,
+        interface,
+        allocation,
+        ip_address=&#34;0.0.0.0&#34;,
+        netmask=&#34;0.0.0.0&#34;,
+        gateway=&#34;0.0.0.0&#34;,
+        domain_names=[],
+    ):
+        &#34;&#34;&#34;Set network configuration of an interface.
+
+        Parameters
+        ----------
+        interface : str
+            Name of the interface.
+        allocation : str
+            Allocation of the interface. (one of dhcp, static, unconfigured)
+        ip_address : str, optional
+            IP address of the interface. The default is &#34;0.0.0.0&#34;
+        netmask : str, optional
+            Netmask of the interface. The default is &#34;0.0.0.0&#34;
+        gateway : str, optional
+            Gateway of the interface. The default is &#34;0.0.0.0&#34;
+        domain_names : list, optional
+            Domain names of the interface. The default is [].
+        &#34;&#34;&#34;
+        return self.node.post(
+            &#34;api/setup/network/interfaces&#34;,
+            json={
+                &#34;interfaces&#34;: [
+                    {
+                        &#34;interface_name&#34;: interface,
+                        &#34;allocation&#34;: allocation,
+                        &#34;ip_address&#34;: ip_address,
+                        &#34;netmask&#34;: netmask,
+                        &#34;gateway&#34;: gateway,
+                        &#34;domainNames&#34;: domain_names,
+                    }
+                ]
+            },
+            accepted_status=[requests.codes.ok],
+        ).json()
+
+    def get_network_configuration(self):
+        &#34;&#34;&#34;Get network configuration of all interface.&#34;&#34;&#34;
+        return self.node.get(
+            &#34;api/setup/network/interfaces&#34;,
+            accepted_status=[requests.codes.ok],
+        ).json()
+
+    def change_ssh_password(self, current_password, new_password):
+        &#34;&#34;&#34;SSH password changed.&#34;&#34;&#34;
+        payload = {
+            &#34;currentPassword&#34;: current_password,
+            &#34;newPassword&#34;: new_password,
+            &#34;newPasswordConfirmation&#34;: new_password,
+        }
+        return self.node.post(
+            &#34;/api/setup/node/password?type=ssh&#34;,
+            json=payload,
+            accepted_status=[requests.codes.ok, requests.codes.accepted],
+        )
+
+    def download_audit_log(self, destination_path: str) -&gt; dict:
+        &#34;&#34;&#34;Download current audit log file and archives created by logrotate, compressed in a zip archive.&#34;&#34;&#34;
+        response = self.node.get(&#34;/api/system/audit-logs&#34;, accepted_status=[requests.codes.ok])
+        # Open the file in binary write mode and write the content
+        with open(destination_path, &#34;wb&#34;) as file:
+            file.write(response.content)
+
+        self._log.info(f&#34;File downloaded successfully to: {destination_path}&#34;)
+
+    def read_file(self, file_path):
+        &#34;&#34;&#34;Read the content of a file on the device.&#34;&#34;&#34;
+        return self.node.ssh.execute(f&#34;cat {file_path}&#34;)
+
+    def edit_file(self, file_path, content, password):
+        &#34;&#34;&#34;Write content to a file on the device.&#34;&#34;&#34;
+        command = f&#34;echo &#39;{password}&#39; | sudo -S bash -c &#39;echo \&#34;{content}\&#34; &gt; {file_path}&#39;&#34;
+        result = self.node.ssh.execute(command)
+        logging.info(&#34;Modified content of the file: %s&#34;, result)
+        return result
+
+    def set_critical_action(self, file_path, value):
+        &#34;&#34;&#34;
+        Edit the critical actions file to change &#39;allow&#39; to &#39;not allowed&#39; or vice versa.
+
+        Args:
+            file_path (str): The path to the YAML file containing critical actions.
+            value (str): The value to set (&#39;allow&#39; or &#39;not allowed&#39;).
+
+        Returns
+        -------
+            str: The modified content of the YAML file as a string.
+        &#34;&#34;&#34;
+        content = self.read_file(file_path)
+        logging.info(&#34;Content of the file: %s&#34;, content)
+        data = yaml.safe_load(content)
+
+        # Modify the YAML content
+        for action in data.get(&#34;action&#34;, {}).values():
+            for source in action.get(&#34;source&#34;, {}).values():
+                if value == &#34;not allowed&#34; and source.get(&#34;value&#34;) == &#34;allow&#34;:
+                    source[&#34;value&#34;] = &#34;not allowed&#34;
+                elif value == &#34;allow&#34; and source.get(&#34;value&#34;) == &#34;not allowed&#34;:
+                    source[&#34;value&#34;] = &#34;allow&#34;
+
+        modified_content = yaml.safe_dump(data)
+        logging.info(&#34;Modified content of the file: %s&#34;, modified_content)
+        return modified_content</code></pre>
+</details>
+<div class="desc"><p>Node related functions from LocalUI.</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="nerve_lib.manage_node.LocalNode.version"><code class="name">prop <span class="ident">version</span></code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def version(self):
+    &#34;&#34;&#34;Read node version.&#34;&#34;&#34;
+    if self.__node_version is None:
+        version_json = self.node.get(&#34;/api/version&#34;).json()
+        if &#34;version&#34; in version_json:
+            self.__node_version = version_json[&#34;version&#34;]  # version &lt; 2.9.0
+        else:
+            self.__node_version = version_json.get(&#34;versionName&#34;)
+    return self.__node_version</code></pre>
+</details>
+<div class="desc"><p>Read node version.</p></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="nerve_lib.manage_node.LocalNode.change_password"><code class="name flex">
+<span>def <span class="ident">change_password</span></span>(<span>self, username, old_password, new_password)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def change_password(self, username, old_password, new_password):
+    &#34;&#34;&#34;Change the password for a user.&#34;&#34;&#34;
+    payload = {
+        &#34;username&#34;: username,
+        &#34;oldPassword&#34;: old_password,
+        &#34;newPassword&#34;: new_password,
+        &#34;newPasswordConfirmation&#34;: new_password,
+    }
+    return self.node.post(
+        &#34;/api/users/change-password&#34;,
+        json=payload,
+        accepted_status=[requests.codes.ok, requests.codes.accepted],
+    ).json()</code></pre>
+</details>
+<div class="desc"><p>Change the password for a user.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.change_ssh_password"><code class="name flex">
+<span>def <span class="ident">change_ssh_password</span></span>(<span>self, current_password, new_password)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def change_ssh_password(self, current_password, new_password):
+    &#34;&#34;&#34;SSH password changed.&#34;&#34;&#34;
+    payload = {
+        &#34;currentPassword&#34;: current_password,
+        &#34;newPassword&#34;: new_password,
+        &#34;newPasswordConfirmation&#34;: new_password,
+    }
+    return self.node.post(
+        &#34;/api/setup/node/password?type=ssh&#34;,
+        json=payload,
+        accepted_status=[requests.codes.ok, requests.codes.accepted],
+    )</code></pre>
+</details>
+<div class="desc"><p>SSH password changed.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.check_management_system_url"><code class="name flex">
+<span>def <span class="ident">check_management_system_url</span></span>(<span>self, ms_url: str)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def check_management_system_url(self, ms_url: str):
+    &#34;&#34;&#34;Check if ms_url is valid.&#34;&#34;&#34;
+    response = self.node.get(
+        &#34;/api/setup/configurations/cloud-version&#34;,
+        params={&#34;url&#34;: f&#34;{ms_url}&#34;},
+        json={&#34;url&#34;: f&#34;{ms_url}&#34;},
+        accepted_status=[requests.codes.ok, requests.codes.server_error],
+    )
+    self._log.debug(&#34;check_management_system_url response = %s&#34;, response.json())
+    return response.status_code == requests.codes.ok</code></pre>
+</details>
+<div class="desc"><p>Check if ms_url is valid.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.codesys_download"><code class="name flex">
+<span>def <span class="ident">codesys_download</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def codesys_download(self):
+    &#34;&#34;&#34;Download Codesys app archive.&#34;&#34;&#34;
+    return self.node.get(
+        &#34;/api/workload/codesys/download&#34;,
+        accepted_status=[requests.codes.ok, requests.codes.accepted],
+    )</code></pre>
+</details>
+<div class="desc"><p>Download Codesys app archive.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.create_schedule_vm_snapshot"><code class="name flex">
+<span>def <span class="ident">create_schedule_vm_snapshot</span></span>(<span>self,<br>workload_name,<br>schedule_type,<br>interval=1,<br>day='Monday',<br>day_time='',<br>day_hours=1,<br>day_minutes=1,<br>vm_state='Current',<br>time_zone='Europe/Belgrade',<br>timezone_offset='+2')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def create_schedule_vm_snapshot(
+    self,
+    workload_name,
+    schedule_type,
+    interval=1,
+    day=&#34;Monday&#34;,
+    day_time=&#34;&#34;,
+    day_hours=1,
+    day_minutes=1,
+    vm_state=&#34;Current&#34;,
+    time_zone=&#34;Europe/Belgrade&#34;,
+    timezone_offset=&#34;+2&#34;,
+):
+    &#34;&#34;&#34;Create a schedule for snapshots of a VM workload.
+
+    schedule_type: str
+        Type of schedule (Interval, Day)
+    &#34;&#34;&#34;
+    wl = self.get_workload_list()[&#34;workloads&#34;]
+    for workload in wl:
+        if workload_name == workload[&#34;name&#34;]:
+            device_id = workload[&#34;deviceId&#34;]
+
+    payload = {
+        &#34;type&#34;: schedule_type,
+        &#34;intervalTime&#34;: interval,
+        &#34;day&#34;: day,
+        &#34;dayTime&#34;: day_time,
+        &#34;dayHours&#34;: day_hours,
+        &#34;dayMinutes&#34;: day_minutes,
+        &#34;vmState&#34;: vm_state,
+        &#34;timeZone&#34;: time_zone,
+        &#34;timezoneOffset&#34;: timezone_offset,
+    }
+
+    return self.node.post(
+        f&#34;/api/workloads/{device_id}/snapshots/schedule&#34;,
+        json=payload,
+        accepted_status=[requests.codes.ok, requests.codes.accepted, requests.codes.created],
+    )</code></pre>
+</details>
+<div class="desc"><p>Create a schedule for snapshots of a VM workload.</p>
+<p>schedule_type: str
+Type of schedule (Interval, Day)</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.create_vm_backup"><code class="name flex">
+<span>def <span class="ident">create_vm_backup</span></span>(<span>self, workload_name, backup_name)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def create_vm_backup(self, workload_name, backup_name):
+    &#34;&#34;&#34;Create a backup of a VM workload over LocalUI.&#34;&#34;&#34;
+    wl = self.get_workload_list()[&#34;workloads&#34;]
+    for workload in wl:
+        if workload_name == workload[&#34;name&#34;]:
+            device_id = workload[&#34;deviceId&#34;]
+
+    payload = {
+        &#34;name&#34;: backup_name,
+    }
+    self._log.info(&#34;Triggering VM Backup of %s to %s&#34;, workload_name, backup_name)
+    return self.node.post(
+        f&#34;/api/workloads/{device_id}/backups&#34;,
+        json=payload,
+        accepted_status=[requests.codes.ok, requests.codes.accepted],
+    ).json()</code></pre>
+</details>
+<div class="desc"><p>Create a backup of a VM workload over LocalUI.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.create_vm_snapshot"><code class="name flex">
+<span>def <span class="ident">create_vm_snapshot</span></span>(<span>self, workload_name, snapshot_name, description='')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def create_vm_snapshot(self, workload_name, snapshot_name, description=&#34;&#34;):
+    &#34;&#34;&#34;Create a snapshot of a VM workload.&#34;&#34;&#34;
+    wl = self.get_workload_list()[&#34;workloads&#34;]
+    for workload in wl:
+        if workload_name == workload[&#34;name&#34;]:
+            device_id = workload[&#34;deviceId&#34;]
+
+    payload = {
+        &#34;name&#34;: snapshot_name,
+        &#34;description&#34;: description,
+    }
+    return self.node.post(
+        f&#34;/api/workloads/{device_id}/snapshots&#34;,
+        json=payload,
+        accepted_status=[requests.codes.ok, requests.codes.accepted],
+    )</code></pre>
+</details>
+<div class="desc"><p>Create a snapshot of a VM workload.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.delete_schedule_vm_snapshot"><code class="name flex">
+<span>def <span class="ident">delete_schedule_vm_snapshot</span></span>(<span>self, workload_name)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def delete_schedule_vm_snapshot(self, workload_name):
+    &#34;&#34;&#34;Delete a schedule for snapshots of a VM workload.&#34;&#34;&#34;
+    wl = self.get_workload_list()[&#34;workloads&#34;]
+    for workload in wl:
+        if workload_name == workload[&#34;name&#34;]:
+            device_id = workload[&#34;deviceId&#34;]
+
+    return self.node.delete(
+        f&#34;/api/workloads/{device_id}/snapshots/schedule&#34;,
+        accepted_status=[requests.codes.ok, requests.codes.accepted],
+    )</code></pre>
+</details>
+<div class="desc"><p>Delete a schedule for snapshots of a VM workload.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.delete_vm_snapshot"><code class="name flex">
+<span>def <span class="ident">delete_vm_snapshot</span></span>(<span>self, workload_name, snapshot_name)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def delete_vm_snapshot(self, workload_name, snapshot_name):
+    &#34;&#34;&#34;Delete a snapshot of a VM workload.&#34;&#34;&#34;
+    wl = self.get_workload_list()[&#34;workloads&#34;]
+    for workload in wl:
+        if workload_name == workload[&#34;name&#34;]:
+            device_id = workload[&#34;deviceId&#34;]
+
+    params = {&#34;name&#34;: snapshot_name}
+    return self.node.delete(
+        f&#34;/api/workloads/{device_id}/snapshots&#34;,
+        params=params,
+        accepted_status=[requests.codes.ok],
+    )</code></pre>
+</details>
+<div class="desc"><p>Delete a snapshot of a VM workload.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.deploy_vm_backup"><code class="name flex">
+<span>def <span class="ident">deploy_vm_backup</span></span>(<span>self, backup_name)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def deploy_vm_backup(self, backup_name):
+    &#34;&#34;&#34;Deploy a VM backup.&#34;&#34;&#34;
+    payload = {&#34;name&#34;: f&#34;{backup_name}&#34;, &#34;deployAsBackup&#34;: False}
+
+    return self.node.post(
+        &#34;/api/workloads/backups/deploy&#34;,
+        json=payload,
+        accepted_status=[requests.codes.ok, requests.codes.accepted],
+    ).json()</code></pre>
+</details>
+<div class="desc"><p>Deploy a VM backup.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.download_audit_log"><code class="name flex">
+<span>def <span class="ident">download_audit_log</span></span>(<span>self, destination_path: str) ‑> dict</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def download_audit_log(self, destination_path: str) -&gt; dict:
+    &#34;&#34;&#34;Download current audit log file and archives created by logrotate, compressed in a zip archive.&#34;&#34;&#34;
+    response = self.node.get(&#34;/api/system/audit-logs&#34;, accepted_status=[requests.codes.ok])
+    # Open the file in binary write mode and write the content
+    with open(destination_path, &#34;wb&#34;) as file:
+        file.write(response.content)
+
+    self._log.info(f&#34;File downloaded successfully to: {destination_path}&#34;)</code></pre>
+</details>
+<div class="desc"><p>Download current audit log file and archives created by logrotate, compressed in a zip archive.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.edit_file"><code class="name flex">
+<span>def <span class="ident">edit_file</span></span>(<span>self, file_path, content, password)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def edit_file(self, file_path, content, password):
+    &#34;&#34;&#34;Write content to a file on the device.&#34;&#34;&#34;
+    command = f&#34;echo &#39;{password}&#39; | sudo -S bash -c &#39;echo \&#34;{content}\&#34; &gt; {file_path}&#39;&#34;
+    result = self.node.ssh.execute(command)
+    logging.info(&#34;Modified content of the file: %s&#34;, result)
+    return result</code></pre>
+</details>
+<div class="desc"><p>Write content to a file on the device.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.get_backup_list"><code class="name flex">
+<span>def <span class="ident">get_backup_list</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_backup_list(self):
+    &#34;&#34;&#34;Read backup list for node.&#34;&#34;&#34;
+    return self.node.get(&#34;/api/repositories&#34;, timeout=(10, 15)).json()</code></pre>
+</details>
+<div class="desc"><p>Read backup list for node.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.get_deploy_backup_status"><code class="name flex">
+<span>def <span class="ident">get_deploy_backup_status</span></span>(<span>self, backup_id)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_deploy_backup_status(self, backup_id):
+    &#34;&#34;&#34;Get the state of a deployed backup.&#34;&#34;&#34;
+    response = self.node.get(
+        &#34;/api/workloads&#34;,
+        accepted_status=[requests.codes.ok, requests.codes.accepted],
+    ).json()
+
+    for status in response[&#34;workloads&#34;]:
+        if status[&#34;workloadId&#34;] == backup_id:
+            if &#34;deviceId&#34; in status:
+                return True
+    return False</code></pre>
+</details>
+<div class="desc"><p>Get the state of a deployed backup.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.get_info"><code class="name flex">
+<span>def <span class="ident">get_info</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_info(self):
+    &#34;&#34;&#34;Read all node info elements.&#34;&#34;&#34;
+    try:
+        response = self.node.get(&#34;/api/setup/node/info&#34;, accepted_status=[requests.codes.ok])
+        info = response.json()
+    except requests.exceptions.JSONDecodeError as err:
+        self._log.error(&#34;GET /api/setup/node/info: Invalid json: %s&#34;, response.text)
+        raise err
+    return info</code></pre>
+</details>
+<div class="desc"><p>Read all node info elements.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.get_network_configuration"><code class="name flex">
+<span>def <span class="ident">get_network_configuration</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_network_configuration(self):
+    &#34;&#34;&#34;Get network configuration of all interface.&#34;&#34;&#34;
+    return self.node.get(
+        &#34;api/setup/network/interfaces&#34;,
+        accepted_status=[requests.codes.ok],
+    ).json()</code></pre>
+</details>
+<div class="desc"><p>Get network configuration of all interface.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.get_secure_id"><code class="name flex">
+<span>def <span class="ident">get_secure_id</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_secure_id(self):
+    &#34;&#34;&#34;Read the secure id of a node.&#34;&#34;&#34;
+    if self.version_smaller_than(&#34;2.10.0&#34;):
+        return (
+            self.node.get(&#34;/api/setup/configurations/secureId&#34;, accepted_status=[requests.codes.ok])
+            .json()
+            .get(&#34;secureId&#34;)
+        )
+    return (
+        self.node.get(&#34;/api/setup/configurations/secure-id&#34;, accepted_status=[requests.codes.ok])
+        .json()
+        .get(&#34;secureId&#34;)
+    )</code></pre>
+</details>
+<div class="desc"><p>Read the secure id of a node.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.get_vm_backup"><code class="name flex">
+<span>def <span class="ident">get_vm_backup</span></span>(<span>self, backup_name)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_vm_backup(self, backup_name):
+    &#34;&#34;&#34;Get VM backup details from repository.&#34;&#34;&#34;
+    response = self.node.get(
+        &#34;/api/repositories/list/backups&#34;,
+        accepted_status=[requests.codes.ok, requests.codes.accepted],
+    ).json()
+
+    for backup in response[&#34;list&#34;]:
+        if backup[&#34;name&#34;] == backup_name:
+            return backup
+    return []</code></pre>
+</details>
+<div class="desc"><p>Get VM backup details from repository.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.get_vm_snapshot"><code class="name flex">
+<span>def <span class="ident">get_vm_snapshot</span></span>(<span>self, workload_name)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_vm_snapshot(self, workload_name):
+    &#34;&#34;&#34;Get a snapshot of a VM workload.&#34;&#34;&#34;
+    wl = self.get_workload_list()[&#34;workloads&#34;]
+    for workload in wl:
+        if workload_name == workload[&#34;name&#34;]:
+            device_id = workload[&#34;deviceId&#34;]
+
+    return self.node.get(
+        f&#34;/api/workloads/{device_id}/snapshots&#34;,
+        accepted_status=[requests.codes.ok],
+    ).json()</code></pre>
+</details>
+<div class="desc"><p>Get a snapshot of a VM workload.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.get_workload_list"><code class="name flex">
+<span>def <span class="ident">get_workload_list</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_workload_list(self):
+    &#34;&#34;&#34;Read workload list for node.&#34;&#34;&#34;
+    return self.node.get(&#34;/api/workloads&#34;).json()</code></pre>
+</details>
+<div class="desc"><p>Read workload list for node.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.local_node_change_resource_allocation"><code class="name flex">
+<span>def <span class="ident">local_node_change_resource_allocation</span></span>(<span>self, workload_name, cpu: int, memory)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def local_node_change_resource_allocation(self, workload_name, cpu: int, memory):
+    &#34;&#34;&#34;Change resource allocation for a workload.&#34;&#34;&#34;
+    wl = self.get_workload_list()[&#34;workloads&#34;]
+    for workload in wl:
+        if workload_name == workload[&#34;name&#34;]:
+            device_id = workload[&#34;deviceId&#34;]
+    payload = {&#34;cpu&#34;: cpu, &#34;memory&#34;: memory}
+
+    return self.node.post(
+        f&#34;/api/workloads/{device_id}/apply-resources&#34;,
+        json=payload,
+    )</code></pre>
+</details>
+<div class="desc"><p>Change resource allocation for a workload.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.localui_apply_workload_configuration"><code class="name flex">
+<span>def <span class="ident">localui_apply_workload_configuration</span></span>(<span>self, device_id: int, zip_file: str, configurations) ‑> type</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def localui_apply_workload_configuration(self, device_id: int, zip_file: str, configurations) -&gt; type:
+    &#34;&#34;&#34;Add a workload configuration via localui.
+
+    Parameters
+    ----------
+    device_id: int
+        Device ID of the workload the configuration shall be applied on.
+    zip_file: str
+        File path to the configuration zip file.
+    configurations: list of str
+        Volume of the workload configurations.
+
+    Returns
+    -------
+    type
+        Result of the POST request.
+    &#34;&#34;&#34;
+    timestamp_ms = int(time.time() * 1000)
+    payload_data = {
+        &#34;user&#34;: &#34;local@nerve.cloud&#34;,
+        &#34;timestamp&#34;: timestamp_ms,
+        &#34;configurations&#34;: configurations,
+        &#34;restartOnConfigurationUpdate&#34;: True,
+    }
+    m_enc = MultipartEncoder(
+        fields={
+            &#34;file&#34;: (zip_file, open(zip_file, &#34;rb&#34;), &#34;application/octet-stream&#34;),
+            &#34;data&#34;: json.dumps(payload_data),
+        },
+    )
+    return self.node.post(
+        f&#34;/api/workloads/{device_id}/apply-configuration&#34;,
+        data=m_enc,
+        content_type=m_enc.content_type,
+        accepted_status=[requests.codes.ok, requests.codes.no_content],
+        timeout=(10, 10),
+    )</code></pre>
+</details>
+<div class="desc"><p>Add a workload configuration via localui.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>device_id</code></strong> :&ensp;<code>int</code></dt>
+<dd>Device ID of the workload the configuration shall be applied on.</dd>
+<dt><strong><code>zip_file</code></strong> :&ensp;<code>str</code></dt>
+<dd>File path to the configuration zip file.</dd>
+<dt><strong><code>configurations</code></strong> :&ensp;<code>list</code> of <code>str</code></dt>
+<dd>Volume of the workload configurations.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>type</code></dt>
+<dd>Result of the POST request.</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.rc_setting"><code class="name flex">
+<span>def <span class="ident">rc_setting</span></span>(<span>self, approve: int)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def rc_setting(self, approve: int):
+    &#34;&#34;&#34;Set remote connection approval settings.
+
+            Valid values for &#39;approve&#39; are:
+    0 - Approval of connection set in Management System (default)
+    1 - Always allow remote connections on this node
+    2 - Request approval for every remote connection made to this node.
+    &#34;&#34;&#34;
+    if approve not in {0, 1, 2}:
+        msg = &#34;Invalid value for &#39;approve&#39;. Valid values are 0, 1, and 2.&#34;
+        raise ValueError(msg)
+    payload = {&#34;approve&#34;: approve}
+    return self.node.put(
+        &#34;/api/rc-settings&#34;,
+        json=payload,
+        accepted_status=[requests.codes.ok, requests.codes.accepted],
+    ).json()</code></pre>
+</details>
+<div class="desc"><p>Set remote connection approval settings.</p>
+<pre><code>    Valid values for 'approve' are:
+</code></pre>
+<p>0 - Approval of connection set in Management System (default)
+1 - Always allow remote connections on this node
+2 - Request approval for every remote connection made to this node.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.read_file"><code class="name flex">
+<span>def <span class="ident">read_file</span></span>(<span>self, file_path)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def read_file(self, file_path):
+    &#34;&#34;&#34;Read the content of a file on the device.&#34;&#34;&#34;
+    return self.node.ssh.execute(f&#34;cat {file_path}&#34;)</code></pre>
+</details>
+<div class="desc"><p>Read the content of a file on the device.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.reboot"><code class="name flex">
+<span>def <span class="ident">reboot</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def reboot(self):
+    &#34;&#34;&#34;Reboot the node.&#34;&#34;&#34;
+    payload = {&#34;source&#34;: &#34;local_ui&#34;}
+    return self.node.post(
+        &#34;/api/system/reboot&#34;,
+        json=payload,
+        accepted_status=[requests.codes.ok, requests.codes.accepted],
+    ).json()</code></pre>
+</details>
+<div class="desc"><p>Reboot the node.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.resolve_remote_connection"><code class="name flex">
+<span>def <span class="ident">resolve_remote_connection</span></span>(<span>self, connection_uid: str, connection_request_uid: str, approved: bool)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def resolve_remote_connection(self, connection_uid: str, connection_request_uid: str, approved: bool):
+    &#34;&#34;&#34;Approve or reject a remote connection request.
+
+    Parameters
+    ----------
+    connection_uid : str
+        UID of the connection.
+    connection_request_uid : str
+        UID of the connection request.
+    approved : bool
+        True to approve the connection, False to reject it.
+
+    Returns
+    -------
+    dict
+        Response from the API.
+    &#34;&#34;&#34;
+    payload = {
+        &#34;connectionUid&#34;: connection_uid,
+        &#34;approved&#34;: approved,
+        &#34;connectionRequestUid&#34;: connection_request_uid,
+    }
+    return self.node.put(
+        &#34;/api/rc-requests/resolve&#34;,
+        json=payload,
+        accepted_status=[requests.codes.ok, requests.codes.no_content],
+    ).json()</code></pre>
+</details>
+<div class="desc"><p>Approve or reject a remote connection request.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>connection_uid</code></strong> :&ensp;<code>str</code></dt>
+<dd>UID of the connection.</dd>
+<dt><strong><code>connection_request_uid</code></strong> :&ensp;<code>str</code></dt>
+<dd>UID of the connection request.</dd>
+<dt><strong><code>approved</code></strong> :&ensp;<code>bool</code></dt>
+<dd>True to approve the connection, False to reject it.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>dict</code></dt>
+<dd>Response from the API.</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.restart_vm_backup"><code class="name flex">
+<span>def <span class="ident">restart_vm_backup</span></span>(<span>self, workload_name, backup_name)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def restart_vm_backup(self, workload_name, backup_name):
+    &#34;&#34;&#34;Restart creating backup of a VM workload over LocalUI.&#34;&#34;&#34;
+    wl = self.get_workload_list()[&#34;workloads&#34;]
+    for workload in wl:
+        if workload_name == workload[&#34;name&#34;]:
+            device_id = workload[&#34;deviceId&#34;]
+
+    payload = {
+        &#34;name&#34;: backup_name,
+    }
+    self._log.info(&#34;Retry Triggering VM Backup of %s to %s&#34;, workload_name, backup_name)
+    return self.node.post(
+        f&#34;/api/workloads/{device_id}/backups/restart&#34;,
+        json=payload,
+        accepted_status=[requests.codes.ok, requests.codes.accepted],
+    ).json()</code></pre>
+</details>
+<div class="desc"><p>Restart creating backup of a VM workload over LocalUI.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.restore_vm_snapshot"><code class="name flex">
+<span>def <span class="ident">restore_vm_snapshot</span></span>(<span>self, workload_name, snapshot_name)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def restore_vm_snapshot(self, workload_name, snapshot_name):
+    &#34;&#34;&#34;Restore a snapshot of a VM workload.&#34;&#34;&#34;
+    wl = self.get_workload_list()[&#34;workloads&#34;]
+    for workload in wl:
+        if workload_name == workload[&#34;name&#34;]:
+            device_id = workload[&#34;deviceId&#34;]
+
+    payload = {&#34;name&#34;: snapshot_name}
+    return self.node.put(
+        f&#34;/api/workloads/{device_id}/snapshots&#34;,
+        json=payload,
+        accepted_status=[requests.codes.ok],
+        timeout=(10, 10),
+    )</code></pre>
+</details>
+<div class="desc"><p>Restore a snapshot of a VM workload.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.set_configuration"><code class="name flex">
+<span>def <span class="ident">set_configuration</span></span>(<span>self, ms_url: str)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def set_configuration(self, ms_url: str):
+    &#34;&#34;&#34;Set onboarding configuration to connect to a management system.&#34;&#34;&#34;
+    payload = {
+        &#34;cloudUrl&#34;: ms_url,
+        &#34;serialNumber&#34;: self.node.serial_number,
+        &#34;protocol&#34;: &#34;wss&#34;,
+        &#34;timezone&#34;: {&#34;name&#34;: &#34;Etc/UTC&#34;},
+    }
+    self.node.post(&#34;/api/setup/configurations&#34;, json=payload, accepted_status=[requests.codes.ok])</code></pre>
+</details>
+<div class="desc"><p>Set onboarding configuration to connect to a management system.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.set_critical_action"><code class="name flex">
+<span>def <span class="ident">set_critical_action</span></span>(<span>self, file_path, value)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def set_critical_action(self, file_path, value):
+    &#34;&#34;&#34;
+    Edit the critical actions file to change &#39;allow&#39; to &#39;not allowed&#39; or vice versa.
+
+    Args:
+        file_path (str): The path to the YAML file containing critical actions.
+        value (str): The value to set (&#39;allow&#39; or &#39;not allowed&#39;).
+
+    Returns
+    -------
+        str: The modified content of the YAML file as a string.
+    &#34;&#34;&#34;
+    content = self.read_file(file_path)
+    logging.info(&#34;Content of the file: %s&#34;, content)
+    data = yaml.safe_load(content)
+
+    # Modify the YAML content
+    for action in data.get(&#34;action&#34;, {}).values():
+        for source in action.get(&#34;source&#34;, {}).values():
+            if value == &#34;not allowed&#34; and source.get(&#34;value&#34;) == &#34;allow&#34;:
+                source[&#34;value&#34;] = &#34;not allowed&#34;
+            elif value == &#34;allow&#34; and source.get(&#34;value&#34;) == &#34;not allowed&#34;:
+                source[&#34;value&#34;] = &#34;allow&#34;
+
+    modified_content = yaml.safe_dump(data)
+    logging.info(&#34;Modified content of the file: %s&#34;, modified_content)
+    return modified_content</code></pre>
+</details>
+<div class="desc"><p>Edit the critical actions file to change 'allow' to 'not allowed' or vice versa.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>file_path</code></strong> :&ensp;<code>str</code></dt>
+<dd>The path to the YAML file containing critical actions.</dd>
+<dt><strong><code>value</code></strong> :&ensp;<code>str</code></dt>
+<dd>The value to set ('allow' or 'not allowed').</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<pre><code>str: The modified content of the YAML file as a string.
+</code></pre></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.set_local_repository"><code class="name flex">
+<span>def <span class="ident">set_local_repository</span></span>(<span>self, protocol, repo_type, path, user=None, password=None, options='')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def set_local_repository(self, protocol, repo_type, path, user=None, password=None, options=&#34;&#34;):
+    &#34;&#34;&#34;Set a local repository.&#34;&#34;&#34;
+    payload = {
+        &#34;protocol&#34;: protocol,
+        &#34;type&#34;: repo_type,
+        &#34;path&#34;: path,
+    }
+    if protocol == &#34;nfs&#34;:
+        payload[&#34;options&#34;] = options
+    else:
+        payload[&#34;user&#34;] = user
+        payload[&#34;password&#34;] = password
+    return self.node.post(
+        &#34;/api/repositories&#34;,
+        json=payload,
+        accepted_status=[requests.codes.ok, requests.codes.accepted],
+    ).json()</code></pre>
+</details>
+<div class="desc"><p>Set a local repository.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.set_network_configuration"><code class="name flex">
+<span>def <span class="ident">set_network_configuration</span></span>(<span>self,<br>interface,<br>allocation,<br>ip_address='0.0.0.0',<br>netmask='0.0.0.0',<br>gateway='0.0.0.0',<br>domain_names=[])</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def set_network_configuration(
+    self,
+    interface,
+    allocation,
+    ip_address=&#34;0.0.0.0&#34;,
+    netmask=&#34;0.0.0.0&#34;,
+    gateway=&#34;0.0.0.0&#34;,
+    domain_names=[],
+):
+    &#34;&#34;&#34;Set network configuration of an interface.
+
+    Parameters
+    ----------
+    interface : str
+        Name of the interface.
+    allocation : str
+        Allocation of the interface. (one of dhcp, static, unconfigured)
+    ip_address : str, optional
+        IP address of the interface. The default is &#34;0.0.0.0&#34;
+    netmask : str, optional
+        Netmask of the interface. The default is &#34;0.0.0.0&#34;
+    gateway : str, optional
+        Gateway of the interface. The default is &#34;0.0.0.0&#34;
+    domain_names : list, optional
+        Domain names of the interface. The default is [].
+    &#34;&#34;&#34;
+    return self.node.post(
+        &#34;api/setup/network/interfaces&#34;,
+        json={
+            &#34;interfaces&#34;: [
+                {
+                    &#34;interface_name&#34;: interface,
+                    &#34;allocation&#34;: allocation,
+                    &#34;ip_address&#34;: ip_address,
+                    &#34;netmask&#34;: netmask,
+                    &#34;gateway&#34;: gateway,
+                    &#34;domainNames&#34;: domain_names,
+                }
+            ]
+        },
+        accepted_status=[requests.codes.ok],
+    ).json()</code></pre>
+</details>
+<div class="desc"><p>Set network configuration of an interface.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>interface</code></strong> :&ensp;<code>str</code></dt>
+<dd>Name of the interface.</dd>
+<dt><strong><code>allocation</code></strong> :&ensp;<code>str</code></dt>
+<dd>Allocation of the interface. (one of dhcp, static, unconfigured)</dd>
+<dt><strong><code>ip_address</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>IP address of the interface. The default is "0.0.0.0"</dd>
+<dt><strong><code>netmask</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>Netmask of the interface. The default is "0.0.0.0"</dd>
+<dt><strong><code>gateway</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>Gateway of the interface. The default is "0.0.0.0"</dd>
+<dt><strong><code>domain_names</code></strong> :&ensp;<code>list</code>, optional</dt>
+<dd>Domain names of the interface. The default is [].</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.set_proxy"><code class="name flex">
+<span>def <span class="ident">set_proxy</span></span>(<span>self, enabled, http_proxy, https_proxy, no_proxy='', user='', password='')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def set_proxy(self, enabled, http_proxy, https_proxy, no_proxy=&#34;&#34;, user=&#34;&#34;, password=&#34;&#34;):
+    &#34;&#34;&#34;Manage Proxy settings on a node.&#34;&#34;&#34;
+    payload = {
+        &#34;enabled&#34;: enabled,
+        &#34;http_proxy&#34;: http_proxy,
+        &#34;https_proxy&#34;: https_proxy,
+        &#34;no_proxy&#34;: no_proxy,
+        &#34;username&#34;: user,
+        &#34;password&#34;: password,
+    }
+
+    self.node.post(
+        &#34;/api/proxy-settings&#34;,
+        json=payload,
+        accepted_status=[requests.codes.ok, requests.codes.no_content],
+    )</code></pre>
+</details>
+<div class="desc"><p>Manage Proxy settings on a node.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.set_vm_backup"><code class="name flex">
+<span>def <span class="ident">set_vm_backup</span></span>(<span>self, nfs_mountpoint: str, mount_options: str = 'rw,nolock')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def set_vm_backup(self, nfs_mountpoint: str, mount_options: str = &#34;rw,nolock&#34;):
+    &#34;&#34;&#34;Set or disable vm-backup.&#34;&#34;&#34;
+    backup_list = self.get_backup_list()[&#34;repositories&#34;]
+    payload = {
+        &#34;path&#34;: nfs_mountpoint,
+        &#34;user&#34;: &#34;&#34;,
+        &#34;password&#34;: &#34;&#34;,
+        &#34;id&#34;: &#34;&#34;,
+        &#34;protocol&#34;: &#34;nfs&#34;,
+        &#34;type&#34;: &#34;vmBackups&#34;,
+        &#34;options&#34;: &#34;&#34;,
+        &#34;isMounted&#34;: True,
+    }
+
+    if nfs_mountpoint:
+        if backup_list:
+            return self.node.put(f&#34;/api/repositories/{backup_list[-1][&#39;id&#39;]}&#34;, json=payload)
+        return self.node.post(&#34;/api/repositories&#34;, json=payload)
+
+    return self.node.delete(f&#34;/api/repositories/{backup_list[-1][&#39;id&#39;]}&#34;)</code></pre>
+</details>
+<div class="desc"><p>Set or disable vm-backup.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.terminate_connections"><code class="name flex">
+<span>def <span class="ident">terminate_connections</span></span>(<span>self, rc_list: list)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def terminate_connections(self, rc_list: list):
+    &#34;&#34;&#34;Terminate remote connections.
+
+    Parameters
+    ----------
+    rc_list : list
+        List of dictionaries containing connectionUid and connectionRequestUid.
+
+    Returns
+    -------
+    dict
+        Response from the API.
+    &#34;&#34;&#34;
+    payload = {&#34;rcList&#34;: rc_list}
+    return self.node.post(
+        &#34;/api/rc-connections/terminate-connections&#34;, json=payload, accepted_status=[requests.codes.ok]
+    )</code></pre>
+</details>
+<div class="desc"><p>Terminate remote connections.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>rc_list</code></strong> :&ensp;<code>list</code></dt>
+<dd>List of dictionaries containing connectionUid and connectionRequestUid.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>dict</code></dt>
+<dd>Response from the API.</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.version_smaller_than"><code class="name flex">
+<span>def <span class="ident">version_smaller_than</span></span>(<span>self, version: str) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def version_smaller_than(self, version: str) -&gt; bool:
+    &#34;&#34;&#34;Check if the node version is smaller than the provided version.
+
+    Parameters
+    ----------
+    version : str
+        version to be checked.
+
+    Returns
+    -------
+    bool
+        True if the MS version is smaller than the provided version.
+    &#34;&#34;&#34;
+    if not self.version:
+        self._log.warning(&#34;Could not read node version, assuming latest&#34;)
+        return False
+    current_version = self.version.split(&#34;-&#34;)[0].split(&#34;.&#34;)
+    comp_version = version.split(&#34;-&#34;)[0].split(&#34;.&#34;)
+
+    if len(current_version) != 3:  # noqa: PLR2004
+        return False  # e.g integration, master
+    if len(comp_version) != 3:  # noqa: PLR2004
+        return True  # e.g integration, master
+
+    for i in range(3):
+        if int(current_version[i]) &lt; int(comp_version[i]):
+            return True
+        if int(current_version[i]) &gt; int(comp_version[i]):
+            return False
+    return False</code></pre>
+</details>
+<div class="desc"><p>Check if the node version is smaller than the provided version.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>version</code></strong> :&ensp;<code>str</code></dt>
+<dd>version to be checked.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>bool</code></dt>
+<dd>True if the MS version is smaller than the provided version.</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.vm_backup_status"><code class="name flex">
+<span>def <span class="ident">vm_backup_status</span></span>(<span>self, workload_name, backup_name='')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def vm_backup_status(self, workload_name, backup_name=&#34;&#34;):
+    &#34;&#34;&#34;Get status of backup creation of a VM workload.&#34;&#34;&#34;
+    wl = self.get_workload_list()[&#34;workloads&#34;]
+    for workload in wl:
+        if workload_name == workload[&#34;name&#34;]:
+            device_id = workload[&#34;deviceId&#34;]
+
+    response = self.node.get(
+        f&#34;/api/workloads/{device_id}/backups&#34;,
+        accepted_status=[requests.codes.ok, requests.codes.accepted],
+    ).json()
+
+    if not backup_name:
+        return response
+
+    try:
+        status = next(state for state in response[&#34;backups&#34;] if state.get(&#34;name&#34;) == backup_name)
+    except StopIteration:
+        self._log.error(
+            &#34;Could not read backup status of %s from workload %s&#34;,
+            backup_name,
+            workload_name,
+        )
+        return {}
+
+    self._log.info(
+        &#34;VM Backup status of %s to %s: %s&#34;,
+        workload_name,
+        backup_name,
+        status.get(&#34;status&#34;, &#34;UNKNOWN&#34;),
+    )
+    return status</code></pre>
+</details>
+<div class="desc"><p>Get status of backup creation of a VM workload.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="nerve_lib.manage_node.MSNode"><code class="flex name class">
+<span>class <span class="ident">MSNode</span></span>
+<span>(</span><span>ms_handle: type)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class MSNode:
+    &#34;&#34;&#34;Node related functions from MS.
+
+    Parameters
+    ----------
+    ms_handle : type
+        management system handle &#39;nerve_lib.general_utils.MSHandle(...)&#39;.
+    &#34;&#34;&#34;
+
+    def __init__(self, ms_handle: type):
+        self.ms = ms_handle
+        self._log = logging.getLogger(&#34;NodeMS&#34;)
+
+        self.node_tree = _MSNodeTree(self.ms)
+        self.node_update = _MSNodeUpdate(self.ms)
+
+    def get_nodes(self, serial_number: Optional[str] = None) -&gt; dict:
+        &#34;&#34;&#34;Read node list of MS.
+
+        Parameters
+        ----------
+        serial_number : str, optional
+            Return only selected node information if paramter is set and matches to a node.
+            The default is None.
+
+        Returns
+        -------
+        dict
+            Node list informatnion from MS API.
+        &#34;&#34;&#34;
+        node_list = self.ms.get(&#34;/nerve/nodes/list&#34;, accepted_status=[requests.codes.ok]).json()
+        if serial_number is not None:
+            filtered_nodes = [node for node in node_list if node.get(&#34;serialNumber&#34;) == serial_number]
+            if filtered_nodes:
+                # Return the first matching node
+                return filtered_nodes[0]
+            # Return empty dictionary if no matching node found
+            return {}
+        # Return the entire node list
+        return node_list
+
+    def get_nodes_by_name(self, node_name_filter: Optional[str] = None) -&gt; dict:
+        &#34;&#34;&#34;Read node list of MS filtered by name of the node.
+
+        Parameters
+        ----------
+        node_name_filter : str, optional
+            Return all nodes, containing the defined name. The default is None.
+
+        Returns
+        -------
+        dict
+            Node list informatnion from MS API.
+
+        &#34;&#34;&#34;
+        parameters = {&#34;limit&#34;: 100, &#34;page&#34;: 0, &#34;order[created]&#34;: &#34;asc&#34;}
+        if node_name_filter:
+            parameters[&#34;filterBy[name]&#34;] = node_name_filter
+        return self.ms.get(
+            &#34;/nerve/nodes/filtered/list&#34;,
+            params=parameters,
+            accepted_status=[requests.codes.ok],
+        ).json()
+
+    def get_deploy_list(self, workload_id: str, version_id: str, node_name_filter: str) -&gt; dict:
+        &#34;&#34;&#34;Get list of nodes a workload can be deployed to.
+
+        Parameters
+        ----------
+        workload_id : str
+            _id of the workload.
+        version_id : str
+            _id of the workload version.
+        node_name_filter : str
+            filter nodes by name, can also be empty string.
+
+        Returns
+        -------
+        dict
+            List of nodes the workload can be deployed to.
+        &#34;&#34;&#34;
+        parameters = {&#34;limit&#34;: 100, &#34;page&#34;: 0, &#34;order[created]&#34;: &#34;asc&#34;}
+        if node_name_filter:
+            parameters[&#34;filterBy[name]&#34;] = node_name_filter
+
+        return self.ms.get(
+            f&#34;/nerve/nodes/deploy/{workload_id}/{version_id}&#34;,
+            params=parameters,
+            accepted_status=[requests.codes.ok],
+        ).json()
+
+    def create_node(
+        self,
+        name: str,
+        model: str,
+        secure_id: str,
+        serial_number: str,
+        labels: list = [],
+        remote_connections: list = [],
+    ) -&gt; dict:
+        &#34;&#34;&#34;Create new node on MS.
+
+        Parameters
+        ----------
+        name : str
+            Node Name.
+        model : str
+            Node model.
+        secure_id : str
+            secure id of the node.
+        serial_number : str
+            serial_number of the node.
+        labels : list, optional
+            list of labels. The default is [].
+        remote_connections : list, optional
+            remote connections to be added. The default is [].
+
+        Returns
+        -------
+        dict
+            API response.
+        &#34;&#34;&#34;
+        payload = {
+            &#34;name&#34;: name,
+            &#34;model&#34;: model,
+            &#34;secureId&#34;: secure_id,
+            &#34;serialNumber&#34;: serial_number,
+            &#34;labels&#34;: labels,
+            &#34;remoteConnections&#34;: remote_connections,
+        }
+        return self.ms.post(&#34;/nerve/node&#34;, json=payload, accepted_status=[requests.codes.ok]).json()
+
+    def get_active_remote_connections(self) -&gt; dict:
+        &#34;&#34;&#34;Read currently active remote connections on MS.
+
+        Returns
+        -------
+        dict
+            list of remote connections.
+        &#34;&#34;&#34;
+        if self.ms.version_smaller_than(&#34;2.10.0&#34;):
+            url = &#34;/nerve/activeRemoteConnections&#34;
+        else:
+            url = &#34;/nerve/active-remote-connections&#34;
+        active_connections = self.ms.get(
+            url,
+            accepted_status=[requests.codes.ok],
+        ).json()
+
+        return active_connections.get(&#34;data&#34;, [])
+
+    def remove_active_remote_connections(self, remote_ids: Optional[list] = None) -&gt; type:
+        &#34;&#34;&#34;Remove established remote connections from MS.
+
+        Parameters
+        ----------
+        remote_ids : list(dict)
+            list of dict containing {
+                &#34;connectionUid&#34;: str,
+                &#34;connectionRequestUid&#34;: str,
+            }
+            if parameter is None, all active connection will be removed
+
+        Returns
+        -------
+        response object from delete operation
+        &#34;&#34;&#34;
+        if remote_ids is None:
+            remote_ids = []
+            active_connections = self.get_active_remote_connections()
+            for connection in active_connections:
+                remote_ids.append({
+                    &#34;connectionUid&#34;: connection[&#34;connection&#34;][&#34;connectionUid&#34;],
+                    &#34;connectionRequestUid&#34;: connection[&#34;connectionRequest&#34;][&#34;requestUid&#34;],
+                    &#34;serialNumber&#34;: connection[&#34;connection&#34;][&#34;serialNumber&#34;],
+                    &#34;connectionName&#34;: connection[&#34;name&#34;],
+                    &#34;type&#34;: connection[&#34;connection&#34;][&#34;type&#34;],
+                    &#34;versionId&#34;: connection[&#34;connection&#34;][&#34;target&#34;][&#34;versionId&#34;],
+                    &#34;workloadId&#34;: connection[&#34;connection&#34;][&#34;target&#34;][&#34;workloadId&#34;],
+                })
+
+        close_list = {&#34;rcList&#34;: remote_ids}
+        if remote_ids == []:
+            self._log.info(&#34;No active remote connections&#34;)
+            return []
+        if self.ms.version_smaller_than(&#34;2.10.0&#34;):
+            url = &#34;/nerve/activeRemoteConnections/terminateConnections&#34;
+            return self.ms.delete(url, json=close_list)
+
+        url = &#34;/nerve/active-remote-connections/terminate-connections&#34;
+        return self.ms.post(url, json=close_list)
+
+    def fetch_rtem_token_id(self, connection_uid: str, connection_request_uid: str) -&gt; str:
+        &#34;&#34;&#34;Get RTEM seesion ID.
+
+        API request that is fetching RTEM session ID which is generated after
+        establishing remote connection (used for ACL).
+
+        Parameters
+        ----------
+        connectionUid : str
+            ID of remote connection on the MS
+        connectionRequestUid: str
+            ID of requrest for established remote connection on the MS
+
+        Returns
+        -------
+        retmSessionId: str
+        &#34;&#34;&#34;
+        if self.ms.version_smaller_than(&#34;2.10.0&#34;):
+            url = f&#34;/nerve/v2/activeRemoteConnections/tunnel/{connection_uid}/{connection_request_uid}/true&#34;
+        else:
+            url = f&#34;/nerve/v2/active-remote-connections/tunnel/{connection_uid}/{connection_request_uid}/true&#34;
+        response = self.ms.get(url, accepted_status=[requests.codes.ok]).json()
+        return response[&#34;rtemSessionId&#34;]
+
+    def Node(self, serial_number: str) -&gt; type:
+        &#34;&#34;&#34;Create handle for selected Node.
+
+        Parameters
+        ----------
+        serial_number : str
+            Serial number of the connected node.
+
+        Returns
+        -------
+        type
+            handle to the node.
+        &#34;&#34;&#34;
+        return _SelectedNode(self, serial_number)</code></pre>
+</details>
+<div class="desc"><p>Node related functions from MS.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>ms_handle</code></strong> :&ensp;<code>type</code></dt>
+<dd>management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</dd>
+</dl></div>
+<h3>Methods</h3>
+<dl>
+<dt id="nerve_lib.manage_node.MSNode.Node"><code class="name flex">
+<span>def <span class="ident">Node</span></span>(<span>self, serial_number: str) ‑> type</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def Node(self, serial_number: str) -&gt; type:
+    &#34;&#34;&#34;Create handle for selected Node.
+
+    Parameters
+    ----------
+    serial_number : str
+        Serial number of the connected node.
+
+    Returns
+    -------
+    type
+        handle to the node.
+    &#34;&#34;&#34;
+    return _SelectedNode(self, serial_number)</code></pre>
+</details>
+<div class="desc"><p>Create handle for selected Node.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>serial_number</code></strong> :&ensp;<code>str</code></dt>
+<dd>Serial number of the connected node.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>type</code></dt>
+<dd>handle to the node.</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.manage_node.MSNode.create_node"><code class="name flex">
+<span>def <span class="ident">create_node</span></span>(<span>self,<br>name: str,<br>model: str,<br>secure_id: str,<br>serial_number: str,<br>labels: list = [],<br>remote_connections: list = []) ‑> dict</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def create_node(
+    self,
+    name: str,
+    model: str,
+    secure_id: str,
+    serial_number: str,
+    labels: list = [],
+    remote_connections: list = [],
+) -&gt; dict:
+    &#34;&#34;&#34;Create new node on MS.
+
+    Parameters
+    ----------
+    name : str
+        Node Name.
+    model : str
+        Node model.
+    secure_id : str
+        secure id of the node.
+    serial_number : str
+        serial_number of the node.
+    labels : list, optional
+        list of labels. The default is [].
+    remote_connections : list, optional
+        remote connections to be added. The default is [].
+
+    Returns
+    -------
+    dict
+        API response.
+    &#34;&#34;&#34;
+    payload = {
+        &#34;name&#34;: name,
+        &#34;model&#34;: model,
+        &#34;secureId&#34;: secure_id,
+        &#34;serialNumber&#34;: serial_number,
+        &#34;labels&#34;: labels,
+        &#34;remoteConnections&#34;: remote_connections,
+    }
+    return self.ms.post(&#34;/nerve/node&#34;, json=payload, accepted_status=[requests.codes.ok]).json()</code></pre>
+</details>
+<div class="desc"><p>Create new node on MS.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>name</code></strong> :&ensp;<code>str</code></dt>
+<dd>Node Name.</dd>
+<dt><strong><code>model</code></strong> :&ensp;<code>str</code></dt>
+<dd>Node model.</dd>
+<dt><strong><code>secure_id</code></strong> :&ensp;<code>str</code></dt>
+<dd>secure id of the node.</dd>
+<dt><strong><code>serial_number</code></strong> :&ensp;<code>str</code></dt>
+<dd>serial_number of the node.</dd>
+<dt><strong><code>labels</code></strong> :&ensp;<code>list</code>, optional</dt>
+<dd>list of labels. The default is [].</dd>
+<dt><strong><code>remote_connections</code></strong> :&ensp;<code>list</code>, optional</dt>
+<dd>remote connections to be added. The default is [].</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>dict</code></dt>
+<dd>API response.</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.manage_node.MSNode.fetch_rtem_token_id"><code class="name flex">
+<span>def <span class="ident">fetch_rtem_token_id</span></span>(<span>self, connection_uid: str, connection_request_uid: str) ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def fetch_rtem_token_id(self, connection_uid: str, connection_request_uid: str) -&gt; str:
+    &#34;&#34;&#34;Get RTEM seesion ID.
+
+    API request that is fetching RTEM session ID which is generated after
+    establishing remote connection (used for ACL).
+
+    Parameters
+    ----------
+    connectionUid : str
+        ID of remote connection on the MS
+    connectionRequestUid: str
+        ID of requrest for established remote connection on the MS
+
+    Returns
+    -------
+    retmSessionId: str
+    &#34;&#34;&#34;
+    if self.ms.version_smaller_than(&#34;2.10.0&#34;):
+        url = f&#34;/nerve/v2/activeRemoteConnections/tunnel/{connection_uid}/{connection_request_uid}/true&#34;
+    else:
+        url = f&#34;/nerve/v2/active-remote-connections/tunnel/{connection_uid}/{connection_request_uid}/true&#34;
+    response = self.ms.get(url, accepted_status=[requests.codes.ok]).json()
+    return response[&#34;rtemSessionId&#34;]</code></pre>
+</details>
+<div class="desc"><p>Get RTEM seesion ID.</p>
+<p>API request that is fetching RTEM session ID which is generated after
+establishing remote connection (used for ACL).</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>connectionUid</code></strong> :&ensp;<code>str</code></dt>
+<dd>ID of remote connection on the MS</dd>
+<dt><strong><code>connectionRequestUid</code></strong> :&ensp;<code>str</code></dt>
+<dd>ID of requrest for established remote connection on the MS</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>retmSessionId</code></strong> :&ensp;<code>str</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.manage_node.MSNode.get_active_remote_connections"><code class="name flex">
+<span>def <span class="ident">get_active_remote_connections</span></span>(<span>self) ‑> dict</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_active_remote_connections(self) -&gt; dict:
+    &#34;&#34;&#34;Read currently active remote connections on MS.
+
+    Returns
+    -------
+    dict
+        list of remote connections.
+    &#34;&#34;&#34;
+    if self.ms.version_smaller_than(&#34;2.10.0&#34;):
+        url = &#34;/nerve/activeRemoteConnections&#34;
+    else:
+        url = &#34;/nerve/active-remote-connections&#34;
+    active_connections = self.ms.get(
+        url,
+        accepted_status=[requests.codes.ok],
+    ).json()
+
+    return active_connections.get(&#34;data&#34;, [])</code></pre>
+</details>
+<div class="desc"><p>Read currently active remote connections on MS.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>dict</code></dt>
+<dd>list of remote connections.</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.manage_node.MSNode.get_deploy_list"><code class="name flex">
+<span>def <span class="ident">get_deploy_list</span></span>(<span>self, workload_id: str, version_id: str, node_name_filter: str) ‑> dict</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_deploy_list(self, workload_id: str, version_id: str, node_name_filter: str) -&gt; dict:
+    &#34;&#34;&#34;Get list of nodes a workload can be deployed to.
+
+    Parameters
+    ----------
+    workload_id : str
+        _id of the workload.
+    version_id : str
+        _id of the workload version.
+    node_name_filter : str
+        filter nodes by name, can also be empty string.
+
+    Returns
+    -------
+    dict
+        List of nodes the workload can be deployed to.
+    &#34;&#34;&#34;
+    parameters = {&#34;limit&#34;: 100, &#34;page&#34;: 0, &#34;order[created]&#34;: &#34;asc&#34;}
+    if node_name_filter:
+        parameters[&#34;filterBy[name]&#34;] = node_name_filter
+
+    return self.ms.get(
+        f&#34;/nerve/nodes/deploy/{workload_id}/{version_id}&#34;,
+        params=parameters,
+        accepted_status=[requests.codes.ok],
+    ).json()</code></pre>
+</details>
+<div class="desc"><p>Get list of nodes a workload can be deployed to.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>workload_id</code></strong> :&ensp;<code>str</code></dt>
+<dd>_id of the workload.</dd>
+<dt><strong><code>version_id</code></strong> :&ensp;<code>str</code></dt>
+<dd>_id of the workload version.</dd>
+<dt><strong><code>node_name_filter</code></strong> :&ensp;<code>str</code></dt>
+<dd>filter nodes by name, can also be empty string.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>dict</code></dt>
+<dd>List of nodes the workload can be deployed to.</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.manage_node.MSNode.get_nodes"><code class="name flex">
+<span>def <span class="ident">get_nodes</span></span>(<span>self, serial_number: str | None = None) ‑> dict</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_nodes(self, serial_number: Optional[str] = None) -&gt; dict:
+    &#34;&#34;&#34;Read node list of MS.
+
+    Parameters
+    ----------
+    serial_number : str, optional
+        Return only selected node information if paramter is set and matches to a node.
+        The default is None.
+
+    Returns
+    -------
+    dict
+        Node list informatnion from MS API.
+    &#34;&#34;&#34;
+    node_list = self.ms.get(&#34;/nerve/nodes/list&#34;, accepted_status=[requests.codes.ok]).json()
+    if serial_number is not None:
+        filtered_nodes = [node for node in node_list if node.get(&#34;serialNumber&#34;) == serial_number]
+        if filtered_nodes:
+            # Return the first matching node
+            return filtered_nodes[0]
+        # Return empty dictionary if no matching node found
+        return {}
+    # Return the entire node list
+    return node_list</code></pre>
+</details>
+<div class="desc"><p>Read node list of MS.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>serial_number</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>Return only selected node information if paramter is set and matches to a node.
+The default is None.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>dict</code></dt>
+<dd>Node list informatnion from MS API.</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.manage_node.MSNode.get_nodes_by_name"><code class="name flex">
+<span>def <span class="ident">get_nodes_by_name</span></span>(<span>self, node_name_filter: str | None = None) ‑> dict</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_nodes_by_name(self, node_name_filter: Optional[str] = None) -&gt; dict:
+    &#34;&#34;&#34;Read node list of MS filtered by name of the node.
+
+    Parameters
+    ----------
+    node_name_filter : str, optional
+        Return all nodes, containing the defined name. The default is None.
+
+    Returns
+    -------
+    dict
+        Node list informatnion from MS API.
+
+    &#34;&#34;&#34;
+    parameters = {&#34;limit&#34;: 100, &#34;page&#34;: 0, &#34;order[created]&#34;: &#34;asc&#34;}
+    if node_name_filter:
+        parameters[&#34;filterBy[name]&#34;] = node_name_filter
+    return self.ms.get(
+        &#34;/nerve/nodes/filtered/list&#34;,
+        params=parameters,
+        accepted_status=[requests.codes.ok],
+    ).json()</code></pre>
+</details>
+<div class="desc"><p>Read node list of MS filtered by name of the node.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>node_name_filter</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>Return all nodes, containing the defined name. The default is None.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>dict</code></dt>
+<dd>Node list informatnion from MS API.</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.manage_node.MSNode.remove_active_remote_connections"><code class="name flex">
+<span>def <span class="ident">remove_active_remote_connections</span></span>(<span>self, remote_ids: list | None = None) ‑> type</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def remove_active_remote_connections(self, remote_ids: Optional[list] = None) -&gt; type:
+    &#34;&#34;&#34;Remove established remote connections from MS.
+
+    Parameters
+    ----------
+    remote_ids : list(dict)
+        list of dict containing {
+            &#34;connectionUid&#34;: str,
+            &#34;connectionRequestUid&#34;: str,
+        }
+        if parameter is None, all active connection will be removed
+
+    Returns
+    -------
+    response object from delete operation
+    &#34;&#34;&#34;
+    if remote_ids is None:
+        remote_ids = []
+        active_connections = self.get_active_remote_connections()
+        for connection in active_connections:
+            remote_ids.append({
+                &#34;connectionUid&#34;: connection[&#34;connection&#34;][&#34;connectionUid&#34;],
+                &#34;connectionRequestUid&#34;: connection[&#34;connectionRequest&#34;][&#34;requestUid&#34;],
+                &#34;serialNumber&#34;: connection[&#34;connection&#34;][&#34;serialNumber&#34;],
+                &#34;connectionName&#34;: connection[&#34;name&#34;],
+                &#34;type&#34;: connection[&#34;connection&#34;][&#34;type&#34;],
+                &#34;versionId&#34;: connection[&#34;connection&#34;][&#34;target&#34;][&#34;versionId&#34;],
+                &#34;workloadId&#34;: connection[&#34;connection&#34;][&#34;target&#34;][&#34;workloadId&#34;],
+            })
+
+    close_list = {&#34;rcList&#34;: remote_ids}
+    if remote_ids == []:
+        self._log.info(&#34;No active remote connections&#34;)
+        return []
+    if self.ms.version_smaller_than(&#34;2.10.0&#34;):
+        url = &#34;/nerve/activeRemoteConnections/terminateConnections&#34;
+        return self.ms.delete(url, json=close_list)
+
+    url = &#34;/nerve/active-remote-connections/terminate-connections&#34;
+    return self.ms.post(url, json=close_list)</code></pre>
+</details>
+<div class="desc"><p>Remove established remote connections from MS.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>remote_ids</code></strong> :&ensp;<code>list(dict)</code></dt>
+<dd>list of dict containing {
+"connectionUid": str,
+"connectionRequestUid": str,
+}
+if parameter is None, all active connection will be removed</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>response object from delete operation</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul>
+<li><a href="#example">Example:</a></li>
+</ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="nerve_lib" href="index.html">nerve_lib</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="nerve_lib.manage_node.LocalNode" href="#nerve_lib.manage_node.LocalNode">LocalNode</a></code></h4>
+<ul class="">
+<li><code><a title="nerve_lib.manage_node.LocalNode.change_password" href="#nerve_lib.manage_node.LocalNode.change_password">change_password</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.change_ssh_password" href="#nerve_lib.manage_node.LocalNode.change_ssh_password">change_ssh_password</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.check_management_system_url" href="#nerve_lib.manage_node.LocalNode.check_management_system_url">check_management_system_url</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.codesys_download" href="#nerve_lib.manage_node.LocalNode.codesys_download">codesys_download</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.create_schedule_vm_snapshot" href="#nerve_lib.manage_node.LocalNode.create_schedule_vm_snapshot">create_schedule_vm_snapshot</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.create_vm_backup" href="#nerve_lib.manage_node.LocalNode.create_vm_backup">create_vm_backup</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.create_vm_snapshot" href="#nerve_lib.manage_node.LocalNode.create_vm_snapshot">create_vm_snapshot</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.delete_schedule_vm_snapshot" href="#nerve_lib.manage_node.LocalNode.delete_schedule_vm_snapshot">delete_schedule_vm_snapshot</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.delete_vm_snapshot" href="#nerve_lib.manage_node.LocalNode.delete_vm_snapshot">delete_vm_snapshot</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.deploy_vm_backup" href="#nerve_lib.manage_node.LocalNode.deploy_vm_backup">deploy_vm_backup</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.download_audit_log" href="#nerve_lib.manage_node.LocalNode.download_audit_log">download_audit_log</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.edit_file" href="#nerve_lib.manage_node.LocalNode.edit_file">edit_file</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.get_backup_list" href="#nerve_lib.manage_node.LocalNode.get_backup_list">get_backup_list</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.get_deploy_backup_status" href="#nerve_lib.manage_node.LocalNode.get_deploy_backup_status">get_deploy_backup_status</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.get_info" href="#nerve_lib.manage_node.LocalNode.get_info">get_info</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.get_network_configuration" href="#nerve_lib.manage_node.LocalNode.get_network_configuration">get_network_configuration</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.get_secure_id" href="#nerve_lib.manage_node.LocalNode.get_secure_id">get_secure_id</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.get_vm_backup" href="#nerve_lib.manage_node.LocalNode.get_vm_backup">get_vm_backup</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.get_vm_snapshot" href="#nerve_lib.manage_node.LocalNode.get_vm_snapshot">get_vm_snapshot</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.get_workload_list" href="#nerve_lib.manage_node.LocalNode.get_workload_list">get_workload_list</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.local_node_change_resource_allocation" href="#nerve_lib.manage_node.LocalNode.local_node_change_resource_allocation">local_node_change_resource_allocation</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.localui_apply_workload_configuration" href="#nerve_lib.manage_node.LocalNode.localui_apply_workload_configuration">localui_apply_workload_configuration</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.rc_setting" href="#nerve_lib.manage_node.LocalNode.rc_setting">rc_setting</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.read_file" href="#nerve_lib.manage_node.LocalNode.read_file">read_file</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.reboot" href="#nerve_lib.manage_node.LocalNode.reboot">reboot</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.resolve_remote_connection" href="#nerve_lib.manage_node.LocalNode.resolve_remote_connection">resolve_remote_connection</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.restart_vm_backup" href="#nerve_lib.manage_node.LocalNode.restart_vm_backup">restart_vm_backup</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.restore_vm_snapshot" href="#nerve_lib.manage_node.LocalNode.restore_vm_snapshot">restore_vm_snapshot</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.set_configuration" href="#nerve_lib.manage_node.LocalNode.set_configuration">set_configuration</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.set_critical_action" href="#nerve_lib.manage_node.LocalNode.set_critical_action">set_critical_action</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.set_local_repository" href="#nerve_lib.manage_node.LocalNode.set_local_repository">set_local_repository</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.set_network_configuration" href="#nerve_lib.manage_node.LocalNode.set_network_configuration">set_network_configuration</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.set_proxy" href="#nerve_lib.manage_node.LocalNode.set_proxy">set_proxy</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.set_vm_backup" href="#nerve_lib.manage_node.LocalNode.set_vm_backup">set_vm_backup</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.terminate_connections" href="#nerve_lib.manage_node.LocalNode.terminate_connections">terminate_connections</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.version" href="#nerve_lib.manage_node.LocalNode.version">version</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.version_smaller_than" href="#nerve_lib.manage_node.LocalNode.version_smaller_than">version_smaller_than</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.vm_backup_status" href="#nerve_lib.manage_node.LocalNode.vm_backup_status">vm_backup_status</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="nerve_lib.manage_node.MSNode" href="#nerve_lib.manage_node.MSNode">MSNode</a></code></h4>
+<ul class="">
+<li><code><a title="nerve_lib.manage_node.MSNode.Node" href="#nerve_lib.manage_node.MSNode.Node">Node</a></code></li>
+<li><code><a title="nerve_lib.manage_node.MSNode.create_node" href="#nerve_lib.manage_node.MSNode.create_node">create_node</a></code></li>
+<li><code><a title="nerve_lib.manage_node.MSNode.fetch_rtem_token_id" href="#nerve_lib.manage_node.MSNode.fetch_rtem_token_id">fetch_rtem_token_id</a></code></li>
+<li><code><a title="nerve_lib.manage_node.MSNode.get_active_remote_connections" href="#nerve_lib.manage_node.MSNode.get_active_remote_connections">get_active_remote_connections</a></code></li>
+<li><code><a title="nerve_lib.manage_node.MSNode.get_deploy_list" href="#nerve_lib.manage_node.MSNode.get_deploy_list">get_deploy_list</a></code></li>
+<li><code><a title="nerve_lib.manage_node.MSNode.get_nodes" href="#nerve_lib.manage_node.MSNode.get_nodes">get_nodes</a></code></li>
+<li><code><a title="nerve_lib.manage_node.MSNode.get_nodes_by_name" href="#nerve_lib.manage_node.MSNode.get_nodes_by_name">get_nodes_by_name</a></code></li>
+<li><code><a title="nerve_lib.manage_node.MSNode.remove_active_remote_connections" href="#nerve_lib.manage_node.MSNode.remove_active_remote_connections">remove_active_remote_connections</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

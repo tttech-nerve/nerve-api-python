@@ -1,0 +1,2194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>nerve_lib.manage_access API documentation</title>
+<meta name="description" content="Manage Access releated function on MS …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>nerve_lib.manage_access</code></h1>
+</header>
+<section id="section-intro">
+<p>Manage Access releated function on MS.</p>
+<h2 id="example">Example:</h2>
+<pre><code>&gt;&gt;&gt; from nerve_lib import MSHandle
+&gt;&gt;&gt; from nerve_lib import MSUser
+&gt;&gt;&gt; with MSHandle("testms.nerve.cloud") as ms_handle:
+&gt;&gt;&gt;     user = MSUser(ms_handle)
+&gt;&gt;&gt;     user.get()
+&lt;current user-list&gt;
+</code></pre>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="nerve_lib.manage_access.LDAP"><code class="flex name class">
+<span>class <span class="ident">LDAP</span></span>
+<span>(</span><span>ms_handle)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class LDAP:
+    &#34;&#34;&#34;LDAP management related functions from MS.
+
+    Parameters
+    ----------
+    ms_handle :
+        management system handle &#39;nerve_lib.general_utils.MSHandle(...)&#39;.
+    &#34;&#34;&#34;
+
+    def __init__(self, ms_handle):
+        self.ms = ms_handle
+
+    def check_active(self):
+        &#34;&#34;&#34;Check if LDAP is active.&#34;&#34;&#34;
+        return self.ms.get(&#34;/nerve/ldap/active&#34;, accepted_status=[requests.codes.ok], timeout=(10, 10)).json()
+
+    def get_default(self):
+        &#34;&#34;&#34;Get default LDAP configuration.&#34;&#34;&#34;
+        response = self.ms.get(
+            &#34;/nerve/ldap/default&#34;, accepted_status=[requests.codes.ok, requests.codes.no_content]
+        )
+        if response.status_code == requests.codes.no_content:
+            return None
+        return response.json()
+
+    def get_config(self):
+        &#34;&#34;&#34;Get LDAP configuration details.&#34;&#34;&#34;
+        return self.ms.get(&#34;/nerve/ldap&#34;, accepted_status=[requests.codes.ok]).json()
+
+    def enable_disable_ldap(self, enable: bool):
+        &#34;&#34;&#34;Activate LDAP configuration.&#34;&#34;&#34;
+        return self.ms.patch(
+            &#34;/nerve/ldap/ldap_config/active&#34;, json={&#34;active&#34;: enable}, accepted_status=[requests.codes.ok]
+        ).json()
+
+    def test_connection(
+        self, url: str, port=389, bind_dn=&#34;cn=admin,dc=tttech,dc=com&#34;, password=&#34;Passw0rd&#34;, secure=False
+    ):
+        &#34;&#34;&#34;Test LDAP server connection.
+
+        Parameters
+        ----------
+        url : str
+            URL of the LDAP server.
+        port : int
+            Port of the LDAP server. Port 389 is the default port for unencrypted LDAP communication.
+
+        Returns
+        -------
+        type
+            connected: bool
+        &#34;&#34;&#34;
+        payload = {&#34;url&#34;: url, &#34;port&#34;: port, &#34;bindDN&#34;: bind_dn, &#34;password&#34;: password, &#34;tls&#34;: secure}
+        return self.ms.post(
+            &#34;/nerve/ldap/connection/test&#34;, json=payload, accepted_status=[requests.codes.ok], timeout=15
+        ).json()
+
+    @classmethod
+    def recurring_sync(cls, recurring_sync=False, schedule=&#34;&#34;, time=&#34;&#34;):
+        &#34;&#34;&#34;Set recurring sync details.
+
+        Parameters
+        ----------
+        recurring_sync : bool
+            Status of recurring sync for LDAP configuration.
+        schedule : str
+            Schedule type for recurring sync.
+        time : str
+            Time for recurring sync.
+
+        Returns
+        -------
+        type
+            recurringSync payload
+        &#34;&#34;&#34;
+        return {&#34;recurringSync&#34;: recurring_sync, &#34;schedule&#34;: schedule, &#34;time&#34;: time}
+
+    @classmethod
+    def relationship(cls, type=&#34;&#34;, membership=&#34;&#34;, target=&#34;&#34;):
+        &#34;&#34;&#34;Set relationship details.
+
+        Parameters
+        ----------
+        type: str
+            Relationship type for LDAP configuration.
+        membership : str
+            Membership type (Member) for LDAP configuration.
+        target: str
+            Target type (Target) for LDAP configuration.
+
+        Returns
+        -------
+        type
+            relationship payload
+        &#34;&#34;&#34;
+        return {&#34;type&#34;: type, &#34;membership&#34;: membership, &#34;target&#34;: target}
+
+    @classmethod
+    def users(cls, search_base=&#34;&#34;, filter=&#34;&#34;, first_name=&#34;&#34;, last_name=&#34;&#34;, email=&#34;&#34;, username=&#34;&#34;):
+        &#34;&#34;&#34;Set users details.
+
+        Parameters
+        ----------
+        search_base : str
+            Search base for LDAP configuration.
+        filter : str
+            Users filter for LDAP configuration.
+        first_name : str
+            First name for LDAP configuration.
+        last_name : str
+            Last name for LDAP configuration.
+        email: str
+            Users email for LDAP configuration.
+        username: str
+            Users username for LDAP configuration.
+
+        Returns
+        -------
+        type
+            users payload
+        &#34;&#34;&#34;
+        return {
+            &#34;searchBase&#34;: search_base,
+            &#34;filter&#34;: filter,
+            &#34;firstName&#34;: first_name,
+            &#34;lastName&#34;: last_name,
+            &#34;email&#34;: email,
+            &#34;username&#34;: username,
+        }
+
+    @classmethod
+    def groups(cls, search_base=&#34;&#34;, filter=&#34;&#34;, group_name=&#34;&#34;, admin_group=&#34;&#34;, default_role=&#34;&#34;):
+        &#34;&#34;&#34;Set groups details.
+
+        Parameters
+        ----------
+        search_base : str
+            Search base for LDAP configuration.
+        filter : str
+            Groups filter for LDAP configuration.
+        group_name : str
+            Group name for LDAP configuration.
+        admin_group : str
+            Admin group for LDAP configuration.
+        default_role: str
+            Default role for LDAP configuration.
+
+        Returns
+        -------
+        type
+            groups payload
+        &#34;&#34;&#34;
+        return {
+            &#34;searchBase&#34;: search_base,
+            &#34;filter&#34;: filter,
+            &#34;name&#34;: group_name,
+            &#34;adminGroup&#34;: admin_group,
+            &#34;default&#34;: default_role,
+        }
+
+    def ldap_payload(
+        self,
+        file_name: str = &#34;&#34;,
+        name: str = &#34;ldap_config&#34;,
+        url: str = &#34;ldap.dev.nerve.cloud&#34;,
+        port: int = 389,
+        active: bool = False,
+        bind_dn: str = &#34;cn=admin,dc=tttech,dc=com&#34;,
+        password: str = &#34;Passw0rd&#34;,
+        tls: bool = False,
+        recurring_sync=None,
+        relationship=None,
+        users=None,
+        groups=None,
+    ):
+        &#34;&#34;&#34;Set LDAP configuration payload.
+
+        Parameters
+        ----------
+        file_name : str
+            File name of the saved configuration.
+        name : int
+            LDAP configuration name on MS.
+        url : str
+            URL of the LDAP server.
+        port : int
+            Port of the LDAP server. Port 389 is the default port for unencrypted LDAP communication.
+        active : bool
+            Status of the LDAP configuration.
+        bind_dn : str
+            Bind DN of the LDAP server.
+        password : str
+            Password of the LDAP server.
+        tls : bool
+            Enable TLS for LDAP communication (switching between unecrypted and encrypted ports).
+
+        Returns
+        -------
+        type
+            LDAP payload
+        &#34;&#34;&#34;
+        recurring_sync = recurring_sync or self.recurring_sync()
+        relationship = relationship or self.relationship()
+        users = users or self.users()
+        groups = groups or self.groups()
+
+        if users == &#34;0&#34;:
+            return {
+                &#34;fileName&#34;: file_name,
+                &#34;name&#34;: name,
+                &#34;url&#34;: url,
+                &#34;port&#34;: port,
+                &#34;active&#34;: active,
+                &#34;bindDN&#34;: bind_dn,
+                &#34;password&#34;: password,
+                &#34;tls&#34;: tls,
+                &#34;recurringSync&#34;: recurring_sync,
+                &#34;relationship&#34;: relationship,
+                &#34;groups&#34;: groups,
+            }
+        if groups == &#34;0&#34;:
+            return {
+                &#34;fileName&#34;: file_name,
+                &#34;name&#34;: name,
+                &#34;url&#34;: url,
+                &#34;port&#34;: port,
+                &#34;active&#34;: active,
+                &#34;bindDN&#34;: bind_dn,
+                &#34;password&#34;: password,
+                &#34;tls&#34;: tls,
+                &#34;recurringSync&#34;: recurring_sync,
+                &#34;relationship&#34;: relationship,
+                &#34;users&#34;: users,
+            }
+
+        return {
+            &#34;fileName&#34;: file_name,
+            &#34;name&#34;: name,
+            &#34;url&#34;: url,
+            &#34;port&#34;: port,
+            &#34;active&#34;: active,
+            &#34;bindDN&#34;: bind_dn,
+            &#34;password&#34;: password,
+            &#34;tls&#34;: tls,
+            &#34;recurringSync&#34;: recurring_sync,
+            &#34;relationship&#34;: relationship,
+            &#34;users&#34;: users,
+            &#34;groups&#34;: groups,
+        }
+
+    def query_groups(self, search_base=&#34;&#34;, filter=&#34;&#34;, group_name=&#34;&#34;, admin_group=&#34;&#34;, default_role=&#34;&#34;):
+        &#34;&#34;&#34;Query groups from LDAP configuration.
+
+        Parameters
+        ----------
+        search_base : str
+            Search base for LDAP configuration.
+        filter : str
+            Groups filter for LDAP configuration.
+        group_name : str
+            Group name for LDAP configuration.
+        admin_group : str
+            Admin group for LDAP configuration.
+        default_role: str
+            Default role for LDAP configuration.
+
+        Returns
+        -------
+        type
+            groups query response
+        &#34;&#34;&#34;
+        group_payload = self.groups(search_base, filter, group_name, admin_group, default_role)
+        ldap_payload = self.ldap_payload(users=&#34;0&#34;, groups=group_payload)
+        payload = {&#34;ldap&#34;: ldap_payload, &#34;paging&#34;: {&#34;limit&#34;: 10, &#34;page&#34;: 1}}
+        return self.ms.post(
+            &#34;/nerve/ldap/query/groups&#34;, json=payload, accepted_status=[requests.codes.ok]
+        ).json()
+
+    def query_users(self, search_base=&#34;&#34;, filter=&#34;&#34;, first_name=&#34;&#34;, last_name=&#34;&#34;, email=&#34;&#34;, username=&#34;&#34;):
+        &#34;&#34;&#34;Query users from LDAP configuration.
+
+        Parameters
+        ----------
+        search_base : str
+            Search base for LDAP configuration.
+        filter : str
+            Users filter for LDAP configuration.
+        first_name : str
+            First name for LDAP configuration.
+        last_name : str
+            Last name for LDAP configuration.
+        email: str
+            Users email for LDAP configuration.
+        username: str
+            Users username for LDAP configuration.
+
+        Returns
+        -------
+        type
+            users query response
+        &#34;&#34;&#34;
+        user_payload = self.users(search_base, filter, first_name, last_name, email, username)
+        ldap_payload = self.ldap_payload(users=user_payload, groups=&#34;0&#34;)
+        payload = {&#34;ldap&#34;: ldap_payload, &#34;paging&#34;: {&#34;limit&#34;: 10, &#34;page&#34;: 1}}
+        return self.ms.post(
+            &#34;/nerve/ldap/query/users&#34;, json=payload, accepted_status=[requests.codes.ok]
+        ).json()
+
+    def set_ldap_state(self, state: bool, name: str):
+        &#34;&#34;&#34;Set LDAP state.
+
+        Parameters
+        ----------
+        state : bool
+            State of LDAP configuration.
+        name : str
+            Name of the LDAP configuration.
+
+        Returns
+        -------
+        type
+            response from the MS
+        &#34;&#34;&#34;
+        payload = {&#34;active&#34;: state}
+        return self.ms.patch(
+            f&#34;/nerve/ldap/{name}/active&#34;, json=payload, accepted_status=[requests.codes.ok]
+        ).json()
+
+    def save_sync_ldap(
+        self,
+        action: str,
+        file_name: str,
+        ldap_payload: Optional[dict] = None,
+        recurring_sync=None,
+        relationship=None,
+        users=None,
+        groups=None,
+    ):
+        &#34;&#34;&#34;
+        Send LDAP configuration payload with populated data from other functions.
+
+        Parameters
+        ----------
+        action : str
+            Action to perform on the LDAP configuration. Can be either &#34;sync&#34; or &#34;save&#34;.
+        file_name : str
+            File name of the saved configuration.
+        name : str
+            LDAP configuration name on MS.
+        url : str
+            URL of the LDAP server.
+        port : int
+            Port of the LDAP server.
+        active : bool
+            Status of the LDAP configuration.
+        bind_dn : str
+            Bind DN of the LDAP server.
+        password : str
+            Password of the LDAP server.
+        tls : bool
+            Enable TLS for LDAP communication.
+
+        Returns
+        -------
+        dict
+            Response from the request.
+        &#34;&#34;&#34;
+        # Populate each component of the payload if not provided
+        recurring_sync = recurring_sync or self.recurring_sync()
+        relationship = relationship or self.relationship()
+        users = users or self.users()
+        groups = groups or self.groups()
+
+        # Create the full LDAP payload
+        payload = ldap_payload or self.ldap_payload(
+            file_name=file_name,
+            name=file_name,
+            recurring_sync=recurring_sync,
+            relationship=relationship,
+            users=users,
+            groups=groups,
+        )
+
+        if action == &#34;save&#34;:
+            # Send the POST request
+            return self.ms.post(&#34;/nerve/ldap&#34;, json=payload, accepted_status=[requests.codes.ok]).json()
+        if action == &#34;update&#34;:
+            # Send the PUT request
+            return self.ms.put(
+                f&#34;/nerve/ldap/{file_name}&#34;, json=payload, accepted_status=[requests.codes.ok]
+            ).json()
+        if action == &#34;sync&#34;:
+            # Send the POST request
+            return self.ms.post(&#34;/nerve/ldap/sync&#34;, json=payload, accepted_status=[requests.codes.ok]).json()
+
+        err_msg = f&#34;Invalid action for function save_sync_ldap: {action}&#34;
+        raise ValueError(err_msg)</code></pre>
+</details>
+<div class="desc"><p>LDAP management related functions from MS.</p>
+<h2 id="parameters">Parameters</h2>
+<p>ms_handle :
+management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
+<h3>Static methods</h3>
+<dl>
+<dt id="nerve_lib.manage_access.LDAP.groups"><code class="name flex">
+<span>def <span class="ident">groups</span></span>(<span>search_base='', filter='', group_name='', admin_group='', default_role='')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Set groups details.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>search_base</code></strong> :&ensp;<code>str</code></dt>
+<dd>Search base for LDAP configuration.</dd>
+<dt><strong><code>filter</code></strong> :&ensp;<code>str</code></dt>
+<dd>Groups filter for LDAP configuration.</dd>
+<dt><strong><code>group_name</code></strong> :&ensp;<code>str</code></dt>
+<dd>Group name for LDAP configuration.</dd>
+<dt><strong><code>admin_group</code></strong> :&ensp;<code>str</code></dt>
+<dd>Admin group for LDAP configuration.</dd>
+<dt><strong><code>default_role</code></strong> :&ensp;<code>str</code></dt>
+<dd>Default role for LDAP configuration.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>type</code></dt>
+<dd>groups payload</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.manage_access.LDAP.recurring_sync"><code class="name flex">
+<span>def <span class="ident">recurring_sync</span></span>(<span>recurring_sync=False, schedule='', time='')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Set recurring sync details.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>recurring_sync</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Status of recurring sync for LDAP configuration.</dd>
+<dt><strong><code>schedule</code></strong> :&ensp;<code>str</code></dt>
+<dd>Schedule type for recurring sync.</dd>
+<dt><strong><code>time</code></strong> :&ensp;<code>str</code></dt>
+<dd>Time for recurring sync.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>type</code></dt>
+<dd>recurringSync payload</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.manage_access.LDAP.relationship"><code class="name flex">
+<span>def <span class="ident">relationship</span></span>(<span>type='', membership='', target='')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Set relationship details.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>type</code></strong> :&ensp;<code>str</code></dt>
+<dd>Relationship type for LDAP configuration.</dd>
+<dt><strong><code>membership</code></strong> :&ensp;<code>str</code></dt>
+<dd>Membership type (Member) for LDAP configuration.</dd>
+<dt><strong><code>target</code></strong> :&ensp;<code>str</code></dt>
+<dd>Target type (Target) for LDAP configuration.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>type</code></dt>
+<dd>relationship payload</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.manage_access.LDAP.users"><code class="name flex">
+<span>def <span class="ident">users</span></span>(<span>search_base='', filter='', first_name='', last_name='', email='', username='')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Set users details.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>search_base</code></strong> :&ensp;<code>str</code></dt>
+<dd>Search base for LDAP configuration.</dd>
+<dt><strong><code>filter</code></strong> :&ensp;<code>str</code></dt>
+<dd>Users filter for LDAP configuration.</dd>
+<dt><strong><code>first_name</code></strong> :&ensp;<code>str</code></dt>
+<dd>First name for LDAP configuration.</dd>
+<dt><strong><code>last_name</code></strong> :&ensp;<code>str</code></dt>
+<dd>Last name for LDAP configuration.</dd>
+<dt><strong><code>email</code></strong> :&ensp;<code>str</code></dt>
+<dd>Users email for LDAP configuration.</dd>
+<dt><strong><code>username</code></strong> :&ensp;<code>str</code></dt>
+<dd>Users username for LDAP configuration.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>type</code></dt>
+<dd>users payload</dd>
+</dl></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="nerve_lib.manage_access.LDAP.check_active"><code class="name flex">
+<span>def <span class="ident">check_active</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def check_active(self):
+    &#34;&#34;&#34;Check if LDAP is active.&#34;&#34;&#34;
+    return self.ms.get(&#34;/nerve/ldap/active&#34;, accepted_status=[requests.codes.ok], timeout=(10, 10)).json()</code></pre>
+</details>
+<div class="desc"><p>Check if LDAP is active.</p></div>
+</dd>
+<dt id="nerve_lib.manage_access.LDAP.enable_disable_ldap"><code class="name flex">
+<span>def <span class="ident">enable_disable_ldap</span></span>(<span>self, enable: bool)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def enable_disable_ldap(self, enable: bool):
+    &#34;&#34;&#34;Activate LDAP configuration.&#34;&#34;&#34;
+    return self.ms.patch(
+        &#34;/nerve/ldap/ldap_config/active&#34;, json={&#34;active&#34;: enable}, accepted_status=[requests.codes.ok]
+    ).json()</code></pre>
+</details>
+<div class="desc"><p>Activate LDAP configuration.</p></div>
+</dd>
+<dt id="nerve_lib.manage_access.LDAP.get_config"><code class="name flex">
+<span>def <span class="ident">get_config</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_config(self):
+    &#34;&#34;&#34;Get LDAP configuration details.&#34;&#34;&#34;
+    return self.ms.get(&#34;/nerve/ldap&#34;, accepted_status=[requests.codes.ok]).json()</code></pre>
+</details>
+<div class="desc"><p>Get LDAP configuration details.</p></div>
+</dd>
+<dt id="nerve_lib.manage_access.LDAP.get_default"><code class="name flex">
+<span>def <span class="ident">get_default</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_default(self):
+    &#34;&#34;&#34;Get default LDAP configuration.&#34;&#34;&#34;
+    response = self.ms.get(
+        &#34;/nerve/ldap/default&#34;, accepted_status=[requests.codes.ok, requests.codes.no_content]
+    )
+    if response.status_code == requests.codes.no_content:
+        return None
+    return response.json()</code></pre>
+</details>
+<div class="desc"><p>Get default LDAP configuration.</p></div>
+</dd>
+<dt id="nerve_lib.manage_access.LDAP.ldap_payload"><code class="name flex">
+<span>def <span class="ident">ldap_payload</span></span>(<span>self,<br>file_name: str = '',<br>name: str = 'ldap_config',<br>url: str = 'ldap.dev.nerve.cloud',<br>port: int = 389,<br>active: bool = False,<br>bind_dn: str = 'cn=admin,dc=tttech,dc=com',<br>password: str = 'Passw0rd',<br>tls: bool = False,<br>recurring_sync=None,<br>relationship=None,<br>users=None,<br>groups=None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def ldap_payload(
+    self,
+    file_name: str = &#34;&#34;,
+    name: str = &#34;ldap_config&#34;,
+    url: str = &#34;ldap.dev.nerve.cloud&#34;,
+    port: int = 389,
+    active: bool = False,
+    bind_dn: str = &#34;cn=admin,dc=tttech,dc=com&#34;,
+    password: str = &#34;Passw0rd&#34;,
+    tls: bool = False,
+    recurring_sync=None,
+    relationship=None,
+    users=None,
+    groups=None,
+):
+    &#34;&#34;&#34;Set LDAP configuration payload.
+
+    Parameters
+    ----------
+    file_name : str
+        File name of the saved configuration.
+    name : int
+        LDAP configuration name on MS.
+    url : str
+        URL of the LDAP server.
+    port : int
+        Port of the LDAP server. Port 389 is the default port for unencrypted LDAP communication.
+    active : bool
+        Status of the LDAP configuration.
+    bind_dn : str
+        Bind DN of the LDAP server.
+    password : str
+        Password of the LDAP server.
+    tls : bool
+        Enable TLS for LDAP communication (switching between unecrypted and encrypted ports).
+
+    Returns
+    -------
+    type
+        LDAP payload
+    &#34;&#34;&#34;
+    recurring_sync = recurring_sync or self.recurring_sync()
+    relationship = relationship or self.relationship()
+    users = users or self.users()
+    groups = groups or self.groups()
+
+    if users == &#34;0&#34;:
+        return {
+            &#34;fileName&#34;: file_name,
+            &#34;name&#34;: name,
+            &#34;url&#34;: url,
+            &#34;port&#34;: port,
+            &#34;active&#34;: active,
+            &#34;bindDN&#34;: bind_dn,
+            &#34;password&#34;: password,
+            &#34;tls&#34;: tls,
+            &#34;recurringSync&#34;: recurring_sync,
+            &#34;relationship&#34;: relationship,
+            &#34;groups&#34;: groups,
+        }
+    if groups == &#34;0&#34;:
+        return {
+            &#34;fileName&#34;: file_name,
+            &#34;name&#34;: name,
+            &#34;url&#34;: url,
+            &#34;port&#34;: port,
+            &#34;active&#34;: active,
+            &#34;bindDN&#34;: bind_dn,
+            &#34;password&#34;: password,
+            &#34;tls&#34;: tls,
+            &#34;recurringSync&#34;: recurring_sync,
+            &#34;relationship&#34;: relationship,
+            &#34;users&#34;: users,
+        }
+
+    return {
+        &#34;fileName&#34;: file_name,
+        &#34;name&#34;: name,
+        &#34;url&#34;: url,
+        &#34;port&#34;: port,
+        &#34;active&#34;: active,
+        &#34;bindDN&#34;: bind_dn,
+        &#34;password&#34;: password,
+        &#34;tls&#34;: tls,
+        &#34;recurringSync&#34;: recurring_sync,
+        &#34;relationship&#34;: relationship,
+        &#34;users&#34;: users,
+        &#34;groups&#34;: groups,
+    }</code></pre>
+</details>
+<div class="desc"><p>Set LDAP configuration payload.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>file_name</code></strong> :&ensp;<code>str</code></dt>
+<dd>File name of the saved configuration.</dd>
+<dt><strong><code>name</code></strong> :&ensp;<code>int</code></dt>
+<dd>LDAP configuration name on MS.</dd>
+<dt><strong><code>url</code></strong> :&ensp;<code>str</code></dt>
+<dd>URL of the LDAP server.</dd>
+<dt><strong><code>port</code></strong> :&ensp;<code>int</code></dt>
+<dd>Port of the LDAP server. Port 389 is the default port for unencrypted LDAP communication.</dd>
+<dt><strong><code>active</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Status of the LDAP configuration.</dd>
+<dt><strong><code>bind_dn</code></strong> :&ensp;<code>str</code></dt>
+<dd>Bind DN of the LDAP server.</dd>
+<dt><strong><code>password</code></strong> :&ensp;<code>str</code></dt>
+<dd>Password of the LDAP server.</dd>
+<dt><strong><code>tls</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Enable TLS for LDAP communication (switching between unecrypted and encrypted ports).</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>type</code></dt>
+<dd>LDAP payload</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.manage_access.LDAP.query_groups"><code class="name flex">
+<span>def <span class="ident">query_groups</span></span>(<span>self, search_base='', filter='', group_name='', admin_group='', default_role='')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def query_groups(self, search_base=&#34;&#34;, filter=&#34;&#34;, group_name=&#34;&#34;, admin_group=&#34;&#34;, default_role=&#34;&#34;):
+    &#34;&#34;&#34;Query groups from LDAP configuration.
+
+    Parameters
+    ----------
+    search_base : str
+        Search base for LDAP configuration.
+    filter : str
+        Groups filter for LDAP configuration.
+    group_name : str
+        Group name for LDAP configuration.
+    admin_group : str
+        Admin group for LDAP configuration.
+    default_role: str
+        Default role for LDAP configuration.
+
+    Returns
+    -------
+    type
+        groups query response
+    &#34;&#34;&#34;
+    group_payload = self.groups(search_base, filter, group_name, admin_group, default_role)
+    ldap_payload = self.ldap_payload(users=&#34;0&#34;, groups=group_payload)
+    payload = {&#34;ldap&#34;: ldap_payload, &#34;paging&#34;: {&#34;limit&#34;: 10, &#34;page&#34;: 1}}
+    return self.ms.post(
+        &#34;/nerve/ldap/query/groups&#34;, json=payload, accepted_status=[requests.codes.ok]
+    ).json()</code></pre>
+</details>
+<div class="desc"><p>Query groups from LDAP configuration.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>search_base</code></strong> :&ensp;<code>str</code></dt>
+<dd>Search base for LDAP configuration.</dd>
+<dt><strong><code>filter</code></strong> :&ensp;<code>str</code></dt>
+<dd>Groups filter for LDAP configuration.</dd>
+<dt><strong><code>group_name</code></strong> :&ensp;<code>str</code></dt>
+<dd>Group name for LDAP configuration.</dd>
+<dt><strong><code>admin_group</code></strong> :&ensp;<code>str</code></dt>
+<dd>Admin group for LDAP configuration.</dd>
+<dt><strong><code>default_role</code></strong> :&ensp;<code>str</code></dt>
+<dd>Default role for LDAP configuration.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>type</code></dt>
+<dd>groups query response</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.manage_access.LDAP.query_users"><code class="name flex">
+<span>def <span class="ident">query_users</span></span>(<span>self, search_base='', filter='', first_name='', last_name='', email='', username='')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def query_users(self, search_base=&#34;&#34;, filter=&#34;&#34;, first_name=&#34;&#34;, last_name=&#34;&#34;, email=&#34;&#34;, username=&#34;&#34;):
+    &#34;&#34;&#34;Query users from LDAP configuration.
+
+    Parameters
+    ----------
+    search_base : str
+        Search base for LDAP configuration.
+    filter : str
+        Users filter for LDAP configuration.
+    first_name : str
+        First name for LDAP configuration.
+    last_name : str
+        Last name for LDAP configuration.
+    email: str
+        Users email for LDAP configuration.
+    username: str
+        Users username for LDAP configuration.
+
+    Returns
+    -------
+    type
+        users query response
+    &#34;&#34;&#34;
+    user_payload = self.users(search_base, filter, first_name, last_name, email, username)
+    ldap_payload = self.ldap_payload(users=user_payload, groups=&#34;0&#34;)
+    payload = {&#34;ldap&#34;: ldap_payload, &#34;paging&#34;: {&#34;limit&#34;: 10, &#34;page&#34;: 1}}
+    return self.ms.post(
+        &#34;/nerve/ldap/query/users&#34;, json=payload, accepted_status=[requests.codes.ok]
+    ).json()</code></pre>
+</details>
+<div class="desc"><p>Query users from LDAP configuration.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>search_base</code></strong> :&ensp;<code>str</code></dt>
+<dd>Search base for LDAP configuration.</dd>
+<dt><strong><code>filter</code></strong> :&ensp;<code>str</code></dt>
+<dd>Users filter for LDAP configuration.</dd>
+<dt><strong><code>first_name</code></strong> :&ensp;<code>str</code></dt>
+<dd>First name for LDAP configuration.</dd>
+<dt><strong><code>last_name</code></strong> :&ensp;<code>str</code></dt>
+<dd>Last name for LDAP configuration.</dd>
+<dt><strong><code>email</code></strong> :&ensp;<code>str</code></dt>
+<dd>Users email for LDAP configuration.</dd>
+<dt><strong><code>username</code></strong> :&ensp;<code>str</code></dt>
+<dd>Users username for LDAP configuration.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>type</code></dt>
+<dd>users query response</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.manage_access.LDAP.save_sync_ldap"><code class="name flex">
+<span>def <span class="ident">save_sync_ldap</span></span>(<span>self,<br>action: str,<br>file_name: str,<br>ldap_payload: dict | None = None,<br>recurring_sync=None,<br>relationship=None,<br>users=None,<br>groups=None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def save_sync_ldap(
+    self,
+    action: str,
+    file_name: str,
+    ldap_payload: Optional[dict] = None,
+    recurring_sync=None,
+    relationship=None,
+    users=None,
+    groups=None,
+):
+    &#34;&#34;&#34;
+    Send LDAP configuration payload with populated data from other functions.
+
+    Parameters
+    ----------
+    action : str
+        Action to perform on the LDAP configuration. Can be either &#34;sync&#34; or &#34;save&#34;.
+    file_name : str
+        File name of the saved configuration.
+    name : str
+        LDAP configuration name on MS.
+    url : str
+        URL of the LDAP server.
+    port : int
+        Port of the LDAP server.
+    active : bool
+        Status of the LDAP configuration.
+    bind_dn : str
+        Bind DN of the LDAP server.
+    password : str
+        Password of the LDAP server.
+    tls : bool
+        Enable TLS for LDAP communication.
+
+    Returns
+    -------
+    dict
+        Response from the request.
+    &#34;&#34;&#34;
+    # Populate each component of the payload if not provided
+    recurring_sync = recurring_sync or self.recurring_sync()
+    relationship = relationship or self.relationship()
+    users = users or self.users()
+    groups = groups or self.groups()
+
+    # Create the full LDAP payload
+    payload = ldap_payload or self.ldap_payload(
+        file_name=file_name,
+        name=file_name,
+        recurring_sync=recurring_sync,
+        relationship=relationship,
+        users=users,
+        groups=groups,
+    )
+
+    if action == &#34;save&#34;:
+        # Send the POST request
+        return self.ms.post(&#34;/nerve/ldap&#34;, json=payload, accepted_status=[requests.codes.ok]).json()
+    if action == &#34;update&#34;:
+        # Send the PUT request
+        return self.ms.put(
+            f&#34;/nerve/ldap/{file_name}&#34;, json=payload, accepted_status=[requests.codes.ok]
+        ).json()
+    if action == &#34;sync&#34;:
+        # Send the POST request
+        return self.ms.post(&#34;/nerve/ldap/sync&#34;, json=payload, accepted_status=[requests.codes.ok]).json()
+
+    err_msg = f&#34;Invalid action for function save_sync_ldap: {action}&#34;
+    raise ValueError(err_msg)</code></pre>
+</details>
+<div class="desc"><p>Send LDAP configuration payload with populated data from other functions.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>action</code></strong> :&ensp;<code>str</code></dt>
+<dd>Action to perform on the LDAP configuration. Can be either "sync" or "save".</dd>
+<dt><strong><code>file_name</code></strong> :&ensp;<code>str</code></dt>
+<dd>File name of the saved configuration.</dd>
+<dt><strong><code>name</code></strong> :&ensp;<code>str</code></dt>
+<dd>LDAP configuration name on MS.</dd>
+<dt><strong><code>url</code></strong> :&ensp;<code>str</code></dt>
+<dd>URL of the LDAP server.</dd>
+<dt><strong><code>port</code></strong> :&ensp;<code>int</code></dt>
+<dd>Port of the LDAP server.</dd>
+<dt><strong><code>active</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Status of the LDAP configuration.</dd>
+<dt><strong><code>bind_dn</code></strong> :&ensp;<code>str</code></dt>
+<dd>Bind DN of the LDAP server.</dd>
+<dt><strong><code>password</code></strong> :&ensp;<code>str</code></dt>
+<dd>Password of the LDAP server.</dd>
+<dt><strong><code>tls</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Enable TLS for LDAP communication.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>dict</code></dt>
+<dd>Response from the request.</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.manage_access.LDAP.set_ldap_state"><code class="name flex">
+<span>def <span class="ident">set_ldap_state</span></span>(<span>self, state: bool, name: str)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def set_ldap_state(self, state: bool, name: str):
+    &#34;&#34;&#34;Set LDAP state.
+
+    Parameters
+    ----------
+    state : bool
+        State of LDAP configuration.
+    name : str
+        Name of the LDAP configuration.
+
+    Returns
+    -------
+    type
+        response from the MS
+    &#34;&#34;&#34;
+    payload = {&#34;active&#34;: state}
+    return self.ms.patch(
+        f&#34;/nerve/ldap/{name}/active&#34;, json=payload, accepted_status=[requests.codes.ok]
+    ).json()</code></pre>
+</details>
+<div class="desc"><p>Set LDAP state.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>state</code></strong> :&ensp;<code>bool</code></dt>
+<dd>State of LDAP configuration.</dd>
+<dt><strong><code>name</code></strong> :&ensp;<code>str</code></dt>
+<dd>Name of the LDAP configuration.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>type</code></dt>
+<dd>response from the MS</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.manage_access.LDAP.test_connection"><code class="name flex">
+<span>def <span class="ident">test_connection</span></span>(<span>self,<br>url: str,<br>port=389,<br>bind_dn='cn=admin,dc=tttech,dc=com',<br>password='Passw0rd',<br>secure=False)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_connection(
+    self, url: str, port=389, bind_dn=&#34;cn=admin,dc=tttech,dc=com&#34;, password=&#34;Passw0rd&#34;, secure=False
+):
+    &#34;&#34;&#34;Test LDAP server connection.
+
+    Parameters
+    ----------
+    url : str
+        URL of the LDAP server.
+    port : int
+        Port of the LDAP server. Port 389 is the default port for unencrypted LDAP communication.
+
+    Returns
+    -------
+    type
+        connected: bool
+    &#34;&#34;&#34;
+    payload = {&#34;url&#34;: url, &#34;port&#34;: port, &#34;bindDN&#34;: bind_dn, &#34;password&#34;: password, &#34;tls&#34;: secure}
+    return self.ms.post(
+        &#34;/nerve/ldap/connection/test&#34;, json=payload, accepted_status=[requests.codes.ok], timeout=15
+    ).json()</code></pre>
+</details>
+<div class="desc"><p>Test LDAP server connection.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>url</code></strong> :&ensp;<code>str</code></dt>
+<dd>URL of the LDAP server.</dd>
+<dt><strong><code>port</code></strong> :&ensp;<code>int</code></dt>
+<dd>Port of the LDAP server. Port 389 is the default port for unencrypted LDAP communication.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>type</code></dt>
+<dd>connected: bool</dd>
+</dl></div>
+</dd>
+</dl>
+</dd>
+<dt id="nerve_lib.manage_access.LocalUser"><code class="flex name class">
+<span>class <span class="ident">LocalUser</span></span>
+<span>(</span><span>node_handle)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class LocalUser:
+    &#34;&#34;&#34;User management related functions from MS.
+
+    Parameters
+    ----------
+    ms_handle :
+        management system handle &#39;nerve_lib.general_utils.MSHandle(...)&#39;.
+    &#34;&#34;&#34;
+
+    def __init__(self, node_handle):
+        self.node = node_handle
+        self._log = logging.getLogger(&#34;User&#34;)
+
+    def delete(self, username: str = &#34;&#34;):
+        &#34;&#34;&#34;Delete all users or a specific user from the node.
+
+        Parameters
+        ----------
+        user : str, optional
+            username to delete. The default is None which will delete all users.
+
+        Returns
+        -------
+        type
+            response from the node.
+        &#34;&#34;&#34;
+        if username:
+            return self.node.delete(&#34;/api/users&#34;, params={&#34;username&#34;: username})
+        return self.node.delete(&#34;/api/users&#34;)
+
+    def get(self, username: str = &#34;&#34;):
+        &#34;&#34;&#34;Get all users or a specific user from the node.&#34;&#34;&#34;
+        if username:
+            return self.node.get(&#34;/api/users&#34;, params={&#34;username&#34;: username})
+        return self.node.get(&#34;/api/users&#34;)
+
+    def user_exists(self, username: str) -&gt; bool:
+        &#34;&#34;&#34;Check if a specific user exists.
+
+        Parameters
+        ----------
+        username : str
+            username to check.
+
+        Returns
+        -------
+        bool
+            True if the user exists, False otherwise.
+        &#34;&#34;&#34;
+        response = self.get()
+        if response.status_code in {requests.codes.ok, requests.codes.accepted, requests.codes.no_content}:
+            users = response.json().get(&#34;users&#34;, [])
+            return any(user[&#34;username&#34;] == username for user in users)
+        return False</code></pre>
+</details>
+<div class="desc"><p>User management related functions from MS.</p>
+<h2 id="parameters">Parameters</h2>
+<p>ms_handle :
+management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
+<h3>Methods</h3>
+<dl>
+<dt id="nerve_lib.manage_access.LocalUser.delete"><code class="name flex">
+<span>def <span class="ident">delete</span></span>(<span>self, username: str = '')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def delete(self, username: str = &#34;&#34;):
+    &#34;&#34;&#34;Delete all users or a specific user from the node.
+
+    Parameters
+    ----------
+    user : str, optional
+        username to delete. The default is None which will delete all users.
+
+    Returns
+    -------
+    type
+        response from the node.
+    &#34;&#34;&#34;
+    if username:
+        return self.node.delete(&#34;/api/users&#34;, params={&#34;username&#34;: username})
+    return self.node.delete(&#34;/api/users&#34;)</code></pre>
+</details>
+<div class="desc"><p>Delete all users or a specific user from the node.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>user</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>username to delete. The default is None which will delete all users.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>type</code></dt>
+<dd>response from the node.</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.manage_access.LocalUser.get"><code class="name flex">
+<span>def <span class="ident">get</span></span>(<span>self, username: str = '')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get(self, username: str = &#34;&#34;):
+    &#34;&#34;&#34;Get all users or a specific user from the node.&#34;&#34;&#34;
+    if username:
+        return self.node.get(&#34;/api/users&#34;, params={&#34;username&#34;: username})
+    return self.node.get(&#34;/api/users&#34;)</code></pre>
+</details>
+<div class="desc"><p>Get all users or a specific user from the node.</p></div>
+</dd>
+<dt id="nerve_lib.manage_access.LocalUser.user_exists"><code class="name flex">
+<span>def <span class="ident">user_exists</span></span>(<span>self, username: str) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def user_exists(self, username: str) -&gt; bool:
+    &#34;&#34;&#34;Check if a specific user exists.
+
+    Parameters
+    ----------
+    username : str
+        username to check.
+
+    Returns
+    -------
+    bool
+        True if the user exists, False otherwise.
+    &#34;&#34;&#34;
+    response = self.get()
+    if response.status_code in {requests.codes.ok, requests.codes.accepted, requests.codes.no_content}:
+        users = response.json().get(&#34;users&#34;, [])
+        return any(user[&#34;username&#34;] == username for user in users)
+    return False</code></pre>
+</details>
+<div class="desc"><p>Check if a specific user exists.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>username</code></strong> :&ensp;<code>str</code></dt>
+<dd>username to check.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>bool</code></dt>
+<dd>True if the user exists, False otherwise.</dd>
+</dl></div>
+</dd>
+</dl>
+</dd>
+<dt id="nerve_lib.manage_access.MSRole"><code class="flex name class">
+<span>class <span class="ident">MSRole</span></span>
+<span>(</span><span>ms_handle)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class MSRole:
+    &#34;&#34;&#34;Role management related functions from MS.
+
+    Parameters
+    ----------
+    ms_handle :
+        management system handle &#39;nerve_lib.general_utils.MSHandle(...)&#39;.
+    &#34;&#34;&#34;
+
+    def __init__(self, ms_handle):
+        self.ms = ms_handle
+        self._log = logging.getLogger(&#34;Role&#34;)
+
+    def get(self, name: str = &#34;&#34;, role_type: str = &#34;local&#34;):
+        &#34;&#34;&#34;Get list of available roles in MS.&#34;&#34;&#34;
+        role_list = self.ms.get(
+            &#34;/nerve/rbac/roles&#34;,
+            params=[{&#34;filterBy[type]&#34;, role_type}],
+            accepted_status=[requests.codes.ok],
+        ).json()
+        if not name:
+            return role_list
+        try:
+            return next(role for role in role_list if role[&#34;name&#34;] == name)
+        except StopIteration:
+            msg = f&#34;Role &#39;{name}&#39; not in role_type &#39;{role_type}&#39; ({[role[&#39;name&#39;] for role in role_list]})&#34;
+            raise Exception(
+                msg,
+            )
+
+    def get_permission_ui(self, name_filter: str = &#34;&#34;):
+        &#34;&#34;&#34;Get list of permissions for UI class.&#34;&#34;&#34;
+        return self.ms.get(
+            &#34;/nerve/rbac/permissions&#34;,
+            params=[[&#34;categories&#34;, &#34;UI_PERMISSION&#34;], [&#34;filterBy[name]&#34;, name_filter]],
+            accepted_status=[requests.codes.ok],
+        ).json()
+
+    def get_permission_api(self, name_filter: str = &#34;&#34;):
+        &#34;&#34;&#34;Get list of permissions for all classes (API).&#34;&#34;&#34;
+        return self.ms.get(
+            &#34;/nerve/rbac/permissions&#34;,
+            params={&#34;categories&#34;: &#34;&#34;, &#34;filterBy&#34;: f&#39;{{&#34;name&#34;:&#34;{name_filter}&#34;}}&#39;},
+            accepted_status=[requests.codes.ok],
+        ).json()
+
+    def add(self, name: str, permission_names: list, description: str = &#34;&#34;):
+        &#34;&#34;&#34;Add a new role to the MS.&#34;&#34;&#34;
+        available_permissions = self.get_permission_api()
+        permission_ids = []
+        for perm_name in permission_names:
+            try:
+                permission_ids.append(
+                    next(perm[&#34;_id&#34;] for perm in available_permissions[&#34;data&#34;] if perm[&#34;name&#34;] == perm_name),
+                )
+            except StopIteration:
+                msg = (
+                    f&#34;Permission &#39;{perm_name}&#39; not valid, use one of &#34;
+                    f&#34;({[perm[&#39;name&#39;] for perm in available_permissions[&#39;data&#39;]]}&#34;
+                )
+                raise Exception(
+                    msg,
+                )
+        payload = {
+            &#34;id&#34;: &#34;&#34;,
+            &#34;name&#34;: name,
+            &#34;description&#34;: description or name,
+            &#34;defaultRole&#34;: False,
+            &#34;permissions&#34;: permission_ids,
+            &#34;users&#34;: [],
+            &#34;_prettyRoleName&#34;: &#34;Data&#34;,
+            &#34;type&#34;: &#34;local&#34;,
+            &#34;ldap&#34;: {},
+        }
+        response = self.ms.post(
+            &#34;/nerve/rbac/roles&#34;,
+            json=payload,
+            accepted_status=[requests.codes.ok, requests.codes.conflict],
+        )
+        if response.status_code == requests.codes.conflict:
+            self._log.warning(&#34;Role already exists, role is not updated&#34;)
+
+    def delete(self, name: str):
+        &#34;&#34;&#34;Delete a role from MS.&#34;&#34;&#34;
+        role_id = self.get(name)[&#34;_id&#34;]
+        self.ms.delete(f&#34;/nerve/rbac/roles/{role_id}&#34;)
+
+    def edit(
+        self,
+        role_name: str,
+        new_role_name: str,
+        permission_names: list,
+        description: str = &#34; &#34;,
+        type: str = &#34;local&#34;,
+        config_name: str = &#34;ldap_config&#34;,
+    ):
+        &#34;&#34;&#34;Update an existing role.&#34;&#34;&#34;
+        if type == &#34;ldap&#34;:
+            existing_role = self.get(f&#34;{role_name} - {config_name}&#34;, type)
+        else:
+            existing_role = self.get(role_name)
+
+        # Get available permissions
+        available_permissions = self.get_permission_api()
+
+        # Convert permission names to IDs
+        permission_ids = []
+        for perm_name in permission_names:
+            try:
+                perm_id = next(
+                    perm[&#34;_id&#34;] for perm in available_permissions[&#34;data&#34;] if perm[&#34;name&#34;] == perm_name
+                )
+                permission_ids.append(perm_id)
+            except StopIteration:
+                msg = (
+                    f&#34;Permission &#39;{perm_name}&#39; not valid, use one of &#34;
+                    f&#34;({[perm[&#39;name&#39;] for perm in available_permissions[&#39;data&#39;]]}&#34;
+                )
+                raise Exception(
+                    msg,
+                )
+
+        # Update fields only if they are provided
+        role_id = existing_role[&#34;_id&#34;]
+        if type == &#34;ldap&#34;:
+            existing_role[&#34;id&#34;] = &#34;&#34;
+            existing_role[&#34;_prettyRoleName&#34;] = role_name
+            existing_role.pop(&#34;_id&#34;, None)
+            existing_role.pop(&#34;__v&#34;, None)
+
+        if new_role_name:
+            existing_role[&#34;name&#34;] = new_role_name
+        if description:
+            existing_role[&#34;description&#34;] = description
+        existing_role[&#34;permissions&#34;] = permission_ids
+
+        # Make the PATCH request to update the role
+        self.ms.patch(
+            f&#34;/nerve/rbac/roles/{role_id}&#34;,
+            json=existing_role,
+            accepted_status=[requests.codes.ok],
+        )</code></pre>
+</details>
+<div class="desc"><p>Role management related functions from MS.</p>
+<h2 id="parameters">Parameters</h2>
+<p>ms_handle :
+management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
+<h3>Methods</h3>
+<dl>
+<dt id="nerve_lib.manage_access.MSRole.add"><code class="name flex">
+<span>def <span class="ident">add</span></span>(<span>self, name: str, permission_names: list, description: str = '')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add(self, name: str, permission_names: list, description: str = &#34;&#34;):
+    &#34;&#34;&#34;Add a new role to the MS.&#34;&#34;&#34;
+    available_permissions = self.get_permission_api()
+    permission_ids = []
+    for perm_name in permission_names:
+        try:
+            permission_ids.append(
+                next(perm[&#34;_id&#34;] for perm in available_permissions[&#34;data&#34;] if perm[&#34;name&#34;] == perm_name),
+            )
+        except StopIteration:
+            msg = (
+                f&#34;Permission &#39;{perm_name}&#39; not valid, use one of &#34;
+                f&#34;({[perm[&#39;name&#39;] for perm in available_permissions[&#39;data&#39;]]}&#34;
+            )
+            raise Exception(
+                msg,
+            )
+    payload = {
+        &#34;id&#34;: &#34;&#34;,
+        &#34;name&#34;: name,
+        &#34;description&#34;: description or name,
+        &#34;defaultRole&#34;: False,
+        &#34;permissions&#34;: permission_ids,
+        &#34;users&#34;: [],
+        &#34;_prettyRoleName&#34;: &#34;Data&#34;,
+        &#34;type&#34;: &#34;local&#34;,
+        &#34;ldap&#34;: {},
+    }
+    response = self.ms.post(
+        &#34;/nerve/rbac/roles&#34;,
+        json=payload,
+        accepted_status=[requests.codes.ok, requests.codes.conflict],
+    )
+    if response.status_code == requests.codes.conflict:
+        self._log.warning(&#34;Role already exists, role is not updated&#34;)</code></pre>
+</details>
+<div class="desc"><p>Add a new role to the MS.</p></div>
+</dd>
+<dt id="nerve_lib.manage_access.MSRole.delete"><code class="name flex">
+<span>def <span class="ident">delete</span></span>(<span>self, name: str)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def delete(self, name: str):
+    &#34;&#34;&#34;Delete a role from MS.&#34;&#34;&#34;
+    role_id = self.get(name)[&#34;_id&#34;]
+    self.ms.delete(f&#34;/nerve/rbac/roles/{role_id}&#34;)</code></pre>
+</details>
+<div class="desc"><p>Delete a role from MS.</p></div>
+</dd>
+<dt id="nerve_lib.manage_access.MSRole.edit"><code class="name flex">
+<span>def <span class="ident">edit</span></span>(<span>self,<br>role_name: str,<br>new_role_name: str,<br>permission_names: list,<br>description: str = ' ',<br>type: str = 'local',<br>config_name: str = 'ldap_config')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def edit(
+    self,
+    role_name: str,
+    new_role_name: str,
+    permission_names: list,
+    description: str = &#34; &#34;,
+    type: str = &#34;local&#34;,
+    config_name: str = &#34;ldap_config&#34;,
+):
+    &#34;&#34;&#34;Update an existing role.&#34;&#34;&#34;
+    if type == &#34;ldap&#34;:
+        existing_role = self.get(f&#34;{role_name} - {config_name}&#34;, type)
+    else:
+        existing_role = self.get(role_name)
+
+    # Get available permissions
+    available_permissions = self.get_permission_api()
+
+    # Convert permission names to IDs
+    permission_ids = []
+    for perm_name in permission_names:
+        try:
+            perm_id = next(
+                perm[&#34;_id&#34;] for perm in available_permissions[&#34;data&#34;] if perm[&#34;name&#34;] == perm_name
+            )
+            permission_ids.append(perm_id)
+        except StopIteration:
+            msg = (
+                f&#34;Permission &#39;{perm_name}&#39; not valid, use one of &#34;
+                f&#34;({[perm[&#39;name&#39;] for perm in available_permissions[&#39;data&#39;]]}&#34;
+            )
+            raise Exception(
+                msg,
+            )
+
+    # Update fields only if they are provided
+    role_id = existing_role[&#34;_id&#34;]
+    if type == &#34;ldap&#34;:
+        existing_role[&#34;id&#34;] = &#34;&#34;
+        existing_role[&#34;_prettyRoleName&#34;] = role_name
+        existing_role.pop(&#34;_id&#34;, None)
+        existing_role.pop(&#34;__v&#34;, None)
+
+    if new_role_name:
+        existing_role[&#34;name&#34;] = new_role_name
+    if description:
+        existing_role[&#34;description&#34;] = description
+    existing_role[&#34;permissions&#34;] = permission_ids
+
+    # Make the PATCH request to update the role
+    self.ms.patch(
+        f&#34;/nerve/rbac/roles/{role_id}&#34;,
+        json=existing_role,
+        accepted_status=[requests.codes.ok],
+    )</code></pre>
+</details>
+<div class="desc"><p>Update an existing role.</p></div>
+</dd>
+<dt id="nerve_lib.manage_access.MSRole.get"><code class="name flex">
+<span>def <span class="ident">get</span></span>(<span>self, name: str = '', role_type: str = 'local')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get(self, name: str = &#34;&#34;, role_type: str = &#34;local&#34;):
+    &#34;&#34;&#34;Get list of available roles in MS.&#34;&#34;&#34;
+    role_list = self.ms.get(
+        &#34;/nerve/rbac/roles&#34;,
+        params=[{&#34;filterBy[type]&#34;, role_type}],
+        accepted_status=[requests.codes.ok],
+    ).json()
+    if not name:
+        return role_list
+    try:
+        return next(role for role in role_list if role[&#34;name&#34;] == name)
+    except StopIteration:
+        msg = f&#34;Role &#39;{name}&#39; not in role_type &#39;{role_type}&#39; ({[role[&#39;name&#39;] for role in role_list]})&#34;
+        raise Exception(
+            msg,
+        )</code></pre>
+</details>
+<div class="desc"><p>Get list of available roles in MS.</p></div>
+</dd>
+<dt id="nerve_lib.manage_access.MSRole.get_permission_api"><code class="name flex">
+<span>def <span class="ident">get_permission_api</span></span>(<span>self, name_filter: str = '')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_permission_api(self, name_filter: str = &#34;&#34;):
+    &#34;&#34;&#34;Get list of permissions for all classes (API).&#34;&#34;&#34;
+    return self.ms.get(
+        &#34;/nerve/rbac/permissions&#34;,
+        params={&#34;categories&#34;: &#34;&#34;, &#34;filterBy&#34;: f&#39;{{&#34;name&#34;:&#34;{name_filter}&#34;}}&#39;},
+        accepted_status=[requests.codes.ok],
+    ).json()</code></pre>
+</details>
+<div class="desc"><p>Get list of permissions for all classes (API).</p></div>
+</dd>
+<dt id="nerve_lib.manage_access.MSRole.get_permission_ui"><code class="name flex">
+<span>def <span class="ident">get_permission_ui</span></span>(<span>self, name_filter: str = '')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_permission_ui(self, name_filter: str = &#34;&#34;):
+    &#34;&#34;&#34;Get list of permissions for UI class.&#34;&#34;&#34;
+    return self.ms.get(
+        &#34;/nerve/rbac/permissions&#34;,
+        params=[[&#34;categories&#34;, &#34;UI_PERMISSION&#34;], [&#34;filterBy[name]&#34;, name_filter]],
+        accepted_status=[requests.codes.ok],
+    ).json()</code></pre>
+</details>
+<div class="desc"><p>Get list of permissions for UI class.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="nerve_lib.manage_access.MSUser"><code class="flex name class">
+<span>class <span class="ident">MSUser</span></span>
+<span>(</span><span>ms_handle)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class MSUser:
+    &#34;&#34;&#34;User management related functions from MS.
+
+    Parameters
+    ----------
+    node_handle :
+        handle to node &#39;nerve_lib.general_utils.NodeHandle(...)&#39;.
+    &#34;&#34;&#34;
+
+    def __init__(self, ms_handle):
+        self.ms = ms_handle
+        self._log = logging.getLogger(&#34;User&#34;)
+        self._role = MSRole(ms_handle)
+
+    def get(self, email=&#34;&#34;, role_type=&#34;local&#34;):
+        &#34;&#34;&#34;Get a list of users.&#34;&#34;&#34;
+        user_list = self.ms.get(
+            &#34;/crm/profile/list&#34;,
+            params=[{&#34;filterBy[type]&#34;, role_type}],
+            accepted_status=[requests.codes.ok],
+        ).json()
+        if email:
+            try:
+                return next(user for user in user_list[&#34;data&#34;] if user[&#34;username&#34;] == email)
+            except StopIteration:
+                msg = (
+                    f&#34;User &#39;{email}&#39; not in role_type &#39;{role_type}&#39; &#34;
+                    f&#34;({[user[&#39;username&#39;] for user in user_list[&#39;data&#39;]]}&#34;
+                )
+                raise Exception(
+                    msg,
+                )
+        return user_list
+
+    def add(
+        self,
+        email: str,
+        roles: list,
+        first_name: str = &#34;&#34;,
+        last_name: str = &#34;&#34;,
+        role_type: str = &#34;local&#34;,
+        preferred_language: str = &#34;en_EN&#34;,
+    ) -&gt; dict:
+        &#34;&#34;&#34;Add a new user to the MS.&#34;&#34;&#34;
+        if not re.match(r&#34;^[_a-z0-9-]+(.[_a-z0-9-]+)*@[a-z0-9-]+(.[a-z0-9-]+)*(.[a-z]{2,4})$&#34;, email):
+            self._log.error(&#34;Invalid email specified: %s&#34;, email)
+            msg = f&#34;Error: Invalid email specified: {email}&#34;
+            raise RuntimeError(msg)
+        uname = [name.capitalize() for name in email.split(&#34;@&#34;)[0].split(&#34;.&#34;, 1)]
+
+        role_ids = []
+        for role in roles:
+            role_ids.append(self._role.get(role, role_type)[&#34;_id&#34;])
+
+        payload = {
+            &#34;firstName&#34;: first_name or uname[0],
+            &#34;lastName&#34;: last_name or uname[-1],
+            &#34;username&#34;: email,
+            &#34;profileImgURL&#34;: &#34;&#34;,
+            &#34;preferredLanguage&#34;: preferred_language,
+            &#34;contact&#34;: [
+                {
+                    &#34;contactType&#34;: &#34;email&#34;,
+                    &#34;isDefault&#34;: True,
+                    &#34;label&#34;: &#34;Default&#34;,
+                    &#34;contact&#34;: email,
+                    &#34;email&#34;: &#34;&#34;,
+                },
+            ],
+            &#34;roles&#34;: role_ids,
+        }
+        accepted_status = [requests.codes.ok, requests.codes.forbidden]
+        while True:
+            m_enc = MultipartEncoder({&#34;data&#34;: (None, json.dumps(payload), &#34;form-data&#34;)})
+
+            response = self.ms.post(
+                &#34;/crm/profile&#34;,
+                data=m_enc,
+                content_type=m_enc.content_type,
+                accepted_status=accepted_status,
+            )
+            if response.status_code == requests.codes.forbidden:
+                self.node.login()
+                accepted_status = [requests.codes.ok]
+                continue
+            break
+        return response.json()
+
+    def edit(
+        self,
+        email: str,
+        roles: list = [],
+        first_name=&#34;&#34;,
+        last_name=&#34;&#34;,
+        role_type=&#34;local&#34;,
+        preferred_language=&#34;en_EN&#34;,
+    ):
+        &#34;&#34;&#34;Edit an existing user.&#34;&#34;&#34;
+        payload = self.get(email, role_type)
+
+        if roles:
+            role_ids = []
+            for role in roles:
+                role_ids.append(self._role.get(role, role_type)[&#34;_id&#34;])
+            payload[&#34;roles&#34;] = role_ids
+
+        if first_name:
+            payload[&#34;firstName&#34;] = first_name
+
+        if last_name:
+            payload[&#34;lastName&#34;] = last_name
+
+        if preferred_language:
+            payload[&#34;preferredLanguage&#34;] = preferred_language
+
+        accepted_status = [requests.codes.ok, requests.codes.forbidden]
+        while True:
+            m_enc = MultipartEncoder({&#34;data&#34;: (None, json.dumps(payload), &#34;form-data&#34;)})
+
+            response = self.ms.put(
+                f&#34;/crm/profile/{payload.get(&#39;_id&#39;)}&#34;,
+                data=m_enc,
+                content_type=m_enc.content_type,
+                accepted_status=accepted_status,
+            )
+            if response.status_code == requests.codes.forbidden:
+                self.node.login()
+                accepted_status = [requests.codes.ok]
+                continue
+            break
+        return response.json()
+
+    def delete(self, email):
+        &#34;&#34;&#34;Delete a user from the MS.&#34;&#34;&#34;
+        user_id = self.get(email)[&#34;_id&#34;]
+        self.ms.delete(f&#34;/crm/profile/{user_id}&#34;)
+
+    def set_language(self, user_id: str, language: str):
+        &#34;&#34;&#34;Set language for a user.&#34;&#34;&#34;
+        payload = {&#34;preferredLanguage&#34;: language}
+        if self.ms.version_smaller_than(&#34;2.10.0&#34;):
+            url = f&#34;/crm/profile/{user_id}/setLanguage&#34;
+        else:
+            url = f&#34;/crm/profile/{user_id}&#34;
+        response = self.ms.put(url, json=payload, accepted_status=[requests.codes.ok])
+        return response.json()
+
+    def personal_edit(
+        self,
+        email: str,
+        first_name=&#34;&#34;,
+        last_name=&#34;&#34;,
+        old_password=&#34;&#34;,
+        new_password=&#34;&#34;,
+        confirm_new_password=&#34;&#34;,
+        preferred_language: str = &#34;en_EN&#34;,
+        user_id=&#34;&#34;,
+    ):
+        &#34;&#34;&#34;Edit an personal user.&#34;&#34;&#34;
+        if not user_id:
+            user_id = self.get(email)[&#34;_id&#34;]
+        payload = {
+            &#34;id&#34;: user_id,
+            &#34;firstName&#34;: first_name or self.get(email)[&#34;firstName&#34;],
+            &#34;lastName&#34;: last_name or self.get(email)[&#34;lastName&#34;],
+            &#34;username&#34;: email,
+            &#34;profileImgURL&#34;: &#34;&#34;,
+            &#34;preferredLanguage&#34;: preferred_language,
+            &#34;contact&#34;: [
+                {
+                    &#34;contactType&#34;: &#34;email&#34;,
+                    &#34;isDefault&#34;: True,
+                    &#34;label&#34;: &#34;Default&#34;,
+                    &#34;contact&#34;: email,
+                    &#34;email&#34;: email,
+                },
+            ],
+            &#34;currentPassword&#34;: old_password,
+            &#34;newPassword&#34;: new_password,
+            &#34;confirmPassword&#34;: confirm_new_password,
+        }
+
+        accepted_status = [requests.codes.ok, requests.codes.forbidden]
+        while True:
+            m_enc = MultipartEncoder({&#34;data&#34;: (None, json.dumps(payload), &#34;form-data&#34;)})
+
+            response = self.ms.put(
+                &#34;/crm/personalProfile&#34;,
+                data=m_enc,
+                content_type=m_enc.content_type,
+                accepted_status=accepted_status,
+            )
+            if response.status_code == requests.codes.forbidden:
+                self.node.login()
+                accepted_status = [requests.codes.ok]
+                continue
+            break
+        return response.json()
+
+    def extract_endpoints(self, openapi_spec, output_json):
+        &#34;&#34;&#34;Extract endpoints from OpenAPI specification and save to JSON file.&#34;&#34;&#34;
+        try:
+            with open(openapi_spec, &#34;r&#34;, encoding=&#34;utf-8&#34;) as file:
+                if &#34;.yml&#34; in openapi_spec or &#34;.yaml&#34; in openapi_spec:
+                    data = yaml.safe_load(file)
+                elif &#34;.json&#34; in openapi_spec:
+                    data = json.load(file)
+                else:
+                    self._log.error(&#34;API spec file format not supported!&#34;)
+
+                # Extract endpoints from paths and save to JSON file
+                if &#34;paths&#34; in data:
+                    paths = data[&#34;paths&#34;]
+                    endpoints = []
+
+                    for path, methods in paths.items():
+                        endpoint_data = {&#34;Endpoint&#34;: path, &#34;Methods&#34;: list(methods.keys())}
+                        endpoints.append(endpoint_data)
+
+                    with open(output_json, &#34;w&#34;, encoding=&#34;utf-8&#34;) as json_file:
+                        json.dump(endpoints, json_file, indent=2)
+                    self._log.info(&#34;Endpoints saved to %s&#34;, output_json)
+                else:
+                    msg = &#34;No &#39;paths&#39; field found in the OpenAPI specification.&#34;
+                    raise ValueError(msg)
+
+        except FileNotFoundError:
+            self._log.error(&#34;File not found: %s&#34;, output_json)
+        except yaml.YAMLError:
+            self._log.error(&#34;Invalid YAML format in file: %s&#34;, openapi_spec)
+        except json.JSONDecodeError:
+            self._log.exception(&#34;JSON decoding error&#34;)
+        except Exception:
+            self._log.exception(&#34;An error occurred&#34;)</code></pre>
+</details>
+<div class="desc"><p>User management related functions from MS.</p>
+<h2 id="parameters">Parameters</h2>
+<p>node_handle :
+handle to node 'nerve_lib.general_utils.NodeHandle(&hellip;)'.</p></div>
+<h3>Methods</h3>
+<dl>
+<dt id="nerve_lib.manage_access.MSUser.add"><code class="name flex">
+<span>def <span class="ident">add</span></span>(<span>self,<br>email: str,<br>roles: list,<br>first_name: str = '',<br>last_name: str = '',<br>role_type: str = 'local',<br>preferred_language: str = 'en_EN') ‑> dict</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add(
+    self,
+    email: str,
+    roles: list,
+    first_name: str = &#34;&#34;,
+    last_name: str = &#34;&#34;,
+    role_type: str = &#34;local&#34;,
+    preferred_language: str = &#34;en_EN&#34;,
+) -&gt; dict:
+    &#34;&#34;&#34;Add a new user to the MS.&#34;&#34;&#34;
+    if not re.match(r&#34;^[_a-z0-9-]+(.[_a-z0-9-]+)*@[a-z0-9-]+(.[a-z0-9-]+)*(.[a-z]{2,4})$&#34;, email):
+        self._log.error(&#34;Invalid email specified: %s&#34;, email)
+        msg = f&#34;Error: Invalid email specified: {email}&#34;
+        raise RuntimeError(msg)
+    uname = [name.capitalize() for name in email.split(&#34;@&#34;)[0].split(&#34;.&#34;, 1)]
+
+    role_ids = []
+    for role in roles:
+        role_ids.append(self._role.get(role, role_type)[&#34;_id&#34;])
+
+    payload = {
+        &#34;firstName&#34;: first_name or uname[0],
+        &#34;lastName&#34;: last_name or uname[-1],
+        &#34;username&#34;: email,
+        &#34;profileImgURL&#34;: &#34;&#34;,
+        &#34;preferredLanguage&#34;: preferred_language,
+        &#34;contact&#34;: [
+            {
+                &#34;contactType&#34;: &#34;email&#34;,
+                &#34;isDefault&#34;: True,
+                &#34;label&#34;: &#34;Default&#34;,
+                &#34;contact&#34;: email,
+                &#34;email&#34;: &#34;&#34;,
+            },
+        ],
+        &#34;roles&#34;: role_ids,
+    }
+    accepted_status = [requests.codes.ok, requests.codes.forbidden]
+    while True:
+        m_enc = MultipartEncoder({&#34;data&#34;: (None, json.dumps(payload), &#34;form-data&#34;)})
+
+        response = self.ms.post(
+            &#34;/crm/profile&#34;,
+            data=m_enc,
+            content_type=m_enc.content_type,
+            accepted_status=accepted_status,
+        )
+        if response.status_code == requests.codes.forbidden:
+            self.node.login()
+            accepted_status = [requests.codes.ok]
+            continue
+        break
+    return response.json()</code></pre>
+</details>
+<div class="desc"><p>Add a new user to the MS.</p></div>
+</dd>
+<dt id="nerve_lib.manage_access.MSUser.delete"><code class="name flex">
+<span>def <span class="ident">delete</span></span>(<span>self, email)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def delete(self, email):
+    &#34;&#34;&#34;Delete a user from the MS.&#34;&#34;&#34;
+    user_id = self.get(email)[&#34;_id&#34;]
+    self.ms.delete(f&#34;/crm/profile/{user_id}&#34;)</code></pre>
+</details>
+<div class="desc"><p>Delete a user from the MS.</p></div>
+</dd>
+<dt id="nerve_lib.manage_access.MSUser.edit"><code class="name flex">
+<span>def <span class="ident">edit</span></span>(<span>self,<br>email: str,<br>roles: list = [],<br>first_name='',<br>last_name='',<br>role_type='local',<br>preferred_language='en_EN')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def edit(
+    self,
+    email: str,
+    roles: list = [],
+    first_name=&#34;&#34;,
+    last_name=&#34;&#34;,
+    role_type=&#34;local&#34;,
+    preferred_language=&#34;en_EN&#34;,
+):
+    &#34;&#34;&#34;Edit an existing user.&#34;&#34;&#34;
+    payload = self.get(email, role_type)
+
+    if roles:
+        role_ids = []
+        for role in roles:
+            role_ids.append(self._role.get(role, role_type)[&#34;_id&#34;])
+        payload[&#34;roles&#34;] = role_ids
+
+    if first_name:
+        payload[&#34;firstName&#34;] = first_name
+
+    if last_name:
+        payload[&#34;lastName&#34;] = last_name
+
+    if preferred_language:
+        payload[&#34;preferredLanguage&#34;] = preferred_language
+
+    accepted_status = [requests.codes.ok, requests.codes.forbidden]
+    while True:
+        m_enc = MultipartEncoder({&#34;data&#34;: (None, json.dumps(payload), &#34;form-data&#34;)})
+
+        response = self.ms.put(
+            f&#34;/crm/profile/{payload.get(&#39;_id&#39;)}&#34;,
+            data=m_enc,
+            content_type=m_enc.content_type,
+            accepted_status=accepted_status,
+        )
+        if response.status_code == requests.codes.forbidden:
+            self.node.login()
+            accepted_status = [requests.codes.ok]
+            continue
+        break
+    return response.json()</code></pre>
+</details>
+<div class="desc"><p>Edit an existing user.</p></div>
+</dd>
+<dt id="nerve_lib.manage_access.MSUser.extract_endpoints"><code class="name flex">
+<span>def <span class="ident">extract_endpoints</span></span>(<span>self, openapi_spec, output_json)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def extract_endpoints(self, openapi_spec, output_json):
+    &#34;&#34;&#34;Extract endpoints from OpenAPI specification and save to JSON file.&#34;&#34;&#34;
+    try:
+        with open(openapi_spec, &#34;r&#34;, encoding=&#34;utf-8&#34;) as file:
+            if &#34;.yml&#34; in openapi_spec or &#34;.yaml&#34; in openapi_spec:
+                data = yaml.safe_load(file)
+            elif &#34;.json&#34; in openapi_spec:
+                data = json.load(file)
+            else:
+                self._log.error(&#34;API spec file format not supported!&#34;)
+
+            # Extract endpoints from paths and save to JSON file
+            if &#34;paths&#34; in data:
+                paths = data[&#34;paths&#34;]
+                endpoints = []
+
+                for path, methods in paths.items():
+                    endpoint_data = {&#34;Endpoint&#34;: path, &#34;Methods&#34;: list(methods.keys())}
+                    endpoints.append(endpoint_data)
+
+                with open(output_json, &#34;w&#34;, encoding=&#34;utf-8&#34;) as json_file:
+                    json.dump(endpoints, json_file, indent=2)
+                self._log.info(&#34;Endpoints saved to %s&#34;, output_json)
+            else:
+                msg = &#34;No &#39;paths&#39; field found in the OpenAPI specification.&#34;
+                raise ValueError(msg)
+
+    except FileNotFoundError:
+        self._log.error(&#34;File not found: %s&#34;, output_json)
+    except yaml.YAMLError:
+        self._log.error(&#34;Invalid YAML format in file: %s&#34;, openapi_spec)
+    except json.JSONDecodeError:
+        self._log.exception(&#34;JSON decoding error&#34;)
+    except Exception:
+        self._log.exception(&#34;An error occurred&#34;)</code></pre>
+</details>
+<div class="desc"><p>Extract endpoints from OpenAPI specification and save to JSON file.</p></div>
+</dd>
+<dt id="nerve_lib.manage_access.MSUser.get"><code class="name flex">
+<span>def <span class="ident">get</span></span>(<span>self, email='', role_type='local')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get(self, email=&#34;&#34;, role_type=&#34;local&#34;):
+    &#34;&#34;&#34;Get a list of users.&#34;&#34;&#34;
+    user_list = self.ms.get(
+        &#34;/crm/profile/list&#34;,
+        params=[{&#34;filterBy[type]&#34;, role_type}],
+        accepted_status=[requests.codes.ok],
+    ).json()
+    if email:
+        try:
+            return next(user for user in user_list[&#34;data&#34;] if user[&#34;username&#34;] == email)
+        except StopIteration:
+            msg = (
+                f&#34;User &#39;{email}&#39; not in role_type &#39;{role_type}&#39; &#34;
+                f&#34;({[user[&#39;username&#39;] for user in user_list[&#39;data&#39;]]}&#34;
+            )
+            raise Exception(
+                msg,
+            )
+    return user_list</code></pre>
+</details>
+<div class="desc"><p>Get a list of users.</p></div>
+</dd>
+<dt id="nerve_lib.manage_access.MSUser.personal_edit"><code class="name flex">
+<span>def <span class="ident">personal_edit</span></span>(<span>self,<br>email: str,<br>first_name='',<br>last_name='',<br>old_password='',<br>new_password='',<br>confirm_new_password='',<br>preferred_language: str = 'en_EN',<br>user_id='')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def personal_edit(
+    self,
+    email: str,
+    first_name=&#34;&#34;,
+    last_name=&#34;&#34;,
+    old_password=&#34;&#34;,
+    new_password=&#34;&#34;,
+    confirm_new_password=&#34;&#34;,
+    preferred_language: str = &#34;en_EN&#34;,
+    user_id=&#34;&#34;,
+):
+    &#34;&#34;&#34;Edit an personal user.&#34;&#34;&#34;
+    if not user_id:
+        user_id = self.get(email)[&#34;_id&#34;]
+    payload = {
+        &#34;id&#34;: user_id,
+        &#34;firstName&#34;: first_name or self.get(email)[&#34;firstName&#34;],
+        &#34;lastName&#34;: last_name or self.get(email)[&#34;lastName&#34;],
+        &#34;username&#34;: email,
+        &#34;profileImgURL&#34;: &#34;&#34;,
+        &#34;preferredLanguage&#34;: preferred_language,
+        &#34;contact&#34;: [
+            {
+                &#34;contactType&#34;: &#34;email&#34;,
+                &#34;isDefault&#34;: True,
+                &#34;label&#34;: &#34;Default&#34;,
+                &#34;contact&#34;: email,
+                &#34;email&#34;: email,
+            },
+        ],
+        &#34;currentPassword&#34;: old_password,
+        &#34;newPassword&#34;: new_password,
+        &#34;confirmPassword&#34;: confirm_new_password,
+    }
+
+    accepted_status = [requests.codes.ok, requests.codes.forbidden]
+    while True:
+        m_enc = MultipartEncoder({&#34;data&#34;: (None, json.dumps(payload), &#34;form-data&#34;)})
+
+        response = self.ms.put(
+            &#34;/crm/personalProfile&#34;,
+            data=m_enc,
+            content_type=m_enc.content_type,
+            accepted_status=accepted_status,
+        )
+        if response.status_code == requests.codes.forbidden:
+            self.node.login()
+            accepted_status = [requests.codes.ok]
+            continue
+        break
+    return response.json()</code></pre>
+</details>
+<div class="desc"><p>Edit an personal user.</p></div>
+</dd>
+<dt id="nerve_lib.manage_access.MSUser.set_language"><code class="name flex">
+<span>def <span class="ident">set_language</span></span>(<span>self, user_id: str, language: str)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def set_language(self, user_id: str, language: str):
+    &#34;&#34;&#34;Set language for a user.&#34;&#34;&#34;
+    payload = {&#34;preferredLanguage&#34;: language}
+    if self.ms.version_smaller_than(&#34;2.10.0&#34;):
+        url = f&#34;/crm/profile/{user_id}/setLanguage&#34;
+    else:
+        url = f&#34;/crm/profile/{user_id}&#34;
+    response = self.ms.put(url, json=payload, accepted_status=[requests.codes.ok])
+    return response.json()</code></pre>
+</details>
+<div class="desc"><p>Set language for a user.</p></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul>
+<li><a href="#example">Example:</a></li>
+</ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="nerve_lib" href="index.html">nerve_lib</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="nerve_lib.manage_access.LDAP" href="#nerve_lib.manage_access.LDAP">LDAP</a></code></h4>
+<ul class="two-column">
+<li><code><a title="nerve_lib.manage_access.LDAP.check_active" href="#nerve_lib.manage_access.LDAP.check_active">check_active</a></code></li>
+<li><code><a title="nerve_lib.manage_access.LDAP.enable_disable_ldap" href="#nerve_lib.manage_access.LDAP.enable_disable_ldap">enable_disable_ldap</a></code></li>
+<li><code><a title="nerve_lib.manage_access.LDAP.get_config" href="#nerve_lib.manage_access.LDAP.get_config">get_config</a></code></li>
+<li><code><a title="nerve_lib.manage_access.LDAP.get_default" href="#nerve_lib.manage_access.LDAP.get_default">get_default</a></code></li>
+<li><code><a title="nerve_lib.manage_access.LDAP.groups" href="#nerve_lib.manage_access.LDAP.groups">groups</a></code></li>
+<li><code><a title="nerve_lib.manage_access.LDAP.ldap_payload" href="#nerve_lib.manage_access.LDAP.ldap_payload">ldap_payload</a></code></li>
+<li><code><a title="nerve_lib.manage_access.LDAP.query_groups" href="#nerve_lib.manage_access.LDAP.query_groups">query_groups</a></code></li>
+<li><code><a title="nerve_lib.manage_access.LDAP.query_users" href="#nerve_lib.manage_access.LDAP.query_users">query_users</a></code></li>
+<li><code><a title="nerve_lib.manage_access.LDAP.recurring_sync" href="#nerve_lib.manage_access.LDAP.recurring_sync">recurring_sync</a></code></li>
+<li><code><a title="nerve_lib.manage_access.LDAP.relationship" href="#nerve_lib.manage_access.LDAP.relationship">relationship</a></code></li>
+<li><code><a title="nerve_lib.manage_access.LDAP.save_sync_ldap" href="#nerve_lib.manage_access.LDAP.save_sync_ldap">save_sync_ldap</a></code></li>
+<li><code><a title="nerve_lib.manage_access.LDAP.set_ldap_state" href="#nerve_lib.manage_access.LDAP.set_ldap_state">set_ldap_state</a></code></li>
+<li><code><a title="nerve_lib.manage_access.LDAP.test_connection" href="#nerve_lib.manage_access.LDAP.test_connection">test_connection</a></code></li>
+<li><code><a title="nerve_lib.manage_access.LDAP.users" href="#nerve_lib.manage_access.LDAP.users">users</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="nerve_lib.manage_access.LocalUser" href="#nerve_lib.manage_access.LocalUser">LocalUser</a></code></h4>
+<ul class="">
+<li><code><a title="nerve_lib.manage_access.LocalUser.delete" href="#nerve_lib.manage_access.LocalUser.delete">delete</a></code></li>
+<li><code><a title="nerve_lib.manage_access.LocalUser.get" href="#nerve_lib.manage_access.LocalUser.get">get</a></code></li>
+<li><code><a title="nerve_lib.manage_access.LocalUser.user_exists" href="#nerve_lib.manage_access.LocalUser.user_exists">user_exists</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="nerve_lib.manage_access.MSRole" href="#nerve_lib.manage_access.MSRole">MSRole</a></code></h4>
+<ul class="two-column">
+<li><code><a title="nerve_lib.manage_access.MSRole.add" href="#nerve_lib.manage_access.MSRole.add">add</a></code></li>
+<li><code><a title="nerve_lib.manage_access.MSRole.delete" href="#nerve_lib.manage_access.MSRole.delete">delete</a></code></li>
+<li><code><a title="nerve_lib.manage_access.MSRole.edit" href="#nerve_lib.manage_access.MSRole.edit">edit</a></code></li>
+<li><code><a title="nerve_lib.manage_access.MSRole.get" href="#nerve_lib.manage_access.MSRole.get">get</a></code></li>
+<li><code><a title="nerve_lib.manage_access.MSRole.get_permission_api" href="#nerve_lib.manage_access.MSRole.get_permission_api">get_permission_api</a></code></li>
+<li><code><a title="nerve_lib.manage_access.MSRole.get_permission_ui" href="#nerve_lib.manage_access.MSRole.get_permission_ui">get_permission_ui</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="nerve_lib.manage_access.MSUser" href="#nerve_lib.manage_access.MSUser">MSUser</a></code></h4>
+<ul class="two-column">
+<li><code><a title="nerve_lib.manage_access.MSUser.add" href="#nerve_lib.manage_access.MSUser.add">add</a></code></li>
+<li><code><a title="nerve_lib.manage_access.MSUser.delete" href="#nerve_lib.manage_access.MSUser.delete">delete</a></code></li>
+<li><code><a title="nerve_lib.manage_access.MSUser.edit" href="#nerve_lib.manage_access.MSUser.edit">edit</a></code></li>
+<li><code><a title="nerve_lib.manage_access.MSUser.extract_endpoints" href="#nerve_lib.manage_access.MSUser.extract_endpoints">extract_endpoints</a></code></li>
+<li><code><a title="nerve_lib.manage_access.MSUser.get" href="#nerve_lib.manage_access.MSUser.get">get</a></code></li>
+<li><code><a title="nerve_lib.manage_access.MSUser.personal_edit" href="#nerve_lib.manage_access.MSUser.personal_edit">personal_edit</a></code></li>
+<li><code><a title="nerve_lib.manage_access.MSUser.set_language" href="#nerve_lib.manage_access.MSUser.set_language">set_language</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>nerve_lib.manage_notifications API documentation</title>
+<meta name="description" content="Manage Notifications releated function on MS …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>nerve_lib.manage_notifications</code></h1>
+</header>
+<section id="section-intro">
+<p>Manage Notifications releated function on MS.</p>
+<h2 id="example">Example:</h2>
+<pre><code>&gt;&gt;&gt; from nerve_lib import MSHandle
+&gt;&gt;&gt; from nerve_lib import MSNotifications
+&gt;&gt;&gt; with MSHandle("testms.nerve.cloud") as ms_handle:
+&gt;&gt;&gt;     notifications = MSNotifications(ms_handle)
+&gt;&gt;&gt;     notifications.get()
+&lt;list of available notifications&gt;
+</code></pre>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="nerve_lib.manage_notifications.MSNotifications"><code class="flex name class">
+<span>class <span class="ident">MSNotifications</span></span>
+<span>(</span><span>ms_handle)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class MSNotifications:
+    &#34;&#34;&#34;Create opensearch requets.
+
+    Parameters
+    ----------
+    ms_handle :
+        management system handle &#39;nerve_lib.general_utils.MSHandle(...)&#39;.
+    &#34;&#34;&#34;
+
+    def __init__(self, ms_handle):
+        self.ms = ms_handle
+        self._log = logging.getLogger(&#34;Notification&#34;)
+
+    @staticmethod
+    def __prepare_content(text_header, text_msg, image_path, active, show_before_login):
+        m_enc_data = {
+            &#34;headerText&#34;: text_header,
+            &#34;textMessage&#34;: text_msg,
+            &#34;active&#34;: str(active).lower(),
+            &#34;showBeforeLogin&#34;: str(show_before_login).lower(),
+        }
+        if image_path:
+            image_type = os.path.splitext(image_path)[-1][1:]
+            if image_type == &#34;jpg&#34;:
+                image_type = &#34;jpeg&#34;
+            m_enc_data[&#34;image&#34;] = (
+                os.path.basename(image_path),
+                open(image_path, &#34;rb&#34;),
+                f&#34;image/{image_type}&#34;,
+            )
+        return m_enc_data
+
+    def create(self, text_header, text_msg, image_path=&#34;&#34;, active=True, show_before_login=False):
+        &#34;&#34;&#34;Create a new notification item.&#34;&#34;&#34;
+        m_enc_data = self.__prepare_content(text_header, text_msg, image_path, active, show_before_login)
+
+        accepted_status = [requests.codes.ok, requests.codes.forbidden]
+        while True:
+            m_enc = MultipartEncoder(m_enc_data)
+
+            resp = self.ms.post(
+                &#34;/nerve/notifications&#34;,
+                content_type=m_enc.content_type,
+                data=m_enc,
+                accepted_status=accepted_status,
+            )
+            if resp.status_code == requests.codes.forbidden:
+                self.ms.login()
+                accepted_status = [requests.codes.ok]
+                continue
+            break
+        self._log.info(&#34;Created Notification %s&#34;, text_header)
+        return resp.json()
+
+    def edit(
+        self,
+        notification_id,
+        text_header,
+        text_msg,
+        image_path=&#34;&#34;,
+        active=True,
+        show_before_login=False,
+    ):
+        &#34;&#34;&#34;Create a new notification item.&#34;&#34;&#34;
+        m_enc_data = self.__prepare_content(text_header, text_msg, image_path, active, show_before_login)
+
+        accepted_status = [requests.codes.ok, requests.codes.forbidden]
+        while True:
+            m_enc = MultipartEncoder(m_enc_data)
+
+            resp = self.ms.put(
+                f&#34;/nerve/notifications/{notification_id}&#34;,
+                content_type=m_enc.content_type,
+                data=m_enc,
+                accepted_status=accepted_status,
+            )
+            if resp.status_code == requests.codes.forbidden:
+                self.ms.login()
+                accepted_status = [requests.codes.ok]
+                continue
+            break
+        self._log.info(&#34;Created Notification %s&#34;, text_header)
+        return resp.json()
+
+    def get(self):
+        &#34;&#34;&#34;Read list of all notification items.&#34;&#34;&#34;
+        return self.ms.get(&#34;/nerve/notifications&#34;, accepted_status=[requests.codes.ok]).json()[&#34;data&#34;]
+
+    def get_details(self, read_item: str) -&gt; dict:
+        &#34;&#34;&#34;Read notification details regarding one element.
+
+        Parameters
+        ----------
+        read_item : str
+            can be a specific notification._id or &#39;active&#39; or &#39;activeNoAuth&#39;.
+
+        Returns
+        -------
+        dict
+            matching notification item.
+        &#34;&#34;&#34;
+        return self.ms.get(f&#34;/nerve/notifications/{read_item}&#34;, accepted_status=[requests.codes.ok]).json()
+
+    def delete(self, notification_id=None):
+        &#34;&#34;&#34;Delete a notification item(s).&#34;&#34;&#34;
+        if notification_id:
+            # Delete a specific notification item.
+            self.ms.delete(f&#34;/nerve/notifications/{notification_id}&#34;)
+            self._log.info(&#34;Removed notification with id %s&#34;, notification_id)
+        else:
+            # Delete all notification items.
+            notifications = self.get()
+            while notifications:
+                for notification in notifications:
+                    self.delete(notification[&#34;_id&#34;])
+                notifications = self.get()
+            self._log.info(&#34;All notifications have been removed.&#34;)
+
+    def configure_usage_reports(self, notify_tttech: bool) -&gt; dict:
+        &#34;&#34;&#34;Configure usage reports.
+
+        Automatically transport monthly report to nerve-billing@tttech-industrial.com.
+
+        Parameters
+        ----------
+        notify_tttech : bool
+            Whether to notify TTTech.
+
+        Returns
+        -------
+        dict
+            API response: {updated: true}
+        &#34;&#34;&#34;
+        return self.ms.post(
+            &#34;/nerve/usage-reports/configuration&#34;,
+            json={&#34;notifyTTTech&#34;: notify_tttech},
+            accepted_status=[requests.codes.ok],
+        ).json()
+
+    def download_monthly_report(self, month: str, year: int):
+        &#34;&#34;&#34;Download the monthly usage report.
+
+        Parameters
+        ----------
+        month : str
+            The month for the report (e.g., &#34;April&#34;).
+        year : int
+            The year for the report.
+
+        Returns
+        -------
+            Response object for the download request.
+        &#34;&#34;&#34;
+        return self.ms.get(
+            &#34;/nerve/usage-reports/single&#34;,
+            params={&#34;month&#34;: month, &#34;year&#34;: year},
+            accepted_status=[requests.codes.ok],
+        ).json()</code></pre>
+</details>
+<div class="desc"><p>Create opensearch requets.</p>
+<h2 id="parameters">Parameters</h2>
+<p>ms_handle :
+management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
+<h3>Methods</h3>
+<dl>
+<dt id="nerve_lib.manage_notifications.MSNotifications.configure_usage_reports"><code class="name flex">
+<span>def <span class="ident">configure_usage_reports</span></span>(<span>self, notify_tttech: bool) ‑> dict</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def configure_usage_reports(self, notify_tttech: bool) -&gt; dict:
+    &#34;&#34;&#34;Configure usage reports.
+
+    Automatically transport monthly report to nerve-billing@tttech-industrial.com.
+
+    Parameters
+    ----------
+    notify_tttech : bool
+        Whether to notify TTTech.
+
+    Returns
+    -------
+    dict
+        API response: {updated: true}
+    &#34;&#34;&#34;
+    return self.ms.post(
+        &#34;/nerve/usage-reports/configuration&#34;,
+        json={&#34;notifyTTTech&#34;: notify_tttech},
+        accepted_status=[requests.codes.ok],
+    ).json()</code></pre>
+</details>
+<div class="desc"><p>Configure usage reports.</p>
+<p>Automatically transport monthly report to nerve-billing@tttech-industrial.com.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>notify_tttech</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Whether to notify TTTech.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>dict</code></dt>
+<dd>API response: {updated: true}</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.manage_notifications.MSNotifications.create"><code class="name flex">
+<span>def <span class="ident">create</span></span>(<span>self, text_header, text_msg, image_path='', active=True, show_before_login=False)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def create(self, text_header, text_msg, image_path=&#34;&#34;, active=True, show_before_login=False):
+    &#34;&#34;&#34;Create a new notification item.&#34;&#34;&#34;
+    m_enc_data = self.__prepare_content(text_header, text_msg, image_path, active, show_before_login)
+
+    accepted_status = [requests.codes.ok, requests.codes.forbidden]
+    while True:
+        m_enc = MultipartEncoder(m_enc_data)
+
+        resp = self.ms.post(
+            &#34;/nerve/notifications&#34;,
+            content_type=m_enc.content_type,
+            data=m_enc,
+            accepted_status=accepted_status,
+        )
+        if resp.status_code == requests.codes.forbidden:
+            self.ms.login()
+            accepted_status = [requests.codes.ok]
+            continue
+        break
+    self._log.info(&#34;Created Notification %s&#34;, text_header)
+    return resp.json()</code></pre>
+</details>
+<div class="desc"><p>Create a new notification item.</p></div>
+</dd>
+<dt id="nerve_lib.manage_notifications.MSNotifications.delete"><code class="name flex">
+<span>def <span class="ident">delete</span></span>(<span>self, notification_id=None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def delete(self, notification_id=None):
+    &#34;&#34;&#34;Delete a notification item(s).&#34;&#34;&#34;
+    if notification_id:
+        # Delete a specific notification item.
+        self.ms.delete(f&#34;/nerve/notifications/{notification_id}&#34;)
+        self._log.info(&#34;Removed notification with id %s&#34;, notification_id)
+    else:
+        # Delete all notification items.
+        notifications = self.get()
+        while notifications:
+            for notification in notifications:
+                self.delete(notification[&#34;_id&#34;])
+            notifications = self.get()
+        self._log.info(&#34;All notifications have been removed.&#34;)</code></pre>
+</details>
+<div class="desc"><p>Delete a notification item(s).</p></div>
+</dd>
+<dt id="nerve_lib.manage_notifications.MSNotifications.download_monthly_report"><code class="name flex">
+<span>def <span class="ident">download_monthly_report</span></span>(<span>self, month: str, year: int)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def download_monthly_report(self, month: str, year: int):
+    &#34;&#34;&#34;Download the monthly usage report.
+
+    Parameters
+    ----------
+    month : str
+        The month for the report (e.g., &#34;April&#34;).
+    year : int
+        The year for the report.
+
+    Returns
+    -------
+        Response object for the download request.
+    &#34;&#34;&#34;
+    return self.ms.get(
+        &#34;/nerve/usage-reports/single&#34;,
+        params={&#34;month&#34;: month, &#34;year&#34;: year},
+        accepted_status=[requests.codes.ok],
+    ).json()</code></pre>
+</details>
+<div class="desc"><p>Download the monthly usage report.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>month</code></strong> :&ensp;<code>str</code></dt>
+<dd>The month for the report (e.g., "April").</dd>
+<dt><strong><code>year</code></strong> :&ensp;<code>int</code></dt>
+<dd>The year for the report.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<pre><code>Response object for the download request.
+</code></pre></div>
+</dd>
+<dt id="nerve_lib.manage_notifications.MSNotifications.edit"><code class="name flex">
+<span>def <span class="ident">edit</span></span>(<span>self,<br>notification_id,<br>text_header,<br>text_msg,<br>image_path='',<br>active=True,<br>show_before_login=False)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def edit(
+    self,
+    notification_id,
+    text_header,
+    text_msg,
+    image_path=&#34;&#34;,
+    active=True,
+    show_before_login=False,
+):
+    &#34;&#34;&#34;Create a new notification item.&#34;&#34;&#34;
+    m_enc_data = self.__prepare_content(text_header, text_msg, image_path, active, show_before_login)
+
+    accepted_status = [requests.codes.ok, requests.codes.forbidden]
+    while True:
+        m_enc = MultipartEncoder(m_enc_data)
+
+        resp = self.ms.put(
+            f&#34;/nerve/notifications/{notification_id}&#34;,
+            content_type=m_enc.content_type,
+            data=m_enc,
+            accepted_status=accepted_status,
+        )
+        if resp.status_code == requests.codes.forbidden:
+            self.ms.login()
+            accepted_status = [requests.codes.ok]
+            continue
+        break
+    self._log.info(&#34;Created Notification %s&#34;, text_header)
+    return resp.json()</code></pre>
+</details>
+<div class="desc"><p>Create a new notification item.</p></div>
+</dd>
+<dt id="nerve_lib.manage_notifications.MSNotifications.get"><code class="name flex">
+<span>def <span class="ident">get</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get(self):
+    &#34;&#34;&#34;Read list of all notification items.&#34;&#34;&#34;
+    return self.ms.get(&#34;/nerve/notifications&#34;, accepted_status=[requests.codes.ok]).json()[&#34;data&#34;]</code></pre>
+</details>
+<div class="desc"><p>Read list of all notification items.</p></div>
+</dd>
+<dt id="nerve_lib.manage_notifications.MSNotifications.get_details"><code class="name flex">
+<span>def <span class="ident">get_details</span></span>(<span>self, read_item: str) ‑> dict</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_details(self, read_item: str) -&gt; dict:
+    &#34;&#34;&#34;Read notification details regarding one element.
+
+    Parameters
+    ----------
+    read_item : str
+        can be a specific notification._id or &#39;active&#39; or &#39;activeNoAuth&#39;.
+
+    Returns
+    -------
+    dict
+        matching notification item.
+    &#34;&#34;&#34;
+    return self.ms.get(f&#34;/nerve/notifications/{read_item}&#34;, accepted_status=[requests.codes.ok]).json()</code></pre>
+</details>
+<div class="desc"><p>Read notification details regarding one element.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>read_item</code></strong> :&ensp;<code>str</code></dt>
+<dd>can be a specific notification._id or 'active' or 'activeNoAuth'.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>dict</code></dt>
+<dd>matching notification item.</dd>
+</dl></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul>
+<li><a href="#example">Example:</a></li>
+</ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="nerve_lib" href="index.html">nerve_lib</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="nerve_lib.manage_notifications.MSNotifications" href="#nerve_lib.manage_notifications.MSNotifications">MSNotifications</a></code></h4>
+<ul class="">
+<li><code><a title="nerve_lib.manage_notifications.MSNotifications.configure_usage_reports" href="#nerve_lib.manage_notifications.MSNotifications.configure_usage_reports">configure_usage_reports</a></code></li>
+<li><code><a title="nerve_lib.manage_notifications.MSNotifications.create" href="#nerve_lib.manage_notifications.MSNotifications.create">create</a></code></li>
+<li><code><a title="nerve_lib.manage_notifications.MSNotifications.delete" href="#nerve_lib.manage_notifications.MSNotifications.delete">delete</a></code></li>
+<li><code><a title="nerve_lib.manage_notifications.MSNotifications.download_monthly_report" href="#nerve_lib.manage_notifications.MSNotifications.download_monthly_report">download_monthly_report</a></code></li>
+<li><code><a title="nerve_lib.manage_notifications.MSNotifications.edit" href="#nerve_lib.manage_notifications.MSNotifications.edit">edit</a></code></li>
+<li><code><a title="nerve_lib.manage_notifications.MSNotifications.get" href="#nerve_lib.manage_notifications.MSNotifications.get">get</a></code></li>
+<li><code><a title="nerve_lib.manage_notifications.MSNotifications.get_details" href="#nerve_lib.manage_notifications.MSNotifications.get_details">get_details</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>
