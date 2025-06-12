@@ -11,7 +11,7 @@ The *nerve_lib* provides an interface to the REST API of a [Nerve Management Sys
 - <a href="#h_installation">Installation</a>
     - <a href="#hh_poetry">Poetry</a>
     - <a href="#hh_manual">Manual</a>
-- <a href="#h_usage">Documentation</a>
+- <a href="#h_usage">Usage</a>
     - <a href="#hh_overview">Overview</a>
     - <a href="#hh_examples">Examples</a>
 
