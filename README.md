@@ -1,4 +1,6 @@
-![Nerve](./docs/logo-nerve-black.svg){style="display: block; margin: 0 auto"}
+<p align="center">
+    <img src="./docs/logo-nerve-black.svg" alt="Nerve"/>
+</p>
 
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
