@@ -64,6 +64,8 @@ The *nerve_lib* provides functions to manage the NERVE Management System and NER
 | MSLabel          | Manages labels in the Management System. |
 | MSNotifications  | Handles notifications in the Management System. |
 | MSOpenSearch     | Provides OpenSearch-related API interface. |
+| InternalRegistry | Manages the internal registry in the Management System. |
+| DockerVolumes    | Manages Docker volumes in the Management System. |
 
 ## Examples<a name="hh_examples"></a>
 
