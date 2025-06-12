@@ -73,7 +73,7 @@ class MSRole:
         """Get list of permissions for UI class."""
         return self.ms.get(
             "/nerve/rbac/permissions",
-            params=[["categories", "UI_PERMISSION"], ["filterBy[name]", name_filter]],
+            params={"categories": "UI_PERMISSION", "filterBy": f'{{"name":"{name_filter}"}}'},
             accepted_status=[requests.codes.ok],
         ).json()
 

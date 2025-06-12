@@ -1265,7 +1265,7 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
         &#34;&#34;&#34;Get list of permissions for UI class.&#34;&#34;&#34;
         return self.ms.get(
             &#34;/nerve/rbac/permissions&#34;,
-            params=[[&#34;categories&#34;, &#34;UI_PERMISSION&#34;], [&#34;filterBy[name]&#34;, name_filter]],
+            params={&#34;categories&#34;: &#34;UI_PERMISSION&#34;, &#34;filterBy&#34;: f&#39;{{&#34;name&#34;:&#34;{name_filter}&#34;}}&#39;},
             accepted_status=[requests.codes.ok],
         ).json()
 
@@ -1564,7 +1564,7 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
     &#34;&#34;&#34;Get list of permissions for UI class.&#34;&#34;&#34;
     return self.ms.get(
         &#34;/nerve/rbac/permissions&#34;,
-        params=[[&#34;categories&#34;, &#34;UI_PERMISSION&#34;], [&#34;filterBy[name]&#34;, name_filter]],
+        params={&#34;categories&#34;: &#34;UI_PERMISSION&#34;, &#34;filterBy&#34;: f&#39;{{&#34;name&#34;:&#34;{name_filter}&#34;}}&#39;},
         accepted_status=[requests.codes.ok],
     ).json()</code></pre>
 </details>

@@ -1702,6 +1702,22 @@ class _SelectedNode:  # noqa: PLR0904
 
         return self.node.ms.patch("/nerve/node", json=payload, accepted_status=[requests.codes.ok]).json()
 
+    def remove_unused_images(self):
+        """Remove unused images from node.
+
+        Parameters
+        ----------
+        dut : type
+            reference to node handles (general_utils.NodeHandle).
+        Returns
+        -------
+        Response object from the MS API.
+        """
+        return self.node.ms.delete(
+            f"nerve/v2/node/{self.serial_number}/docker-resources/images/unused",
+            accepted_status=[requests.codes.no_content],
+        )
+
 
 class _NodeVMBackup:
     """Extension for VM Backup operations on a selected node."""
@@ -1944,7 +1960,7 @@ class _MSNodeTree:
         Returns
         -------
         return_items : list
-            compact item containing _id, name, serialNumber, secureId, connectionStatus, currentFWVersion.
+            compact item containing _id, name, serialNumber, connectionStatus, currentFWVersion.
         """
         return_items = []
         for item in items:
@@ -1953,7 +1969,7 @@ class _MSNodeTree:
                 node_entry = item
             for field in ["_id", "name"]:
                 node_entry[field] = item[field]
-            for field in ["serialNumber", "secureId", "connectionStatus", "currentFWVersion"]:
+            for field in ["serialNumber", "connectionStatus", "currentFWVersion"]:
                 if "device" in item:
                     node_entry[field] = item["device"][field]
             return_items.append(node_entry)
@@ -2224,7 +2240,7 @@ class _MSNodeUpdate:
                 "contentType": "node_update",
                 "limit": 200,
                 "page": 1,
-                "filterBy": json.dumps({"searchText": update_name}),
+                "filterBy[searchText]": update_name,
             },
         ).json()
         active_deployments = []

@@ -1,6 +1,6 @@
 [project]
 name = "nerve_lib"
-version = "0.1.2"
+version = "0.1.5"
 description = "Nerve API library"
 authors = [{ name = "Nerve Development Team", email = "dev@nerve.cloud" }]
 readme = "README.md"
@@ -14,6 +14,7 @@ dependencies = [
 ]
 
 [tool.poetry.group.dev.dependencies]
+lefthook = "^1.11.13"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

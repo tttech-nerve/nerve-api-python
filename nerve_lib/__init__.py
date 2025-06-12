@@ -60,3 +60,11 @@ from .manage_notifications import (
 from .manage_open_search import (
     MSOpenSearch,
 )
+
+from .manage_registry import (
+    InternalRegistry,
+)
+
+from .manage_volumes import (
+    DockerVolumes,
+)

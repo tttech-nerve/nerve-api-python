@@ -11,4 +11,6 @@ Sub-modules
 * [nerve_libmanage_node](./manage_node.md)
 * [nerve_libmanage_notifications](./manage_notifications.md)
 * [nerve_libmanage_open_search](./manage_open_search.md)
+* [nerve_libmanage_registry](./manage_registry.md)
+* [nerve_libmanage_volumes](./manage_volumes.md)
 * [nerve_libmanage_workloads](./manage_workloads.md)

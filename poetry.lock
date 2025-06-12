@@ -325,6 +325,18 @@ files = [
 all = ["flake8 (>=7.1.1)", "mypy (>=1.11.2)", "pytest (>=8.3.2)", "ruff (>=0.6.2)"]
 
 [[package]]
+name = "lefthook"
+version = "1.11.13"
+description = "Git hooks manager. Fast, powerful, simple."
+optional = false
+python-versions = ">=3.6"
+groups = ["dev"]
+files = [
+    {file = "lefthook-1.11.13-py3-none-any.whl", hash = "sha256:b868faee65329949d607189a6db5c431c61f6d7bccb477e31a9544f929d1896c"},
+    {file = "lefthook-1.11.13.tar.gz", hash = "sha256:5e8d2c0d99b39bca7efff99f971a41cd1c8ad5db82c087d2a54eca8203745738"},
+]
+
+[[package]]
 name = "paramiko"
 version = "3.5.1"
 description = "SSH2 protocol library"
@@ -541,4 +553,4 @@ zstd = ["zstandard (>=0.18.0)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9,<4.0"
-content-hash = "d2aa9e18f35e86a58488809e30fe0142ea27aff88d4e6a26aa4cde764fe9f6f6"
+content-hash = "133356e24f2366591783617b5c463bb8f195179101e4db50a7e4a1d2cd828a2e"
