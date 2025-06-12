@@ -1,16 +1,11 @@
 <p align="center">
-    <img src="./docs/logo-nerve-black.svg" alt="Nerve"/>
+    <img src="./docs/logo-nerve-black.svg" alt="Nerve"/><br><br>
+    <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg"/></a>
+    <a href="https://docs.python.org/3/"><img src="https://img.shields.io/badge/python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg"/></a>
+    <a href="https://docs.nerve.cloud"><img src="https://img.shields.io/badge/nerve-2.9%20%7C%202.10%20%7C%203.0-blue.svg"/></a>
 </p>
 
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
-
-[![Python 3.9](https://img.shields.io/badge/python-3.9-blue.svg)](https://www.python.org/downloads/release/python-390/) [![Python 3.10](https://img.shields.io/badge/python-3.10-blue.svg)](https://www.python.org/downloads/release/python-3100/) [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/) [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/release/python-3120/) [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/release/python-3130/)
-
-[![Nerve 2.9](https://img.shields.io/badge/nerve-2.9-blue.svg)](https://docs.nerve.cloud/) [![Nerve 2.10](https://img.shields.io/badge/nerve-2.10-blue.svg)](https://docs.nerve.cloud/) [![Nerve 3.0](https://img.shields.io/badge/nerve-3.0-blue.svg)](https://docs.nerve.cloud/)
-
-# Nerve Lib
-
-The `nerve_lib` provides an interface to the REST API of a [Nerve Management System](https://docs.nerve.cloud/) in python. It implements authentication, and management of nodes and workloads. The `nerve_lib` can be used to integrate Nerve related tasks into a build pipeline (e.g. automatically creating a workload and deploying it on a test node when a new version of an application image is built).
+The *nerve_lib* provides an interface to the REST API of a [Nerve Management System](https://docs.nerve.cloud/) in python. It implements authentication, and management of nodes and workloads. The *nerve_lib* can be used to integrate Nerve related tasks into a build pipeline (e.g. automatically creating a workload and deploying it on a test node when a new version of an application image is built).
 
 # Table of Contents
 - <a href="#h_installation">Installation</a>
@@ -22,13 +17,13 @@ The `nerve_lib` provides an interface to the REST API of a [Nerve Management Sys
 
 # Installation<a name="h_installation"></a>
 
-To use the `nerve_lib` in a python project it has to be installed fist. The easiest way to do so is to add the dependency with poetry. If poetry is not used, the library can be added by copying the files and adding the dependencies.
+To use the *nerve_lib* in a python project it has to be installed fist. The easiest way to do so is to add the dependency with poetry. If poetry is not used, the library can be added by copying the files and adding the dependencies.
 
 ## Poetry<a name="hh_poetry"></a>
 
-The `nerve_lib` is implemented as a [poetry](https://python-poetry.org/) package. Poetry is a project and dependency management tool for python. Refer to the [poetry documentation](https://python-poetry.org/) for more information on how to install poetry and how to use it to manage a python project. 
+The *nerve_lib* is implemented as a [poetry](https://python-poetry.org/) package. Poetry is a project and dependency management tool for python. Refer to the [poetry documentation](https://python-poetry.org/) for more information on how to install poetry and how to use it to manage a python project. 
 
-To add the `nerve_lib` to your python project with poetry simply add the dependency with
+To add the *nerve_lib* to your python project with poetry simply add the dependency with
 ```bash
 poetry add git+https://github.com/tttech-nerve/nerve-api-python.git
 ```
@@ -39,14 +34,14 @@ poetry install
 
 ## Manual<a name="hh_manual"></a>
 
-If the python project or script is not managed by poetry, the [`nerve_lib`](./nerve_lib) folder must be copied into the project tree. Furthermore the dependencies as listed in [`requirements.txt`](./requirements.txt) must be installed in the python environment of the project
+If the python project or script is not managed by poetry, the [*nerve_lib*](./nerve_lib) folder must be copied into the project tree. Furthermore the dependencies as listed in [`requirements.txt`](./requirements.txt) must be installed in the python environment of the project
 ```bash
 pip install -r requirements.txt
 ```
 
 # Usage<a name="h_usage"></a>
 
-The `nerve_lib` provides functions to manage the NERVE Management System and NERVE Nodes via API calls. It is split into different regions to define API interfaces into logical groups. [Overview](#hh_overview) and [Examples](#hh_examples) provide a very rough guideline on how to use the library. For details have a look at the code [documentation](./docs/markdown/index.md). A more interactive version of the documentation is available by cloning the repository and opening [docs/html/index.html](./docs/html/index.html) in a browser.
+The *nerve_lib* provides functions to manage the NERVE Management System and NERVE Nodes via API calls. It is split into different regions to define API interfaces into logical groups. [Overview](#hh_overview) and [Examples](#hh_examples) provide a very rough guideline on how to use the library. For details have a look at the code [documentation](./docs/markdown/index.md). A more interactive version of the documentation is available by cloning the repository and opening [docs/html/index.html](./docs/html/index.html) in a browser.
 
 ## Overview<a name="hh_overview"></a>
 | Handle           | Description                                           |
