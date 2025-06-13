@@ -1,5 +1,5 @@
-<p align="center">
-    <img src="./img/logo-nerve-black.svg" alt="Nerve"/><br><br>
+<p align="center" style='font-size: 12px; font-family: "Monaco";'>
+    <img src="./img/logo-nerve-black.svg" alt="Nerve"/><b>&nbsp;LIB</b><br><br>
     <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg"/></a>
     <a href="https://docs.python.org/3/"><img src="https://img.shields.io/badge/python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg"/></a>
     <a href="https://docs.nerve.cloud"><img src="https://img.shields.io/badge/nerve-2.9%20%7C%202.10%20%7C%203.0-blue.svg"/></a>
