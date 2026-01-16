@@ -22,6 +22,7 @@
 from .general_utils import (
     setup_logging,
     CheckStatusCodeError,
+    SSHTunnelError,
     NodeHandle,
     MSHandle,
 )
@@ -47,6 +48,8 @@ from .manage_access import (
 from .manage_dna import (
     MSDNA,
     LocalDNA,
+    ServiceOSDNA,
+    LocalUIDNAServiceOS,
 )
 
 from .manage_labels import (

@@ -59,7 +59,7 @@ Classes
     `delete_all(self)`
     :   Delete all labels from the MS.
 
-    `fetch_labels(self, page_number: int = 0, limit: int = 100) ‑> dict`
+    `fetch_labels(self) ‑> dict`
     :   Fetch labels from labels list.
         
         Parameters

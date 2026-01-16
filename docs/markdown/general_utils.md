@@ -80,7 +80,7 @@ Classes
 
     ### Methods
 
-    `login(self) ‑> type`
+    `login(self, user: str = '', password: str = '') ‑> type`
     :   Login on MS.
 
     `logout(self)`
@@ -202,7 +202,7 @@ Classes
     `create_tunnel_node(self)`
     :   Create a ssh-tunnel to the localUI of a node.
 
-    `login(self)`
+    `login(self, user: str = '', password: str = '')`
     :   Login to Node.
 
     `logout(self)`
@@ -210,6 +210,16 @@ Classes
 
     `request(self, method, url, *args, **kwargs) ‑> type`
     :   Execute a request on the node.
+
+    `set_ssh_credentials(self, user: str, password: str)`
+    :   Set ssh credentials for ssh-tunnel management and ssh-connection.
+        
+        Parameters
+        ----------
+        user : str
+            ssh username.
+        password : str
+            ssh password.
 
 `RequestGeneral(url: str, api_path: str, log: type)`
 :   Manage Requests to Nodes and MS.
@@ -269,6 +279,14 @@ Classes
         -------
         type
             requests.Response object.
+
+`SSHTunnelError(*args, **kwargs)`
+:   Error for SSH Tunnel related issues.
+
+    ### Ancestors (in MRO)
+
+    * builtins.Exception
+    * builtins.BaseException
 
 `SshGeneral(ip_addr: str, user: str = '', password: str = '')`
 :   Allow to access a device over ssh and execute commands.

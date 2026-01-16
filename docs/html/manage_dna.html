@@ -105,15 +105,22 @@ el.replaceWith(d);
         &#34;&#34;&#34;
         config_file = {}
         response = self.handle.get(os.path.join(self.base_url, location), accepted_status=[requests.codes.ok])
-        try:
-            zip_file = ZipFile(BytesIO(response.content))
-            for cfile in zip_file.namelist():
-                self._log.info(&#34;Reading content of %s&#34;, cfile)
-                with zip_file.open(cfile) as file:
-                    config_file[cfile] = yaml.safe_load(file.read())
-            return config_file
-        except BadZipFile:
-            return {}
+        if &#34;application/x-yaml&#34; in response.headers.get(&#34;Content-Type&#34;):
+            return yaml.safe_load(response.content)
+        if &#34;application/octet-stream&#34; in response.headers.get(&#34;Content-Type&#34;):
+            try:
+                zip_file = ZipFile(BytesIO(response.content))
+                for cfile in zip_file.namelist():
+                    self._log.info(&#34;Reading content of %s&#34;, cfile)
+                    with zip_file.open(cfile) as file:
+                        config_file[cfile] = yaml.safe_load(file.read())
+                return config_file
+            except BadZipFile:
+                self._log.warning(&#34;Received DNA configuration is not a valid zip file&#34;)
+                return {}
+
+        self._log.error(&#34;Unexpected content-type received: %s&#34;, response.headers.get(&#34;Content-Type&#34;))
+        return {}
 
     def get_current(self) -&gt; dict:
         &#34;&#34;&#34;Get the current DNA configuration.
@@ -152,6 +159,7 @@ el.replaceWith(d);
         continue_after_restart: bool = False,
         restart_all_wl: bool = False,
         remove_images: bool = True,
+        sign_file: bool = False,
     ) -&gt; dict:
         &#34;&#34;&#34;Put new target configuration to the device.
 
@@ -199,6 +207,9 @@ el.replaceWith(d);
                 &#34;restartAllWorkloads&#34;: str(restart_all_wl).lower(),
                 &#34;removeDockerImages&#34;: str(remove_images).lower(),
             }
+            # Only add signFile for MSDNA
+            if sign_file is not None and type(self) is MSDNA:
+                params[&#34;signFile&#34;] = str(sign_file).lower()
 
             response = self.handle.put(
                 os.path.join(self.base_url, &#34;target&#34;),
@@ -206,7 +217,7 @@ el.replaceWith(d);
                 content_type=m_enc.content_type,
                 data=m_enc,
                 accepted_status=allowed_codes,
-                timeout=(10, 60),
+                timeout=(7.5, 60),
             )
             if response.status_code == requests.codes.accepted:
                 break
@@ -227,11 +238,14 @@ el.replaceWith(d);
         &#34;&#34;&#34;
         response = self.handle.put(
             os.path.join(self.base_url, &#34;target/re-apply&#34;),
-            timeout=(7.5, 5),
             accepted_status=[requests.codes.accepted],
         )
         self._log.info(&#34;DNA config reapply triggered: %s&#34;, response.json().get(&#34;message&#34;, response.json()))
         return response.json()
+
+    def reapply_target(self) -&gt; dict:
+        &#34;&#34;&#34;Same as put_target_re_apply.&#34;&#34;&#34;
+        self.put_target_re_apply()
 
     def patch_target_cancel(self) -&gt; dict:
         &#34;&#34;&#34;Cancle an ongoing configuration.
@@ -249,7 +263,11 @@ el.replaceWith(d);
             self._log.info(&#34;DNA config canceled: %s&#34;, response.get(&#34;message&#34;, response))
         except AttributeError:
             self._log.warning(&#34;DNA config canceled, unexpected response: %s&#34;, response)
-        return response</code></pre>
+        return response
+
+    def cancel_target(self) -&gt; dict:
+        &#34;&#34;&#34;Same as patch_target_cancel.&#34;&#34;&#34;
+        self.patch_target_cancel()</code></pre>
 </details>
 <div class="desc"><p>Common class for localUI and MS based DNA handling.</p>
 <h2 id="parameters">Parameters</h2>
@@ -265,9 +283,24 @@ el.replaceWith(d);
 <ul class="hlist">
 <li><a title="nerve_lib.manage_dna.LocalDNA" href="#nerve_lib.manage_dna.LocalDNA">LocalDNA</a></li>
 <li><a title="nerve_lib.manage_dna.MSDNA" href="#nerve_lib.manage_dna.MSDNA">MSDNA</a></li>
+<li><a title="nerve_lib.manage_dna.ServiceOSDNACommon" href="#nerve_lib.manage_dna.ServiceOSDNACommon">ServiceOSDNACommon</a></li>
 </ul>
 <h3>Methods</h3>
 <dl>
+<dt id="nerve_lib.manage_dna.DNACommon.cancel_target"><code class="name flex">
+<span>def <span class="ident">cancel_target</span></span>(<span>self) ‑> dict</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def cancel_target(self) -&gt; dict:
+    &#34;&#34;&#34;Same as patch_target_cancel.&#34;&#34;&#34;
+    self.patch_target_cancel()</code></pre>
+</details>
+<div class="desc"><p>Same as patch_target_cancel.</p></div>
+</dd>
 <dt id="nerve_lib.manage_dna.DNACommon.get_current"><code class="name flex">
 <span>def <span class="ident">get_current</span></span>(<span>self) ‑> dict</span>
 </code></dt>
@@ -378,7 +411,7 @@ el.replaceWith(d);
 </dl></div>
 </dd>
 <dt id="nerve_lib.manage_dna.DNACommon.put_target"><code class="name flex">
-<span>def <span class="ident">put_target</span></span>(<span>self,<br>config_file,<br>continue_after_restart: bool = False,<br>restart_all_wl: bool = False,<br>remove_images: bool = True) ‑> dict</span>
+<span>def <span class="ident">put_target</span></span>(<span>self,<br>config_file,<br>continue_after_restart: bool = False,<br>restart_all_wl: bool = False,<br>remove_images: bool = True,<br>sign_file: bool = False) ‑> dict</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -391,6 +424,7 @@ el.replaceWith(d);
     continue_after_restart: bool = False,
     restart_all_wl: bool = False,
     remove_images: bool = True,
+    sign_file: bool = False,
 ) -&gt; dict:
     &#34;&#34;&#34;Put new target configuration to the device.
 
@@ -438,6 +472,9 @@ el.replaceWith(d);
             &#34;restartAllWorkloads&#34;: str(restart_all_wl).lower(),
             &#34;removeDockerImages&#34;: str(remove_images).lower(),
         }
+        # Only add signFile for MSDNA
+        if sign_file is not None and type(self) is MSDNA:
+            params[&#34;signFile&#34;] = str(sign_file).lower()
 
         response = self.handle.put(
             os.path.join(self.base_url, &#34;target&#34;),
@@ -445,7 +482,7 @@ el.replaceWith(d);
             content_type=m_enc.content_type,
             data=m_enc,
             accepted_status=allowed_codes,
-            timeout=(10, 60),
+            timeout=(7.5, 60),
         )
         if response.status_code == requests.codes.accepted:
             break
@@ -491,7 +528,6 @@ as dictionary containing the configuration string (file-content).</dd>
     &#34;&#34;&#34;
     response = self.handle.put(
         os.path.join(self.base_url, &#34;target/re-apply&#34;),
-        timeout=(7.5, 5),
         accepted_status=[requests.codes.accepted],
     )
     self._log.info(&#34;DNA config reapply triggered: %s&#34;, response.json().get(&#34;message&#34;, response.json()))
@@ -503,6 +539,20 @@ as dictionary containing the configuration string (file-content).</dd>
 <dt><code>dict</code></dt>
 <dd>response of the command.</dd>
 </dl></div>
+</dd>
+<dt id="nerve_lib.manage_dna.DNACommon.reapply_target"><code class="name flex">
+<span>def <span class="ident">reapply_target</span></span>(<span>self) ‑> dict</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def reapply_target(self) -&gt; dict:
+    &#34;&#34;&#34;Same as put_target_re_apply.&#34;&#34;&#34;
+    self.put_target_re_apply()</code></pre>
+</details>
+<div class="desc"><p>Same as put_target_re_apply.</p></div>
 </dd>
 </dl>
 </dd>
@@ -546,12 +596,67 @@ as dictionary containing the configuration string (file-content).</dd>
 <ul class="hlist">
 <li><code><b><a title="nerve_lib.manage_dna.DNACommon" href="#nerve_lib.manage_dna.DNACommon">DNACommon</a></b></code>:
 <ul class="hlist">
+<li><code><a title="nerve_lib.manage_dna.DNACommon.cancel_target" href="#nerve_lib.manage_dna.DNACommon.cancel_target">cancel_target</a></code></li>
 <li><code><a title="nerve_lib.manage_dna.DNACommon.get_current" href="#nerve_lib.manage_dna.DNACommon.get_current">get_current</a></code></li>
 <li><code><a title="nerve_lib.manage_dna.DNACommon.get_status" href="#nerve_lib.manage_dna.DNACommon.get_status">get_status</a></code></li>
 <li><code><a title="nerve_lib.manage_dna.DNACommon.get_target" href="#nerve_lib.manage_dna.DNACommon.get_target">get_target</a></code></li>
 <li><code><a title="nerve_lib.manage_dna.DNACommon.patch_target_cancel" href="#nerve_lib.manage_dna.DNACommon.patch_target_cancel">patch_target_cancel</a></code></li>
 <li><code><a title="nerve_lib.manage_dna.DNACommon.put_target" href="#nerve_lib.manage_dna.DNACommon.put_target">put_target</a></code></li>
 <li><code><a title="nerve_lib.manage_dna.DNACommon.put_target_re_apply" href="#nerve_lib.manage_dna.DNACommon.put_target_re_apply">put_target_re_apply</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.DNACommon.reapply_target" href="#nerve_lib.manage_dna.DNACommon.reapply_target">reapply_target</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="nerve_lib.manage_dna.LocalUIDNAServiceOS"><code class="flex name class">
+<span>class <span class="ident">LocalUIDNAServiceOS</span></span>
+<span>(</span><span>node_handle: type)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class LocalUIDNAServiceOS(ServiceOSDNACommon):
+    &#34;&#34;&#34;Manage Service OS DNA of a device via Local UI API commands.
+
+    Parameters
+    ----------
+    node_handle : type
+        Handle to the node (e.g. nerve_lib.general_utils.NodeHandle(...))
+    &#34;&#34;&#34;
+
+    def __init__(self, node_handle: type):
+        super().__init__(
+            node_handle,
+            &#34;/api/service-os-dna/&#34;,
+            logging.getLogger(f&#34;LocalUIDNAServiceOS-{node_handle.serial_number}&#34;),
+        )
+        node_handle.login()</code></pre>
+</details>
+<div class="desc"><p>Manage Service OS DNA of a device via Local UI API commands.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>node_handle</code></strong> :&ensp;<code>type</code></dt>
+<dd>Handle to the node (e.g. nerve_lib.general_utils.NodeHandle(&hellip;))</dd>
+</dl></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="nerve_lib.manage_dna.ServiceOSDNACommon" href="#nerve_lib.manage_dna.ServiceOSDNACommon">ServiceOSDNACommon</a></li>
+<li><a title="nerve_lib.manage_dna.DNACommon" href="#nerve_lib.manage_dna.DNACommon">DNACommon</a></li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="nerve_lib.manage_dna.ServiceOSDNACommon" href="#nerve_lib.manage_dna.ServiceOSDNACommon">ServiceOSDNACommon</a></b></code>:
+<ul class="hlist">
+<li><code><a title="nerve_lib.manage_dna.ServiceOSDNACommon.cancel_target" href="#nerve_lib.manage_dna.DNACommon.cancel_target">cancel_target</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.ServiceOSDNACommon.get_current" href="#nerve_lib.manage_dna.DNACommon.get_current">get_current</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.ServiceOSDNACommon.get_status" href="#nerve_lib.manage_dna.DNACommon.get_status">get_status</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.ServiceOSDNACommon.get_target" href="#nerve_lib.manage_dna.DNACommon.get_target">get_target</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.ServiceOSDNACommon.patch_target_cancel" href="#nerve_lib.manage_dna.DNACommon.patch_target_cancel">patch_target_cancel</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.ServiceOSDNACommon.put_target" href="#nerve_lib.manage_dna.ServiceOSDNACommon.put_target">put_target</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.ServiceOSDNACommon.put_target_re_apply" href="#nerve_lib.manage_dna.DNACommon.put_target_re_apply">put_target_re_apply</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.ServiceOSDNACommon.reapply_target" href="#nerve_lib.manage_dna.DNACommon.reapply_target">reapply_target</a></code></li>
 </ul>
 </li>
 </ul>
@@ -599,12 +704,196 @@ as dictionary containing the configuration string (file-content).</dd>
 <ul class="hlist">
 <li><code><b><a title="nerve_lib.manage_dna.DNACommon" href="#nerve_lib.manage_dna.DNACommon">DNACommon</a></b></code>:
 <ul class="hlist">
+<li><code><a title="nerve_lib.manage_dna.DNACommon.cancel_target" href="#nerve_lib.manage_dna.DNACommon.cancel_target">cancel_target</a></code></li>
 <li><code><a title="nerve_lib.manage_dna.DNACommon.get_current" href="#nerve_lib.manage_dna.DNACommon.get_current">get_current</a></code></li>
 <li><code><a title="nerve_lib.manage_dna.DNACommon.get_status" href="#nerve_lib.manage_dna.DNACommon.get_status">get_status</a></code></li>
 <li><code><a title="nerve_lib.manage_dna.DNACommon.get_target" href="#nerve_lib.manage_dna.DNACommon.get_target">get_target</a></code></li>
 <li><code><a title="nerve_lib.manage_dna.DNACommon.patch_target_cancel" href="#nerve_lib.manage_dna.DNACommon.patch_target_cancel">patch_target_cancel</a></code></li>
 <li><code><a title="nerve_lib.manage_dna.DNACommon.put_target" href="#nerve_lib.manage_dna.DNACommon.put_target">put_target</a></code></li>
 <li><code><a title="nerve_lib.manage_dna.DNACommon.put_target_re_apply" href="#nerve_lib.manage_dna.DNACommon.put_target_re_apply">put_target_re_apply</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.DNACommon.reapply_target" href="#nerve_lib.manage_dna.DNACommon.reapply_target">reapply_target</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="nerve_lib.manage_dna.ServiceOSDNA"><code class="flex name class">
+<span>class <span class="ident">ServiceOSDNA</span></span>
+<span>(</span><span>ms_handle: type, node_serial_number: str)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ServiceOSDNA(ServiceOSDNACommon):
+    &#34;&#34;&#34;Management system API commands to handle Service OS DNA of a device.
+
+    Parameters
+    ----------
+    ms_handle : type
+        handle to the MS &#39;nerve_lib.general_utils.MSHandle(...)&#39;.
+    node_serial_number : str
+        Serial number of the connected node to execute the Service OS DNA functions with.
+    &#34;&#34;&#34;
+
+    def __init__(self, ms_handle: type, node_serial_number: str):
+        super().__init__(
+            ms_handle,
+            f&#34;/nerve/service-os-dna/{node_serial_number}/&#34;,
+            logging.getLogger(f&#34;ServiceOSDNA-{node_serial_number}&#34;),
+        )</code></pre>
+</details>
+<div class="desc"><p>Management system API commands to handle Service OS DNA of a device.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>ms_handle</code></strong> :&ensp;<code>type</code></dt>
+<dd>handle to the MS 'nerve_lib.general_utils.MSHandle(&hellip;)'.</dd>
+<dt><strong><code>node_serial_number</code></strong> :&ensp;<code>str</code></dt>
+<dd>Serial number of the connected node to execute the Service OS DNA functions with.</dd>
+</dl></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="nerve_lib.manage_dna.ServiceOSDNACommon" href="#nerve_lib.manage_dna.ServiceOSDNACommon">ServiceOSDNACommon</a></li>
+<li><a title="nerve_lib.manage_dna.DNACommon" href="#nerve_lib.manage_dna.DNACommon">DNACommon</a></li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="nerve_lib.manage_dna.ServiceOSDNACommon" href="#nerve_lib.manage_dna.ServiceOSDNACommon">ServiceOSDNACommon</a></b></code>:
+<ul class="hlist">
+<li><code><a title="nerve_lib.manage_dna.ServiceOSDNACommon.cancel_target" href="#nerve_lib.manage_dna.DNACommon.cancel_target">cancel_target</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.ServiceOSDNACommon.get_current" href="#nerve_lib.manage_dna.DNACommon.get_current">get_current</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.ServiceOSDNACommon.get_status" href="#nerve_lib.manage_dna.DNACommon.get_status">get_status</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.ServiceOSDNACommon.get_target" href="#nerve_lib.manage_dna.DNACommon.get_target">get_target</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.ServiceOSDNACommon.patch_target_cancel" href="#nerve_lib.manage_dna.DNACommon.patch_target_cancel">patch_target_cancel</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.ServiceOSDNACommon.put_target" href="#nerve_lib.manage_dna.ServiceOSDNACommon.put_target">put_target</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.ServiceOSDNACommon.put_target_re_apply" href="#nerve_lib.manage_dna.DNACommon.put_target_re_apply">put_target_re_apply</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.ServiceOSDNACommon.reapply_target" href="#nerve_lib.manage_dna.DNACommon.reapply_target">reapply_target</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="nerve_lib.manage_dna.ServiceOSDNACommon"><code class="flex name class">
+<span>class <span class="ident">ServiceOSDNACommon</span></span>
+<span>(</span><span>handle, base_url: str, log: type)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ServiceOSDNACommon(DNACommon):
+    &#34;&#34;&#34;Common class for localUI and MS based Service OS DNA handling.&#34;&#34;&#34;
+
+    def put_target(self, config_dict: dict) -&gt; dict:
+        &#34;&#34;&#34;Apply target Service OS DNA configuration using a configuration dict.
+
+        Parameters
+        ----------
+        config_dict : dict
+            Configuration dictionary to upload as YAML.
+
+        Returns
+        -------
+        dict
+            Response from the device.
+        &#34;&#34;&#34;
+
+        yaml_content = yaml.dump(config_dict, default_flow_style=False, allow_unicode=True)
+        file_stream = BytesIO(yaml_content.encode(&#34;utf-8&#34;))
+        file_stream.seek(0)
+        m_enc = MultipartEncoder({&#34;file&#34;: (&#34;update_configuration.yaml&#34;, file_stream, &#34;application/x-yaml&#34;)})
+        url = os.path.join(self.base_url, &#34;target&#34;)
+        self._log.info(&#34;Sending PUT request to URL: %s&#34;, url)
+        response = self.handle.put(
+            url,
+            content_type=m_enc.content_type,
+            data=m_enc,
+            accepted_status=[requests.codes.accepted, requests.codes.bad_request],
+            timeout=(7.5, 60),
+        )
+        try:
+            return response.json()
+        except Exception as e:
+            self._log.error(&#34;Failed to parse response as JSON: %s&#34;, e)
+            return {&#34;error&#34;: str(e)}</code></pre>
+</details>
+<div class="desc"><p>Common class for localUI and MS based Service OS DNA handling.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="nerve_lib.manage_dna.DNACommon" href="#nerve_lib.manage_dna.DNACommon">DNACommon</a></li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="nerve_lib.manage_dna.LocalUIDNAServiceOS" href="#nerve_lib.manage_dna.LocalUIDNAServiceOS">LocalUIDNAServiceOS</a></li>
+<li><a title="nerve_lib.manage_dna.ServiceOSDNA" href="#nerve_lib.manage_dna.ServiceOSDNA">ServiceOSDNA</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="nerve_lib.manage_dna.ServiceOSDNACommon.put_target"><code class="name flex">
+<span>def <span class="ident">put_target</span></span>(<span>self, config_dict: dict) ‑> dict</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def put_target(self, config_dict: dict) -&gt; dict:
+    &#34;&#34;&#34;Apply target Service OS DNA configuration using a configuration dict.
+
+    Parameters
+    ----------
+    config_dict : dict
+        Configuration dictionary to upload as YAML.
+
+    Returns
+    -------
+    dict
+        Response from the device.
+    &#34;&#34;&#34;
+
+    yaml_content = yaml.dump(config_dict, default_flow_style=False, allow_unicode=True)
+    file_stream = BytesIO(yaml_content.encode(&#34;utf-8&#34;))
+    file_stream.seek(0)
+    m_enc = MultipartEncoder({&#34;file&#34;: (&#34;update_configuration.yaml&#34;, file_stream, &#34;application/x-yaml&#34;)})
+    url = os.path.join(self.base_url, &#34;target&#34;)
+    self._log.info(&#34;Sending PUT request to URL: %s&#34;, url)
+    response = self.handle.put(
+        url,
+        content_type=m_enc.content_type,
+        data=m_enc,
+        accepted_status=[requests.codes.accepted, requests.codes.bad_request],
+        timeout=(7.5, 60),
+    )
+    try:
+        return response.json()
+    except Exception as e:
+        self._log.error(&#34;Failed to parse response as JSON: %s&#34;, e)
+        return {&#34;error&#34;: str(e)}</code></pre>
+</details>
+<div class="desc"><p>Apply target Service OS DNA configuration using a configuration dict.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>config_dict</code></strong> :&ensp;<code>dict</code></dt>
+<dd>Configuration dictionary to upload as YAML.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>dict</code></dt>
+<dd>Response from the device.</dd>
+</dl></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="nerve_lib.manage_dna.DNACommon" href="#nerve_lib.manage_dna.DNACommon">DNACommon</a></b></code>:
+<ul class="hlist">
+<li><code><a title="nerve_lib.manage_dna.DNACommon.cancel_target" href="#nerve_lib.manage_dna.DNACommon.cancel_target">cancel_target</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.DNACommon.get_current" href="#nerve_lib.manage_dna.DNACommon.get_current">get_current</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.DNACommon.get_status" href="#nerve_lib.manage_dna.DNACommon.get_status">get_status</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.DNACommon.get_target" href="#nerve_lib.manage_dna.DNACommon.get_target">get_target</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.DNACommon.patch_target_cancel" href="#nerve_lib.manage_dna.DNACommon.patch_target_cancel">patch_target_cancel</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.DNACommon.put_target_re_apply" href="#nerve_lib.manage_dna.DNACommon.put_target_re_apply">put_target_re_apply</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.DNACommon.reapply_target" href="#nerve_lib.manage_dna.DNACommon.reapply_target">reapply_target</a></code></li>
 </ul>
 </li>
 </ul>
@@ -629,19 +918,33 @@ as dictionary containing the configuration string (file-content).</dd>
 <li>
 <h4><code><a title="nerve_lib.manage_dna.DNACommon" href="#nerve_lib.manage_dna.DNACommon">DNACommon</a></code></h4>
 <ul class="two-column">
+<li><code><a title="nerve_lib.manage_dna.DNACommon.cancel_target" href="#nerve_lib.manage_dna.DNACommon.cancel_target">cancel_target</a></code></li>
 <li><code><a title="nerve_lib.manage_dna.DNACommon.get_current" href="#nerve_lib.manage_dna.DNACommon.get_current">get_current</a></code></li>
 <li><code><a title="nerve_lib.manage_dna.DNACommon.get_status" href="#nerve_lib.manage_dna.DNACommon.get_status">get_status</a></code></li>
 <li><code><a title="nerve_lib.manage_dna.DNACommon.get_target" href="#nerve_lib.manage_dna.DNACommon.get_target">get_target</a></code></li>
 <li><code><a title="nerve_lib.manage_dna.DNACommon.patch_target_cancel" href="#nerve_lib.manage_dna.DNACommon.patch_target_cancel">patch_target_cancel</a></code></li>
 <li><code><a title="nerve_lib.manage_dna.DNACommon.put_target" href="#nerve_lib.manage_dna.DNACommon.put_target">put_target</a></code></li>
 <li><code><a title="nerve_lib.manage_dna.DNACommon.put_target_re_apply" href="#nerve_lib.manage_dna.DNACommon.put_target_re_apply">put_target_re_apply</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.DNACommon.reapply_target" href="#nerve_lib.manage_dna.DNACommon.reapply_target">reapply_target</a></code></li>
 </ul>
 </li>
 <li>
 <h4><code><a title="nerve_lib.manage_dna.LocalDNA" href="#nerve_lib.manage_dna.LocalDNA">LocalDNA</a></code></h4>
 </li>
 <li>
+<h4><code><a title="nerve_lib.manage_dna.LocalUIDNAServiceOS" href="#nerve_lib.manage_dna.LocalUIDNAServiceOS">LocalUIDNAServiceOS</a></code></h4>
+</li>
+<li>
 <h4><code><a title="nerve_lib.manage_dna.MSDNA" href="#nerve_lib.manage_dna.MSDNA">MSDNA</a></code></h4>
+</li>
+<li>
+<h4><code><a title="nerve_lib.manage_dna.ServiceOSDNA" href="#nerve_lib.manage_dna.ServiceOSDNA">ServiceOSDNA</a></code></h4>
+</li>
+<li>
+<h4><code><a title="nerve_lib.manage_dna.ServiceOSDNACommon" href="#nerve_lib.manage_dna.ServiceOSDNACommon">ServiceOSDNACommon</a></code></h4>
+<ul class="">
+<li><code><a title="nerve_lib.manage_dna.ServiceOSDNACommon.put_target" href="#nerve_lib.manage_dna.ServiceOSDNACommon.put_target">put_target</a></code></li>
+</ul>
 </li>
 </ul>
 </li>

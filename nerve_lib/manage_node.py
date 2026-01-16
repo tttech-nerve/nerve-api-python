@@ -26,6 +26,7 @@ Example:
 
 import json
 import logging
+import os
 import time
 import uuid
 from copy import deepcopy
@@ -73,8 +74,8 @@ class LocalNode:  # noqa: PLR0904
         if not self.version:
             self._log.warning("Could not read node version, assuming latest")
             return False
-        current_version = self.version.split("-")[0].split(".")
-        comp_version = version.split("-")[0].split(".")
+        current_version = self.version.split("-", maxsplit=1)[0].split(".")
+        comp_version = version.split("-", maxsplit=1)[0].split(".")
 
         if len(current_version) != 3:  # noqa: PLR2004
             return False  # e.g integration, master
@@ -107,7 +108,7 @@ class LocalNode:  # noqa: PLR0904
 
     def get_backup_list(self):
         """Read backup list for node."""
-        return self.node.get("/api/repositories", timeout=(10, 15)).json()
+        return self.node.get("/api/repositories", timeout=(7.5, 15)).json()
 
     def set_vm_backup(self, nfs_mountpoint: str, mount_options: str = "rw,nolock"):
         """Set or disable vm-backup."""
@@ -130,15 +131,37 @@ class LocalNode:  # noqa: PLR0904
 
         return self.node.delete(f"/api/repositories/{backup_list[-1]['id']}")
 
-    def set_configuration(self, ms_url: str):
-        """Set onboarding configuration to connect to a management system."""
+    def set_configuration(self, ms_url: str, node_name=None):
+        """
+        Set onboarding configuration to connect to a management system.
+
+        Args:
+        ms_url (str): The URL of the management system.
+        node_name (str): The name of the node. Required for uki nerve-node devices.
+        """
         payload = {
             "cloudUrl": ms_url,
             "serialNumber": self.node.serial_number,
             "protocol": "wss",
             "timezone": {"name": "Etc/UTC"},
         }
+        if node_name:
+            payload["nodeName"] = node_name
         self.node.post("/api/setup/configurations", json=payload, accepted_status=[requests.codes.ok])
+
+    def auth_ms_on_node(self, ms_url: str, username: str, password: str):
+        """Authenticate the node with the management system."""
+        payload = {
+            "cloudUrl": ms_url,
+            "username": username,
+            "password": password,
+        }
+        self.node.post("/api/auth/verify-ms-user", json=payload, accepted_status=[requests.codes.ok])
+
+    def offboard_node_local_ui(self):
+        """Offboarding node from the Local-UI."""
+        payload = {"withCredentials": True}
+        self.node.post("/api/system/offboard", json=payload, accepted_status=[requests.codes.accepted])
 
     def check_management_system_url(self, ms_url: str):
         """Check if ms_url is valid."""
@@ -214,7 +237,7 @@ class LocalNode:  # noqa: PLR0904
             data=m_enc,
             content_type=m_enc.content_type,
             accepted_status=[requests.codes.ok, requests.codes.no_content],
-            timeout=(10, 10),
+            timeout=(7.5, 10),
         )
 
     def create_vm_backup(self, workload_name, backup_name):
@@ -374,7 +397,7 @@ class LocalNode:  # noqa: PLR0904
             f"/api/workloads/{device_id}/snapshots",
             json=payload,
             accepted_status=[requests.codes.ok],
-            timeout=(10, 10),
+            timeout=(7.5, 10),
         )
 
     def create_schedule_vm_snapshot(
@@ -666,6 +689,104 @@ class LocalNode:  # noqa: PLR0904
         logging.info("Modified content of the file: %s", modified_content)
         return modified_content
 
+    def get_node_configuration(self):
+        """
+        Get the current node configuration.
+
+        Returns
+        -------
+            dict: The current node configuration.
+        """
+        response = self.node.get("/api/service-os-dna/current", accepted_status=[requests.codes.ok])
+        with open("current_node_config.yaml", "w", encoding="utf-8") as f:
+            f.write(response.text)
+        return yaml.safe_load(response.text)
+
+    def apply_node_configuration(self, config):
+        """
+        Apply a new node configuration by merging it with the current configuration.
+        The new configuration is saved to a YAML file and sent to the node.
+
+        Parameters
+        ----------
+            config : dict
+                The new configuration to apply.
+
+        Returns
+        -------
+            dict: The response from the node after applying the configuration.
+        """
+        # Get the current configuration from the node
+        current_configuration = self.get_node_configuration()
+        # Apply the new configuration by merging it with the current one
+        target_configuration = {**current_configuration, **config}
+        # Save the target configuration to a YAML file
+        yaml_file_path = "target_node_config.yaml"
+        with open(yaml_file_path, "w", encoding="utf-8") as f:
+            yaml.safe_dump(target_configuration, f)
+        # Prepare the multipart encoder for the YAML file
+        m_enc = MultipartEncoder({
+            "file": (
+                os.path.basename(yaml_file_path),
+                open(yaml_file_path, "rb"),
+                "form-data",
+            )
+        })
+        headers = {"Content-Type": m_enc.content_type}
+        # Send PUT request with the file
+        response = self.node.put(
+            "/api/service-os-dna/target",
+            data=m_enc,
+            headers=headers,
+            accepted_status=[requests.codes.accepted],
+        )
+        return response.json()
+
+    def node_configuration_apply_status(self):
+        """
+        Check the status of the node configuration application.
+
+        Returns
+        -------
+            str: The status message of the node configuration application.
+        """
+        timeout_seconds = 60
+        interval_seconds = 5
+        end_time = time.time() + timeout_seconds
+
+        while time.time() < end_time:
+            response = self.node.get("/api/service-os-dna/status", accepted_status=[requests.codes.ok])
+            data = response.json()
+            status = data.get("status")
+            message = data.get("message", "")
+            if status in {"APPLIED", "MODIFIED"}:
+                return message
+            if status != "RECONFIGURING":
+                raise RuntimeError(f"Unexpected status '{status}', apply configuration failed")
+            time.sleep(interval_seconds)
+        raise RuntimeError("Status is still 'RECONFIGURING' after 60 seconds, apply configuration failed")
+
+    def get_custom_role_permissions(self):
+        """
+        Get list of all permissions for the custom role via /api/permissions/custom-role (GET).
+        Returns: list of permission codes (strings)
+        """
+        resp = self.node.request("GET", "/api/permissions/custom-role", accepted_status=[200])
+        data = resp.json()
+        self._log.info("Full custom role permissions API response: %s", data)
+        return data["permissions"]
+
+    def set_custom_role_permissions(self, permissions, patch_success_code=202):
+        """
+        Set list of permissions for the custom role via /api/permissions/custom-role (PATCH).
+        permissions: list of permission codes (strings) ["AUTH:LOGOUT","AUTH:VIEW", ...
+        Returns: response object
+        """
+        payload = {"permissions": permissions}
+        return self.node.request(
+            "PATCH", "/api/permissions/custom-role", json=payload, accepted_status=[patch_success_code]
+        )
+
 
 class MSNode:
     """Node related functions from MS.
@@ -722,14 +843,21 @@ class MSNode:
             Node list informatnion from MS API.
 
         """
-        parameters = {"limit": 100, "page": 0, "order[created]": "asc"}
+        parameters = {"limit": 50, "page": 1, "order[created]": "asc"}
         if node_name_filter:
             parameters["filterBy[name]"] = node_name_filter
-        return self.ms.get(
-            "/nerve/nodes/filtered/list",
-            params=parameters,
-            accepted_status=[requests.codes.ok],
-        ).json()
+        nodes = {"count": 0, "data": []}
+        while True:
+            nodes_single_read = self.ms.get(
+                "/nerve/nodes/filtered/list", params=parameters, accepted_status=[requests.codes.ok]
+            ).json()
+            parameters["page"] += 1
+            nodes["data"] += nodes_single_read.get("data", [])
+            nodes["count"] = nodes_single_read["count"]
+            if len(nodes["data"]) == nodes_single_read["count"]:
+                break
+
+        return nodes
 
     def get_deploy_list(self, workload_id: str, version_id: str, node_name_filter: str) -> dict:
         """Get list of nodes a workload can be deployed to.
@@ -748,15 +876,22 @@ class MSNode:
         dict
             List of nodes the workload can be deployed to.
         """
-        parameters = {"limit": 100, "page": 0, "order[created]": "asc"}
+        parameters = {"limit": 50, "page": 1, "order[created]": "asc"}
         if node_name_filter:
             parameters["filterBy[name]"] = node_name_filter
-
-        return self.ms.get(
-            f"/nerve/nodes/deploy/{workload_id}/{version_id}",
-            params=parameters,
-            accepted_status=[requests.codes.ok],
-        ).json()
+        nodes = {"count": 0, "data": []}
+        while True:
+            nodes_single_read = self.ms.get(
+                f"/nerve/nodes/deploy/{workload_id}/{version_id}",
+                params=parameters,
+                accepted_status=[requests.codes.ok],
+            ).json()
+            parameters["page"] += 1
+            nodes["data"] += nodes_single_read.get("data", [])
+            nodes["count"] = nodes_single_read["count"]
+            if len(nodes["data"]) == nodes_single_read["count"]:
+                break
+        return nodes
 
     def create_node(
         self,
@@ -933,7 +1068,7 @@ class _SelectedNode:  # noqa: PLR0904
         return self.node.ms.get(
             f"/nerve/node/{node_id}",
             accepted_status=[requests.codes.ok],
-            timeout=(10, 10),
+            timeout=(7.5, 10),
         ).json()
 
     def is_online(self) -> bool:
@@ -1368,7 +1503,7 @@ class _SelectedNode:  # noqa: PLR0904
         dep_workloads = self.node.ms.get(
             f"/nerve/workload/node/{self.serial_number}/devices",
             accepted_status=[requests.codes.ok],
-            timeout=(10, 10),
+            timeout=(7.5, 20),
         ).json()
         if workload_name is None:
             return dep_workloads
@@ -1584,17 +1719,27 @@ class _SelectedNode:  # noqa: PLR0904
         return self.node.ms.post(
             "/nerve/workload/updateResources",
             json=payload,
-            accepted_status=[requests.codes.ok],
+            accepted_status=[requests.codes.ok, requests.codes.no_content],
         )
 
     def get_activity_log(self, workload_name: str) -> dict:
         """Read the activity log of a workload."""
         workload = self.get_workloads(workload_name)
-        return self.node.ms.get(
-            f"/nerve/v2/node/{self.serial_number}/versions/{workload.get('versionId')}/activity-logs",
-            params={"search": "", "page": 1, "limit": 50},
-            accepted_status=[requests.codes.ok],
-        ).json()
+
+        parameters = {"limit": 50, "page": 1, "search": ""}
+        logs = {"count": 0, "data": []}
+        while True:
+            logs_single_read = self.node.ms.get(
+                f"/nerve/v2/node/{self.serial_number}/versions/{workload.get('versionId')}/activity-logs",
+                params=parameters,
+                accepted_status=[requests.codes.ok],
+            ).json()
+            parameters["page"] += 1
+            logs["data"] += logs_single_read.get("data", [])
+            logs["count"] = logs_single_read["count"]
+            if len(logs["data"]) == logs_single_read["count"]:
+                break
+        return logs
 
     def download_activity_log(self, workload_name: str, destination_path: str) -> dict:
         """
@@ -1856,7 +2001,6 @@ class _NodeVMSnapshot:
             f"/nerve/workload/node/{self.owner.serial_number}/snapshots/{workload['id']}",
             json=payload,
             accepted_status=[requests.codes.ok],
-            timeout=(10, 5),
         )
 
     def schedule_create(self, workload_name, interval_hours):
@@ -2168,26 +2312,24 @@ class _MSNodeUpdate:
             List of serial numbers to be listed. If empty, all nodes will be considered.
         """
         possible_versions = {}
-        versions = self.ms.get("/nerve/update/local-node-update").json()
+        versions = self.ms.get("/nerve/update/local-node-update").json().get("nodeUpdates", [])
         for version in versions:
             details = self._get_update_version_info(version["name"])
             comp_versions = []
-            hw_models = []
             for detail in details:
                 comp_versions = detail["updateFrom"]
-                hw_models.append(detail["hardwareModel"])
             comp_devices = self.ms.get(
                 "/nerve/devices/search-compatible-devices",
                 params={
                     "filterBy": json.dumps({
                         "compatibleVersions": comp_versions,
                         "connectionStatus": "online",
-                        "hardwareModel": hw_models,
                     }),
                     "limit": 100,
                     "page": 1,
                 },
             ).json()
+
             possible_versions[version["name"]] = [
                 device["serialNumber"]
                 for device in comp_devices["devices"]
@@ -2197,7 +2339,9 @@ class _MSNodeUpdate:
 
     def _get_update_version_info(self, update_version: str = ""):
         """Get update version details optional filtered by update_version."""
-        return self.ms.get("nerve/update/node/details-by-name", params={"versionName": update_version}).json()
+        return self.ms.get(
+            "nerve/update/node/details-by-name", params={"versionName": update_version}
+        ).json()["nodeUpdateDetails"]
 
     def update_nodes_to_version(self, serial_numbers: list, update_version: str = ""):
         """Update node to a specific version.
@@ -2234,15 +2378,23 @@ class _MSNodeUpdate:
         print_info_log : bool, optional
             If set, the log level will be set to info, otherwise debug.
         """
-        deploy_list = self.ms.get(
-            "bom/deployment/list",
-            params={
-                "contentType": "node_update",
-                "limit": 200,
-                "page": 1,
-                "filterBy[searchText]": update_name,
-            },
-        ).json()
+        parameters = {
+            "limit": 50,
+            "page": 1,
+            "contentType": "node_update",
+            "filterBy[searchText]": update_name,
+        }
+        deploy_list = {"count": 0, "data": []}
+        while True:
+            deploy_list_single_read = self.ms.get(
+                "/bom/deployment/list", params=parameters, accepted_status=[requests.codes.ok]
+            ).json()
+            parameters["page"] += 1
+            deploy_list["data"] += deploy_list_single_read.get("data", [])
+            deploy_list["count"] = deploy_list_single_read["count"]
+            if len(deploy_list["data"]) == deploy_list_single_read["count"]:
+                break
+
         active_deployments = []
         deployment_details = {}
         for deployment in deploy_list["data"]:
@@ -2337,12 +2489,20 @@ class _MSNodeUpdate:
         Optionally the onboarding and last system start time can be included.
         """
         history = {}
-        updates = self.ms.get(
-            "/bom/deployment/list",
-            params={"limit": 200, "contentType": "node_update"},
-            accepted_status=[requests.codes.ok],
-        ).json()
-        for update in updates["data"]:
+
+        parameters = {"limit": 50, "page": 1, "contentType": "node_update"}
+        deploy_list = {"count": 0, "data": []}
+        while True:
+            deploy_list_single_read = self.ms.get(
+                "/bom/deployment/list", params=parameters, accepted_status=[requests.codes.ok]
+            ).json()
+            parameters["page"] += 1
+            deploy_list["data"] += deploy_list_single_read.get("data", [])
+            deploy_list["count"] = deploy_list_single_read["count"]
+            if len(deploy_list["data"]) == deploy_list_single_read["count"]:
+                break
+
+        for update in deploy_list["data"]:
             self._log.debug(
                 "%s, status: %s, date: %s, user: %s",
                 update["operation_name"],

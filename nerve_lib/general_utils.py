@@ -88,6 +88,7 @@ def setup_logging(compact=False):
         )
         logging.root.handlers[-1].setLevel(os.environ.get("LOGGING_LEVEL", "INFO").upper())
         logging.getLogger("paramiko").setLevel(logging.WARNING)
+        logging.getLogger("paramiko.transport").setLevel(logging.CRITICAL)  # Suppress paramiko debug messages
         logging.getLogger("pykeepass").setLevel(logging.WARNING)
         logging.getLogger("urllib3").setLevel(logging.WARNING)
 
@@ -121,6 +122,10 @@ class CheckStatusCodeError(Exception):
         self.status_code = status_code
         self.value = message
         self.response_text = response_text
+
+
+class SSHTunnelError(Exception):
+    """Error for SSH Tunnel related issues."""
 
 
 class SshGeneral:
@@ -552,7 +557,8 @@ class RequestGeneral(requests.Session):
             requests.Response object.
 
         """
-        url = self._prepare_url(url)
+        if "http" not in url:
+            url = urljoin(self.api_url, url)
         self._add_header["Content-Type"] = content_type
         if "timeout" not in kwargs:
             kwargs["timeout"] = (7.5, 5) if method.upper() == "GET" else (7.5, 30)
@@ -563,76 +569,67 @@ class RequestGeneral(requests.Session):
         if "auth" not in kwargs and self._add_auth:
             kwargs["auth"] = self._add_auth
         time_start = time.time()
-        try:
-            self._log.log(
-                1,
-                "Execute %s:%s with:\nheaders: %s\ncookies: %s",
-                method,
-                url,
-                kwargs.get("headers"),
-                kwargs.get("cookies"),
-            )
-            response = super().request(method, url, **kwargs)
-        except requests.ReadTimeout:
-            self._log.warning(
-                "ReadTimeout was raised (response-time: %s-%s %s), trying to execute command again, ...",
-                method.upper(),
-                url,
-                round(time.time() - time_start, 2),
-            )
-            response = super().request(method, url, **kwargs)
-        except requests.ConnectTimeout:
-            self._log.warning(
-                "ConnectTimeout was raised (response-time: %s-%s %s), trying to execute command again, ...",
-                method.upper(),
-                url,
-                round(time.time() - time_start, 2),
-            )
-            response = super().request(method, url, **kwargs)
 
+        def execute_request(method: str, url: str, retry: bool, request_handle: requests.Session, **kwargs):
+            try:
+                response = request_handle.request(method, url, **kwargs)
+            except (requests.ReadTimeout, requests.ConnectTimeout) as ex_msg:
+                if retry:
+                    self._log.warning(
+                        "%s was raised (response-time: %s-%s %s), trying to execute command again, ...",
+                        ex_msg.__class__.__name__,
+                        method.upper(),
+                        url,
+                        round(time.time() - time_start, 2),
+                    )
+                    response = execute_request(
+                        method, url, retry=False, request_handle=request_handle, **kwargs
+                    )
+                else:
+                    msg_error = f"{ex_msg.__class__.__name__} was raised (response-time: {method.upper()}-{url} {round(time.time() - time_start, 2)}), giving up."
+
+                    self._log.error(msg_error)
+                    new_error_msg = f"{msg_error}\nOriginal exception message: {ex_msg!s}"
+
+                    raise type(ex_msg)(new_error_msg)
+            return response
+
+        self._log.log(
+            1,
+            "Execute %s:%s with:\nheaders: %s\ncookies: %s",
+            method,
+            url,
+            kwargs.get("headers"),
+            kwargs.get("cookies"),
+        )
+
+        response = execute_request(method, url, retry=True, request_handle=super(), **kwargs)
         return self._check_response(method, response, accepted_status)
 
-    def _prepare_url(self, url: str) -> str:
-        """Create URL to be used in a request.
-
-        Parameters
-        ----------
-        url : str
-            URL of request.
-
-        Returns
-        -------
-        str
-            URL for actual created request to the device.
-        """
-        if "http" not in url:
-            url = urljoin(self.api_url, url)
-
-        return url
-
-    def _shorten_string(self, input_str: str, max_length: int = 1000) -> str:
-        """Reduce string length.
-
-        Parameters
-        ----------
-        input_str : str
-            full input string.
-        max_length : int, optional
-            maximal number of chars to be printed. The default is 1000.
-
-        Returns
-        -------
-        str
-            shortend string with info that it had been cut for printing.
-        """
-        if (length := len(input_str)) > max_length:
-            self._log.debug("cutting Original string: %s", input_str)
-            input_str = input_str[:max_length]
-            return f"{input_str} ...[output str-len: {length}char]"
-        return input_str
-
     def _check_response(self, method: str, response: type, accepted_status: list) -> type:
-        # calling_function = inspect.stack()[1][3].upper()
+        """Check if response status code is in accepted status codes."""
+
+        def _shorten_string(input_str: str, max_length: int = 1000) -> str:
+            """Reduce string length.
+
+            Parameters
+            ----------
+            input_str : str
+                full input string.
+            max_length : int, optional
+                maximal number of chars to be printed. The default is 1000.
+
+            Returns
+            -------
+            str
+                shortend string with info that it had been cut for printing.
+            """
+            if (length := len(input_str)) > max_length:
+                self._log.debug("cutting Original string: %s", input_str)
+                input_str = input_str[:max_length]
+                return f"{input_str} ...[output str-len: {length}char]"
+            return input_str
+
         if response.status_code not in accepted_status:
             err_msg = f"FAILED! - {method.upper()} {response.url} {response.reason}"
             err_msg += f"-> [{responses[response.status_code]}:{response.status_code}]"
@@ -641,11 +638,11 @@ class RequestGeneral(requests.Session):
             if response.status_code != requests.codes.no_content:
                 response_text_complete = response.text
                 try:
-                    err_msg += f": {self._shorten_string(json.dumps(response.json(), indent=4))}"
+                    err_msg += f": {_shorten_string(json.dumps(response.json(), indent=4))}"
                 except requests.exceptions.JSONDecodeError:
-                    err_msg += f": {self._shorten_string(response.text)}"
+                    err_msg += f": {_shorten_string(response.text)}"
                 except json.decoder.JSONDecodeError:
-                    err_msg += f": {self._shorten_string(response.text)}"
+                    err_msg += f": {_shorten_string(response.text)}"
             raise CheckStatusCodeError(err_msg, response.status_code, response_text_complete)
         return response
 
@@ -728,7 +725,9 @@ class NodeHandle(RequestGeneral):
             log=logging.getLogger(f"Node-{serial_number}"),
         )
 
-        self._finalizer = weakref.finalize(self, self._cleanup, self._log, self.ssh_tunnel)
+        self._is_logged_in = False
+
+        self._finalizer = weakref.finalize(self, self._cleanup, weakref.ref(self))
 
     def __enter__(self):
         """Enter function when using with statement."""
@@ -738,16 +737,28 @@ class NodeHandle(RequestGeneral):
         """Exit function when using with statement."""
         self._finalizer()
 
+    def __del__(self):
+        """Destructor to ensure that finalizer is called."""
+        self._finalizer()
+
     @staticmethod
-    def _cleanup(log, tunnels):
+    def _cleanup(handle_ref):
         """Safely cleanup class.
 
         If the class shall be manually cleaned, call this function:
 
         >>> node._finalizer()
         """
-        log.debug("Removing ssh-tunnels")
-        tunnels._finalizer()
+        try:
+            node = handle_ref()
+        except Exception:  # pragma: no cover - defensive
+            node = None
+
+        if node:
+            if node._is_logged_in:
+                node.logout()  # close session before closing tunnels
+            node._log.debug("Removing ssh-tunnels")
+            node.ssh_tunnel._finalizer()
 
     def create_tunnel_node(self):
         """Create a ssh-tunnel to the localUI of a node."""
@@ -760,8 +771,8 @@ class NodeHandle(RequestGeneral):
     def request(self, method, url, *args, **kwargs) -> type:
         """Execute a request on the node."""
         if not self.create_tunnel_node():
-            msg = "Tunnel could not be created, no request can be executed on local-ui"
-            raise Exception(msg)
+            msg = f"Tunnel to port {self.local_bind_port} could not be created, no request can be executed on local-ui"
+            raise SSHTunnelError(msg)
 
         accepted_status = kwargs.get(
             "accepted_status",
@@ -835,10 +846,28 @@ class NodeHandle(RequestGeneral):
             super()._check_response(method, response, accepted_status)
         return response
 
-    def login(self):
+    def set_ssh_credentials(self, user: str, password: str):
+        """Set ssh credentials for ssh-tunnel management and ssh-connection.
+
+        Parameters
+        ----------
+        user : str
+            ssh username.
+        password : str
+            ssh password.
+        """
+        self.ssh_tunnel._ssh_usr = user
+        self.ssh_tunnel._ssh_psw = password
+        self.ssh._ssh_usr = user
+        self.ssh._ssh_psw = password
+
+    def login(self, user: str = "", password: str = ""):
         """Login to Node."""
         self._log.debug("login with URL %s", self.url)
         self.ssh_tunnel.refresh_tunnels()
+
+        self.usr = user or self.usr
+        self.psw = password or self.psw
 
         basic_auth_text = f"{self.usr}:{self.psw}"
         headers = {
@@ -848,15 +877,16 @@ class NodeHandle(RequestGeneral):
         }
 
         try:
-            self._add_cookies = {}
+            if self._is_logged_in:
+                self.logout()  # close old session before logging in again
             response = self.post(
                 "/api/auth/login",
                 json={"username": self.usr, "password": self.psw},
                 headers=headers,
                 accepted_status=[requests.codes.ok],
-                timeout=(7.5, 4),
             )
-            self._add_cookies = response.cookies
+            self._is_logged_in = True
+            return response
 
         except urllib3.exceptions.MaxRetryError:
             self._log.error("Login failed, max retry exceeded")
@@ -871,7 +901,11 @@ class NodeHandle(RequestGeneral):
     def logout(self):
         """Logout from Node."""
         self._log.debug("Logout from Node")
-        return self.get("/api/auth/logout", accepted_status=[requests.codes.no_content])
+        response = self.get(
+            "/api/auth/logout", accepted_status=[requests.codes.no_content, requests.codes.unauthorized]
+        )
+        self._is_logged_in = False
+        return response
 
 
 class MSHandle(RequestGeneral):
@@ -898,10 +932,12 @@ class MSHandle(RequestGeneral):
 
         self.verify = False
 
-        self.usr = user or os.environ.get("MS_USR")
-        self.psw = password or os.environ.get("MS_PSW")
+        self.usr = user or os.environ.get("MS_USR", "")
+        self.psw = password or os.environ.get("MS_PSW", "")
 
-        self._finalizer = weakref.finalize(self, self._cleanup, self._log)
+        self._is_logged_in = False
+
+        self._finalizer = weakref.finalize(self, self._cleanup, weakref.ref(self))
 
         self.__ms_version = None
 
@@ -913,15 +949,28 @@ class MSHandle(RequestGeneral):
         """Exit function when using with statement."""
         self._finalizer()
 
+    def __del__(self):
+        """Destructor to ensure cleanup."""
+        self._finalizer()
+
     @staticmethod
-    def _cleanup(log):
+    def _cleanup(handle_ref):
         """Safely cleanup class.
 
         If the class shall be manually cleaned, call this function:
 
-        >>> node._finalizer()
+        >>> ms_handle._finalizer()
         """
-        log.debug("Removing MS Handle")
+
+        try:
+            ms_handle = handle_ref()
+        except Exception:  # pragma: no cover - defensive
+            ms_handle = None
+
+        if ms_handle:
+            ms_handle._log.debug("Removing MS Handle")
+            if ms_handle._is_logged_in:
+                ms_handle.logout()  # close session before removing handle
 
     @property
     def version(self) -> str:
@@ -952,8 +1001,8 @@ class MSHandle(RequestGeneral):
         if not self.version:
             self._log.info("No valid version found, assuming version is latest")
             return False
-        current_version = self.version.split("-")[0].split(".")
-        comp_version = version.split("-")[0].split(".")
+        current_version = self.version.split("-", maxsplit=1)[0].split(".")
+        comp_version = version.split("-", maxsplit=1)[0].split(".")
 
         if len(current_version) != 3:  # noqa: PLR2004
             return False  # e.g integration, master
@@ -1008,9 +1057,18 @@ class MSHandle(RequestGeneral):
             super()._check_response(method, response, accepted_status)
         return response
 
-    def login(self) -> type:
+    def login(self, user: str = "", password: str = "") -> type:
         """Login on MS."""
         self._log.debug("login on MS")
+        if self._is_logged_in:
+            self.logout()  # close old session before logging in again
+
+        self.usr = user or self.usr
+        self.psw = password or self.psw
+
+        if not self.usr or not self.psw:
+            msg = "No username/password provided for MS login"
+            raise ValueError(msg)
 
         response = self.post(
             url="/auth/login",
@@ -1018,6 +1076,7 @@ class MSHandle(RequestGeneral):
             accepted_status=[requests.codes.ok],
         )
         self._add_header["sessionid"] = f"{response.headers['sessionId']}"
+        self._is_logged_in = True
 
         return response
 
@@ -1025,5 +1084,9 @@ class MSHandle(RequestGeneral):
         """Logout from MS."""
         self._log.debug("Logout from MS")
         if self.version_smaller_than("2.10.0"):
-            return self.get("/auth/logout", accepted_status=[requests.codes.ok])
-        return self.get("/auth/logout", accepted_status=[requests.codes.no_content])
+            response = self.get("/auth/logout", accepted_status=[requests.codes.ok, requests.codes.forbidden])
+        response = self.get(
+            "/auth/logout", accepted_status=[requests.codes.no_content, requests.codes.forbidden]
+        )
+        self._is_logged_in = False
+        return response

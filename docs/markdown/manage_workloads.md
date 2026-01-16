@@ -94,13 +94,13 @@ Classes
     ### Class variables
 
     `API_V1`
-    :
+    :   The type of the None singleton.
 
     `API_V2`
-    :
+    :   The type of the None singleton.
 
     `API_V3`
-    :
+    :   The type of the None singleton.
 
     ### Methods
 

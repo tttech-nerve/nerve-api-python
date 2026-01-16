@@ -26,6 +26,22 @@ Classes
 
     ### Methods
 
+    `apply_node_configuration(self, config)`
+    :   Apply a new node configuration by merging it with the current configuration.
+        The new configuration is saved to a YAML file and sent to the node.
+        
+        Parameters
+        ----------
+            config : dict
+                The new configuration to apply.
+        
+        Returns
+        -------
+            dict: The response from the node after applying the configuration.
+
+    `auth_ms_on_node(self, ms_url: str, username: str, password: str)`
+    :   Authenticate the node with the management system.
+
     `change_password(self, username, old_password, new_password)`
     :   Change the password for a user.
 
@@ -68,6 +84,10 @@ Classes
     `get_backup_list(self)`
     :   Read backup list for node.
 
+    `get_custom_role_permissions(self)`
+    :   Get list of all permissions for the custom role via /api/permissions/custom-role (GET).
+        Returns: list of permission codes (strings)
+
     `get_deploy_backup_status(self, backup_id)`
     :   Get the state of a deployed backup.
 
@@ -76,6 +96,13 @@ Classes
 
     `get_network_configuration(self)`
     :   Get network configuration of all interface.
+
+    `get_node_configuration(self)`
+    :   Get the current node configuration.
+        
+        Returns
+        -------
+            dict: The current node configuration.
 
     `get_secure_id(self)`
     :   Read the secure id of a node.
@@ -108,6 +135,16 @@ Classes
         -------
         type
             Result of the POST request.
+
+    `node_configuration_apply_status(self)`
+    :   Check the status of the node configuration application.
+        
+        Returns
+        -------
+            str: The status message of the node configuration application.
+
+    `offboard_node_local_ui(self)`
+    :   Offboarding node from the Local-UI.
 
     `rc_setting(self, approve: int)`
     :   Set remote connection approval settings.
@@ -146,8 +183,12 @@ Classes
     `restore_vm_snapshot(self, workload_name, snapshot_name)`
     :   Restore a snapshot of a VM workload.
 
-    `set_configuration(self, ms_url: str)`
+    `set_configuration(self, ms_url: str, node_name=None)`
     :   Set onboarding configuration to connect to a management system.
+        
+        Args:
+        ms_url (str): The URL of the management system.
+        node_name (str): The name of the node. Required for uki nerve-node devices.
 
     `set_critical_action(self, file_path, value)`
     :   Edit the critical actions file to change 'allow' to 'not allowed' or vice versa.
@@ -159,6 +200,11 @@ Classes
         Returns
         -------
             str: The modified content of the YAML file as a string.
+
+    `set_custom_role_permissions(self, permissions, patch_success_code=202)`
+    :   Set list of permissions for the custom role via /api/permissions/custom-role (PATCH).
+        permissions: list of permission codes (strings) ["AUTH:LOGOUT","AUTH:VIEW", ...
+        Returns: response object
 
     `set_local_repository(self, protocol, repo_type, path, user=None, password=None, options='')`
     :   Set a local repository.

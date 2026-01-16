@@ -44,7 +44,7 @@ class MSLabel:
     def __init__(self, ms_handle: type):
         self.ms = ms_handle
 
-    def fetch_labels(self, page_number: int = 0, limit: int = 100) -> dict:
+    def fetch_labels(self) -> dict:
         """Fetch labels from labels list.
 
         Parameters
@@ -59,11 +59,20 @@ class MSLabel:
         dict
             label list, response from api object.
         """
-        return self.ms.get(
-            url="/nerve/labels/list",
-            params={"limit": limit, "page": page_number, "filterBy": {}},
-            accepted_status=[requests.codes.ok],
-        ).json()
+        labels = {"count": 0, "data": []}
+        page_number = 1
+        while True:
+            labels_single_read = self.ms.get(
+                "/nerve/labels/list",
+                params={"limit": 50, "page": page_number},
+                accepted_status=[requests.codes.ok],
+            ).json()
+            page_number += 1
+            labels["data"] += labels_single_read.get("data", [])
+            labels["count"] = labels_single_read["count"]
+            if len(labels["data"]) == labels_single_read["count"]:
+                break
+        return labels
 
     def get_label(self, key: str, value: str) -> dict:
         """Read specific label from MS.

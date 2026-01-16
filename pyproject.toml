@@ -1,10 +1,10 @@
 [project]
 name = "nerve_lib"
-version = "1.0.0"
+version = "1.1.0"
 description = "Nerve API library"
 authors = [{ name = "Nerve Development Team", email = "dev@nerve.cloud" }]
 readme = "README.md"
-requires-python = ">=3.9,<4.0"
+requires-python = ">=3.10,<4.0"
 dependencies = [
     "pyyaml (>=6.0.2,<7.0.0)",
     "paramiko (>=3.5.1,<4.0.0)",
@@ -15,6 +15,7 @@ dependencies = [
 
 [tool.poetry.group.dev.dependencies]
 lefthook = "^1.11.13"
+ruff = "^0.12.5"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

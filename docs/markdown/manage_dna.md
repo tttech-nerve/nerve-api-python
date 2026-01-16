@@ -41,8 +41,12 @@ Classes
 
     * nerve_lib.manage_dna.LocalDNA
     * nerve_lib.manage_dna.MSDNA
+    * nerve_lib.manage_dna.ServiceOSDNACommon
 
     ### Methods
+
+    `cancel_target(self) ‑> dict`
+    :   Same as patch_target_cancel.
 
     `get_current(self) ‑> dict`
     :   Get the current DNA configuration.
@@ -76,7 +80,7 @@ Classes
         dict
             response of the command.
 
-    `put_target(self, config_file, continue_after_restart: bool = False, restart_all_wl: bool = False, remove_images: bool = True) ‑> dict`
+    `put_target(self, config_file, continue_after_restart: bool = False, restart_all_wl: bool = False, remove_images: bool = True, sign_file: bool = False) ‑> dict`
     :   Put new target configuration to the device.
         
         Parameters
@@ -102,6 +106,9 @@ Classes
         dict
             response of the command.
 
+    `reapply_target(self) ‑> dict`
+    :   Same as put_target_re_apply.
+
 `LocalDNA(node_handle: type)`
 :   Manage the DNA of a device directly using localUI API comamnds.
     
@@ -112,6 +119,19 @@ Classes
 
     ### Ancestors (in MRO)
 
+    * nerve_lib.manage_dna.DNACommon
+
+`LocalUIDNAServiceOS(node_handle: type)`
+:   Manage Service OS DNA of a device via Local UI API commands.
+    
+    Parameters
+    ----------
+    node_handle : type
+        Handle to the node (e.g. nerve_lib.general_utils.NodeHandle(...))
+
+    ### Ancestors (in MRO)
+
+    * nerve_lib.manage_dna.ServiceOSDNACommon
     * nerve_lib.manage_dna.DNACommon
 
 `MSDNA(ms_handle: type, node_serial_number: str)`
@@ -127,3 +147,45 @@ Classes
     ### Ancestors (in MRO)
 
     * nerve_lib.manage_dna.DNACommon
+
+`ServiceOSDNA(ms_handle: type, node_serial_number: str)`
+:   Management system API commands to handle Service OS DNA of a device.
+    
+    Parameters
+    ----------
+    ms_handle : type
+        handle to the MS 'nerve_lib.general_utils.MSHandle(...)'.
+    node_serial_number : str
+        Serial number of the connected node to execute the Service OS DNA functions with.
+
+    ### Ancestors (in MRO)
+
+    * nerve_lib.manage_dna.ServiceOSDNACommon
+    * nerve_lib.manage_dna.DNACommon
+
+`ServiceOSDNACommon(handle, base_url: str, log: type)`
+:   Common class for localUI and MS based Service OS DNA handling.
+
+    ### Ancestors (in MRO)
+
+    * nerve_lib.manage_dna.DNACommon
+
+    ### Descendants
+
+    * nerve_lib.manage_dna.LocalUIDNAServiceOS
+    * nerve_lib.manage_dna.ServiceOSDNA
+
+    ### Methods
+
+    `put_target(self, config_dict: dict) ‑> dict`
+    :   Apply target Service OS DNA configuration using a configuration dict.
+        
+        Parameters
+        ----------
+        config_dict : dict
+            Configuration dictionary to upload as YAML.
+        
+        Returns
+        -------
+        dict
+            Response from the device.

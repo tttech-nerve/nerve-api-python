@@ -99,8 +99,8 @@ el.replaceWith(d);
         if not self.version:
             self._log.warning(&#34;Could not read node version, assuming latest&#34;)
             return False
-        current_version = self.version.split(&#34;-&#34;)[0].split(&#34;.&#34;)
-        comp_version = version.split(&#34;-&#34;)[0].split(&#34;.&#34;)
+        current_version = self.version.split(&#34;-&#34;, maxsplit=1)[0].split(&#34;.&#34;)
+        comp_version = version.split(&#34;-&#34;, maxsplit=1)[0].split(&#34;.&#34;)
 
         if len(current_version) != 3:  # noqa: PLR2004
             return False  # e.g integration, master
@@ -133,7 +133,7 @@ el.replaceWith(d);
 
     def get_backup_list(self):
         &#34;&#34;&#34;Read backup list for node.&#34;&#34;&#34;
-        return self.node.get(&#34;/api/repositories&#34;, timeout=(10, 15)).json()
+        return self.node.get(&#34;/api/repositories&#34;, timeout=(7.5, 15)).json()
 
     def set_vm_backup(self, nfs_mountpoint: str, mount_options: str = &#34;rw,nolock&#34;):
         &#34;&#34;&#34;Set or disable vm-backup.&#34;&#34;&#34;
@@ -156,15 +156,37 @@ el.replaceWith(d);
 
         return self.node.delete(f&#34;/api/repositories/{backup_list[-1][&#39;id&#39;]}&#34;)
 
-    def set_configuration(self, ms_url: str):
-        &#34;&#34;&#34;Set onboarding configuration to connect to a management system.&#34;&#34;&#34;
+    def set_configuration(self, ms_url: str, node_name=None):
+        &#34;&#34;&#34;
+        Set onboarding configuration to connect to a management system.
+
+        Args:
+        ms_url (str): The URL of the management system.
+        node_name (str): The name of the node. Required for uki nerve-node devices.
+        &#34;&#34;&#34;
         payload = {
             &#34;cloudUrl&#34;: ms_url,
             &#34;serialNumber&#34;: self.node.serial_number,
             &#34;protocol&#34;: &#34;wss&#34;,
             &#34;timezone&#34;: {&#34;name&#34;: &#34;Etc/UTC&#34;},
         }
+        if node_name:
+            payload[&#34;nodeName&#34;] = node_name
         self.node.post(&#34;/api/setup/configurations&#34;, json=payload, accepted_status=[requests.codes.ok])
+
+    def auth_ms_on_node(self, ms_url: str, username: str, password: str):
+        &#34;&#34;&#34;Authenticate the node with the management system.&#34;&#34;&#34;
+        payload = {
+            &#34;cloudUrl&#34;: ms_url,
+            &#34;username&#34;: username,
+            &#34;password&#34;: password,
+        }
+        self.node.post(&#34;/api/auth/verify-ms-user&#34;, json=payload, accepted_status=[requests.codes.ok])
+
+    def offboard_node_local_ui(self):
+        &#34;&#34;&#34;Offboarding node from the Local-UI.&#34;&#34;&#34;
+        payload = {&#34;withCredentials&#34;: True}
+        self.node.post(&#34;/api/system/offboard&#34;, json=payload, accepted_status=[requests.codes.accepted])
 
     def check_management_system_url(self, ms_url: str):
         &#34;&#34;&#34;Check if ms_url is valid.&#34;&#34;&#34;
@@ -240,7 +262,7 @@ el.replaceWith(d);
             data=m_enc,
             content_type=m_enc.content_type,
             accepted_status=[requests.codes.ok, requests.codes.no_content],
-            timeout=(10, 10),
+            timeout=(7.5, 10),
         )
 
     def create_vm_backup(self, workload_name, backup_name):
@@ -400,7 +422,7 @@ el.replaceWith(d);
             f&#34;/api/workloads/{device_id}/snapshots&#34;,
             json=payload,
             accepted_status=[requests.codes.ok],
-            timeout=(10, 10),
+            timeout=(7.5, 10),
         )
 
     def create_schedule_vm_snapshot(
@@ -690,7 +712,105 @@ el.replaceWith(d);
 
         modified_content = yaml.safe_dump(data)
         logging.info(&#34;Modified content of the file: %s&#34;, modified_content)
-        return modified_content</code></pre>
+        return modified_content
+
+    def get_node_configuration(self):
+        &#34;&#34;&#34;
+        Get the current node configuration.
+
+        Returns
+        -------
+            dict: The current node configuration.
+        &#34;&#34;&#34;
+        response = self.node.get(&#34;/api/service-os-dna/current&#34;, accepted_status=[requests.codes.ok])
+        with open(&#34;current_node_config.yaml&#34;, &#34;w&#34;, encoding=&#34;utf-8&#34;) as f:
+            f.write(response.text)
+        return yaml.safe_load(response.text)
+
+    def apply_node_configuration(self, config):
+        &#34;&#34;&#34;
+        Apply a new node configuration by merging it with the current configuration.
+        The new configuration is saved to a YAML file and sent to the node.
+
+        Parameters
+        ----------
+            config : dict
+                The new configuration to apply.
+
+        Returns
+        -------
+            dict: The response from the node after applying the configuration.
+        &#34;&#34;&#34;
+        # Get the current configuration from the node
+        current_configuration = self.get_node_configuration()
+        # Apply the new configuration by merging it with the current one
+        target_configuration = {**current_configuration, **config}
+        # Save the target configuration to a YAML file
+        yaml_file_path = &#34;target_node_config.yaml&#34;
+        with open(yaml_file_path, &#34;w&#34;, encoding=&#34;utf-8&#34;) as f:
+            yaml.safe_dump(target_configuration, f)
+        # Prepare the multipart encoder for the YAML file
+        m_enc = MultipartEncoder({
+            &#34;file&#34;: (
+                os.path.basename(yaml_file_path),
+                open(yaml_file_path, &#34;rb&#34;),
+                &#34;form-data&#34;,
+            )
+        })
+        headers = {&#34;Content-Type&#34;: m_enc.content_type}
+        # Send PUT request with the file
+        response = self.node.put(
+            &#34;/api/service-os-dna/target&#34;,
+            data=m_enc,
+            headers=headers,
+            accepted_status=[requests.codes.accepted],
+        )
+        return response.json()
+
+    def node_configuration_apply_status(self):
+        &#34;&#34;&#34;
+        Check the status of the node configuration application.
+
+        Returns
+        -------
+            str: The status message of the node configuration application.
+        &#34;&#34;&#34;
+        timeout_seconds = 60
+        interval_seconds = 5
+        end_time = time.time() + timeout_seconds
+
+        while time.time() &lt; end_time:
+            response = self.node.get(&#34;/api/service-os-dna/status&#34;, accepted_status=[requests.codes.ok])
+            data = response.json()
+            status = data.get(&#34;status&#34;)
+            message = data.get(&#34;message&#34;, &#34;&#34;)
+            if status in {&#34;APPLIED&#34;, &#34;MODIFIED&#34;}:
+                return message
+            if status != &#34;RECONFIGURING&#34;:
+                raise RuntimeError(f&#34;Unexpected status &#39;{status}&#39;, apply configuration failed&#34;)
+            time.sleep(interval_seconds)
+        raise RuntimeError(&#34;Status is still &#39;RECONFIGURING&#39; after 60 seconds, apply configuration failed&#34;)
+
+    def get_custom_role_permissions(self):
+        &#34;&#34;&#34;
+        Get list of all permissions for the custom role via /api/permissions/custom-role (GET).
+        Returns: list of permission codes (strings)
+        &#34;&#34;&#34;
+        resp = self.node.request(&#34;GET&#34;, &#34;/api/permissions/custom-role&#34;, accepted_status=[200])
+        data = resp.json()
+        self._log.info(&#34;Full custom role permissions API response: %s&#34;, data)
+        return data[&#34;permissions&#34;]
+
+    def set_custom_role_permissions(self, permissions, patch_success_code=202):
+        &#34;&#34;&#34;
+        Set list of permissions for the custom role via /api/permissions/custom-role (PATCH).
+        permissions: list of permission codes (strings) [&#34;AUTH:LOGOUT&#34;,&#34;AUTH:VIEW&#34;, ...
+        Returns: response object
+        &#34;&#34;&#34;
+        payload = {&#34;permissions&#34;: permissions}
+        return self.node.request(
+            &#34;PATCH&#34;, &#34;/api/permissions/custom-role&#34;, json=payload, accepted_status=[patch_success_code]
+        )</code></pre>
 </details>
 <div class="desc"><p>Node related functions from LocalUI.</p></div>
 <h3>Instance variables</h3>
@@ -717,6 +837,83 @@ def version(self):
 </dl>
 <h3>Methods</h3>
 <dl>
+<dt id="nerve_lib.manage_node.LocalNode.apply_node_configuration"><code class="name flex">
+<span>def <span class="ident">apply_node_configuration</span></span>(<span>self, config)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def apply_node_configuration(self, config):
+    &#34;&#34;&#34;
+    Apply a new node configuration by merging it with the current configuration.
+    The new configuration is saved to a YAML file and sent to the node.
+
+    Parameters
+    ----------
+        config : dict
+            The new configuration to apply.
+
+    Returns
+    -------
+        dict: The response from the node after applying the configuration.
+    &#34;&#34;&#34;
+    # Get the current configuration from the node
+    current_configuration = self.get_node_configuration()
+    # Apply the new configuration by merging it with the current one
+    target_configuration = {**current_configuration, **config}
+    # Save the target configuration to a YAML file
+    yaml_file_path = &#34;target_node_config.yaml&#34;
+    with open(yaml_file_path, &#34;w&#34;, encoding=&#34;utf-8&#34;) as f:
+        yaml.safe_dump(target_configuration, f)
+    # Prepare the multipart encoder for the YAML file
+    m_enc = MultipartEncoder({
+        &#34;file&#34;: (
+            os.path.basename(yaml_file_path),
+            open(yaml_file_path, &#34;rb&#34;),
+            &#34;form-data&#34;,
+        )
+    })
+    headers = {&#34;Content-Type&#34;: m_enc.content_type}
+    # Send PUT request with the file
+    response = self.node.put(
+        &#34;/api/service-os-dna/target&#34;,
+        data=m_enc,
+        headers=headers,
+        accepted_status=[requests.codes.accepted],
+    )
+    return response.json()</code></pre>
+</details>
+<div class="desc"><p>Apply a new node configuration by merging it with the current configuration.
+The new configuration is saved to a YAML file and sent to the node.</p>
+<h2 id="parameters">Parameters</h2>
+<pre><code>config : dict
+    The new configuration to apply.
+</code></pre>
+<h2 id="returns">Returns</h2>
+<pre><code>dict: The response from the node after applying the configuration.
+</code></pre></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.auth_ms_on_node"><code class="name flex">
+<span>def <span class="ident">auth_ms_on_node</span></span>(<span>self, ms_url: str, username: str, password: str)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def auth_ms_on_node(self, ms_url: str, username: str, password: str):
+    &#34;&#34;&#34;Authenticate the node with the management system.&#34;&#34;&#34;
+    payload = {
+        &#34;cloudUrl&#34;: ms_url,
+        &#34;username&#34;: username,
+        &#34;password&#34;: password,
+    }
+    self.node.post(&#34;/api/auth/verify-ms-user&#34;, json=payload, accepted_status=[requests.codes.ok])</code></pre>
+</details>
+<div class="desc"><p>Authenticate the node with the management system.</p></div>
+</dd>
 <dt id="nerve_lib.manage_node.LocalNode.change_password"><code class="name flex">
 <span>def <span class="ident">change_password</span></span>(<span>self, username, old_password, new_password)</span>
 </code></dt>
@@ -1021,9 +1218,30 @@ Type of schedule (Interval, Day)</p></div>
 </summary>
 <pre><code class="python">def get_backup_list(self):
     &#34;&#34;&#34;Read backup list for node.&#34;&#34;&#34;
-    return self.node.get(&#34;/api/repositories&#34;, timeout=(10, 15)).json()</code></pre>
+    return self.node.get(&#34;/api/repositories&#34;, timeout=(7.5, 15)).json()</code></pre>
 </details>
 <div class="desc"><p>Read backup list for node.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.get_custom_role_permissions"><code class="name flex">
+<span>def <span class="ident">get_custom_role_permissions</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_custom_role_permissions(self):
+    &#34;&#34;&#34;
+    Get list of all permissions for the custom role via /api/permissions/custom-role (GET).
+    Returns: list of permission codes (strings)
+    &#34;&#34;&#34;
+    resp = self.node.request(&#34;GET&#34;, &#34;/api/permissions/custom-role&#34;, accepted_status=[200])
+    data = resp.json()
+    self._log.info(&#34;Full custom role permissions API response: %s&#34;, data)
+    return data[&#34;permissions&#34;]</code></pre>
+</details>
+<div class="desc"><p>Get list of all permissions for the custom role via /api/permissions/custom-role (GET).
+Returns: list of permission codes (strings)</p></div>
 </dd>
 <dt id="nerve_lib.manage_node.LocalNode.get_deploy_backup_status"><code class="name flex">
 <span>def <span class="ident">get_deploy_backup_status</span></span>(<span>self, backup_id)</span>
@@ -1084,6 +1302,32 @@ Type of schedule (Interval, Day)</p></div>
     ).json()</code></pre>
 </details>
 <div class="desc"><p>Get network configuration of all interface.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.get_node_configuration"><code class="name flex">
+<span>def <span class="ident">get_node_configuration</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_node_configuration(self):
+    &#34;&#34;&#34;
+    Get the current node configuration.
+
+    Returns
+    -------
+        dict: The current node configuration.
+    &#34;&#34;&#34;
+    response = self.node.get(&#34;/api/service-os-dna/current&#34;, accepted_status=[requests.codes.ok])
+    with open(&#34;current_node_config.yaml&#34;, &#34;w&#34;, encoding=&#34;utf-8&#34;) as f:
+        f.write(response.text)
+    return yaml.safe_load(response.text)</code></pre>
+</details>
+<div class="desc"><p>Get the current node configuration.</p>
+<h2 id="returns">Returns</h2>
+<pre><code>dict: The current node configuration.
+</code></pre></div>
 </dd>
 <dt id="nerve_lib.manage_node.LocalNode.get_secure_id"><code class="name flex">
 <span>def <span class="ident">get_secure_id</span></span>(<span>self)</span>
@@ -1233,7 +1477,7 @@ Type of schedule (Interval, Day)</p></div>
         data=m_enc,
         content_type=m_enc.content_type,
         accepted_status=[requests.codes.ok, requests.codes.no_content],
-        timeout=(10, 10),
+        timeout=(7.5, 10),
     )</code></pre>
 </details>
 <div class="desc"><p>Add a workload configuration via localui.</p>
@@ -1251,6 +1495,58 @@ Type of schedule (Interval, Day)</p></div>
 <dt><code>type</code></dt>
 <dd>Result of the POST request.</dd>
 </dl></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.node_configuration_apply_status"><code class="name flex">
+<span>def <span class="ident">node_configuration_apply_status</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def node_configuration_apply_status(self):
+    &#34;&#34;&#34;
+    Check the status of the node configuration application.
+
+    Returns
+    -------
+        str: The status message of the node configuration application.
+    &#34;&#34;&#34;
+    timeout_seconds = 60
+    interval_seconds = 5
+    end_time = time.time() + timeout_seconds
+
+    while time.time() &lt; end_time:
+        response = self.node.get(&#34;/api/service-os-dna/status&#34;, accepted_status=[requests.codes.ok])
+        data = response.json()
+        status = data.get(&#34;status&#34;)
+        message = data.get(&#34;message&#34;, &#34;&#34;)
+        if status in {&#34;APPLIED&#34;, &#34;MODIFIED&#34;}:
+            return message
+        if status != &#34;RECONFIGURING&#34;:
+            raise RuntimeError(f&#34;Unexpected status &#39;{status}&#39;, apply configuration failed&#34;)
+        time.sleep(interval_seconds)
+    raise RuntimeError(&#34;Status is still &#39;RECONFIGURING&#39; after 60 seconds, apply configuration failed&#34;)</code></pre>
+</details>
+<div class="desc"><p>Check the status of the node configuration application.</p>
+<h2 id="returns">Returns</h2>
+<pre><code>str: The status message of the node configuration application.
+</code></pre></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.offboard_node_local_ui"><code class="name flex">
+<span>def <span class="ident">offboard_node_local_ui</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def offboard_node_local_ui(self):
+    &#34;&#34;&#34;Offboarding node from the Local-UI.&#34;&#34;&#34;
+    payload = {&#34;withCredentials&#34;: True}
+    self.node.post(&#34;/api/system/offboard&#34;, json=payload, accepted_status=[requests.codes.accepted])</code></pre>
+</details>
+<div class="desc"><p>Offboarding node from the Local-UI.</p></div>
 </dd>
 <dt id="nerve_lib.manage_node.LocalNode.rc_setting"><code class="name flex">
 <span>def <span class="ident">rc_setting</span></span>(<span>self, approve: int)</span>
@@ -1417,30 +1713,41 @@ Type of schedule (Interval, Day)</p></div>
         f&#34;/api/workloads/{device_id}/snapshots&#34;,
         json=payload,
         accepted_status=[requests.codes.ok],
-        timeout=(10, 10),
+        timeout=(7.5, 10),
     )</code></pre>
 </details>
 <div class="desc"><p>Restore a snapshot of a VM workload.</p></div>
 </dd>
 <dt id="nerve_lib.manage_node.LocalNode.set_configuration"><code class="name flex">
-<span>def <span class="ident">set_configuration</span></span>(<span>self, ms_url: str)</span>
+<span>def <span class="ident">set_configuration</span></span>(<span>self, ms_url: str, node_name=None)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def set_configuration(self, ms_url: str):
-    &#34;&#34;&#34;Set onboarding configuration to connect to a management system.&#34;&#34;&#34;
+<pre><code class="python">def set_configuration(self, ms_url: str, node_name=None):
+    &#34;&#34;&#34;
+    Set onboarding configuration to connect to a management system.
+
+    Args:
+    ms_url (str): The URL of the management system.
+    node_name (str): The name of the node. Required for uki nerve-node devices.
+    &#34;&#34;&#34;
     payload = {
         &#34;cloudUrl&#34;: ms_url,
         &#34;serialNumber&#34;: self.node.serial_number,
         &#34;protocol&#34;: &#34;wss&#34;,
         &#34;timezone&#34;: {&#34;name&#34;: &#34;Etc/UTC&#34;},
     }
+    if node_name:
+        payload[&#34;nodeName&#34;] = node_name
     self.node.post(&#34;/api/setup/configurations&#34;, json=payload, accepted_status=[requests.codes.ok])</code></pre>
 </details>
-<div class="desc"><p>Set onboarding configuration to connect to a management system.</p></div>
+<div class="desc"><p>Set onboarding configuration to connect to a management system.</p>
+<p>Args:
+ms_url (str): The URL of the management system.
+node_name (str): The name of the node. Required for uki nerve-node devices.</p></div>
 </dd>
 <dt id="nerve_lib.manage_node.LocalNode.set_critical_action"><code class="name flex">
 <span>def <span class="ident">set_critical_action</span></span>(<span>self, file_path, value)</span>
@@ -1489,6 +1796,29 @@ Type of schedule (Interval, Day)</p></div>
 <h2 id="returns">Returns</h2>
 <pre><code>str: The modified content of the YAML file as a string.
 </code></pre></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.set_custom_role_permissions"><code class="name flex">
+<span>def <span class="ident">set_custom_role_permissions</span></span>(<span>self, permissions, patch_success_code=202)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def set_custom_role_permissions(self, permissions, patch_success_code=202):
+    &#34;&#34;&#34;
+    Set list of permissions for the custom role via /api/permissions/custom-role (PATCH).
+    permissions: list of permission codes (strings) [&#34;AUTH:LOGOUT&#34;,&#34;AUTH:VIEW&#34;, ...
+    Returns: response object
+    &#34;&#34;&#34;
+    payload = {&#34;permissions&#34;: permissions}
+    return self.node.request(
+        &#34;PATCH&#34;, &#34;/api/permissions/custom-role&#34;, json=payload, accepted_status=[patch_success_code]
+    )</code></pre>
+</details>
+<div class="desc"><p>Set list of permissions for the custom role via /api/permissions/custom-role (PATCH).
+permissions: list of permission codes (strings) ["AUTH:LOGOUT","AUTH:VIEW", &hellip;
+Returns: response object</p></div>
 </dd>
 <dt id="nerve_lib.manage_node.LocalNode.set_local_repository"><code class="name flex">
 <span>def <span class="ident">set_local_repository</span></span>(<span>self, protocol, repo_type, path, user=None, password=None, options='')</span>
@@ -1706,8 +2036,8 @@ Type of schedule (Interval, Day)</p></div>
     if not self.version:
         self._log.warning(&#34;Could not read node version, assuming latest&#34;)
         return False
-    current_version = self.version.split(&#34;-&#34;)[0].split(&#34;.&#34;)
-    comp_version = version.split(&#34;-&#34;)[0].split(&#34;.&#34;)
+    current_version = self.version.split(&#34;-&#34;, maxsplit=1)[0].split(&#34;.&#34;)
+    comp_version = version.split(&#34;-&#34;, maxsplit=1)[0].split(&#34;.&#34;)
 
     if len(current_version) != 3:  # noqa: PLR2004
         return False  # e.g integration, master
@@ -1842,14 +2172,21 @@ Type of schedule (Interval, Day)</p></div>
             Node list informatnion from MS API.
 
         &#34;&#34;&#34;
-        parameters = {&#34;limit&#34;: 100, &#34;page&#34;: 0, &#34;order[created]&#34;: &#34;asc&#34;}
+        parameters = {&#34;limit&#34;: 50, &#34;page&#34;: 1, &#34;order[created]&#34;: &#34;asc&#34;}
         if node_name_filter:
             parameters[&#34;filterBy[name]&#34;] = node_name_filter
-        return self.ms.get(
-            &#34;/nerve/nodes/filtered/list&#34;,
-            params=parameters,
-            accepted_status=[requests.codes.ok],
-        ).json()
+        nodes = {&#34;count&#34;: 0, &#34;data&#34;: []}
+        while True:
+            nodes_single_read = self.ms.get(
+                &#34;/nerve/nodes/filtered/list&#34;, params=parameters, accepted_status=[requests.codes.ok]
+            ).json()
+            parameters[&#34;page&#34;] += 1
+            nodes[&#34;data&#34;] += nodes_single_read.get(&#34;data&#34;, [])
+            nodes[&#34;count&#34;] = nodes_single_read[&#34;count&#34;]
+            if len(nodes[&#34;data&#34;]) == nodes_single_read[&#34;count&#34;]:
+                break
+
+        return nodes
 
     def get_deploy_list(self, workload_id: str, version_id: str, node_name_filter: str) -&gt; dict:
         &#34;&#34;&#34;Get list of nodes a workload can be deployed to.
@@ -1868,15 +2205,22 @@ Type of schedule (Interval, Day)</p></div>
         dict
             List of nodes the workload can be deployed to.
         &#34;&#34;&#34;
-        parameters = {&#34;limit&#34;: 100, &#34;page&#34;: 0, &#34;order[created]&#34;: &#34;asc&#34;}
+        parameters = {&#34;limit&#34;: 50, &#34;page&#34;: 1, &#34;order[created]&#34;: &#34;asc&#34;}
         if node_name_filter:
             parameters[&#34;filterBy[name]&#34;] = node_name_filter
-
-        return self.ms.get(
-            f&#34;/nerve/nodes/deploy/{workload_id}/{version_id}&#34;,
-            params=parameters,
-            accepted_status=[requests.codes.ok],
-        ).json()
+        nodes = {&#34;count&#34;: 0, &#34;data&#34;: []}
+        while True:
+            nodes_single_read = self.ms.get(
+                f&#34;/nerve/nodes/deploy/{workload_id}/{version_id}&#34;,
+                params=parameters,
+                accepted_status=[requests.codes.ok],
+            ).json()
+            parameters[&#34;page&#34;] += 1
+            nodes[&#34;data&#34;] += nodes_single_read.get(&#34;data&#34;, [])
+            nodes[&#34;count&#34;] = nodes_single_read[&#34;count&#34;]
+            if len(nodes[&#34;data&#34;]) == nodes_single_read[&#34;count&#34;]:
+                break
+        return nodes
 
     def create_node(
         self,
@@ -2239,15 +2583,22 @@ establishing remote connection (used for ACL).</p>
     dict
         List of nodes the workload can be deployed to.
     &#34;&#34;&#34;
-    parameters = {&#34;limit&#34;: 100, &#34;page&#34;: 0, &#34;order[created]&#34;: &#34;asc&#34;}
+    parameters = {&#34;limit&#34;: 50, &#34;page&#34;: 1, &#34;order[created]&#34;: &#34;asc&#34;}
     if node_name_filter:
         parameters[&#34;filterBy[name]&#34;] = node_name_filter
-
-    return self.ms.get(
-        f&#34;/nerve/nodes/deploy/{workload_id}/{version_id}&#34;,
-        params=parameters,
-        accepted_status=[requests.codes.ok],
-    ).json()</code></pre>
+    nodes = {&#34;count&#34;: 0, &#34;data&#34;: []}
+    while True:
+        nodes_single_read = self.ms.get(
+            f&#34;/nerve/nodes/deploy/{workload_id}/{version_id}&#34;,
+            params=parameters,
+            accepted_status=[requests.codes.ok],
+        ).json()
+        parameters[&#34;page&#34;] += 1
+        nodes[&#34;data&#34;] += nodes_single_read.get(&#34;data&#34;, [])
+        nodes[&#34;count&#34;] = nodes_single_read[&#34;count&#34;]
+        if len(nodes[&#34;data&#34;]) == nodes_single_read[&#34;count&#34;]:
+            break
+    return nodes</code></pre>
 </details>
 <div class="desc"><p>Get list of nodes a workload can be deployed to.</p>
 <h2 id="parameters">Parameters</h2>
@@ -2333,14 +2684,21 @@ The default is None.</dd>
         Node list informatnion from MS API.
 
     &#34;&#34;&#34;
-    parameters = {&#34;limit&#34;: 100, &#34;page&#34;: 0, &#34;order[created]&#34;: &#34;asc&#34;}
+    parameters = {&#34;limit&#34;: 50, &#34;page&#34;: 1, &#34;order[created]&#34;: &#34;asc&#34;}
     if node_name_filter:
         parameters[&#34;filterBy[name]&#34;] = node_name_filter
-    return self.ms.get(
-        &#34;/nerve/nodes/filtered/list&#34;,
-        params=parameters,
-        accepted_status=[requests.codes.ok],
-    ).json()</code></pre>
+    nodes = {&#34;count&#34;: 0, &#34;data&#34;: []}
+    while True:
+        nodes_single_read = self.ms.get(
+            &#34;/nerve/nodes/filtered/list&#34;, params=parameters, accepted_status=[requests.codes.ok]
+        ).json()
+        parameters[&#34;page&#34;] += 1
+        nodes[&#34;data&#34;] += nodes_single_read.get(&#34;data&#34;, [])
+        nodes[&#34;count&#34;] = nodes_single_read[&#34;count&#34;]
+        if len(nodes[&#34;data&#34;]) == nodes_single_read[&#34;count&#34;]:
+            break
+
+    return nodes</code></pre>
 </details>
 <div class="desc"><p>Read node list of MS filtered by name of the node.</p>
 <h2 id="parameters">Parameters</h2>
@@ -2441,6 +2799,8 @@ if parameter is None, all active connection will be removed</dd>
 <li>
 <h4><code><a title="nerve_lib.manage_node.LocalNode" href="#nerve_lib.manage_node.LocalNode">LocalNode</a></code></h4>
 <ul class="">
+<li><code><a title="nerve_lib.manage_node.LocalNode.apply_node_configuration" href="#nerve_lib.manage_node.LocalNode.apply_node_configuration">apply_node_configuration</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.auth_ms_on_node" href="#nerve_lib.manage_node.LocalNode.auth_ms_on_node">auth_ms_on_node</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.change_password" href="#nerve_lib.manage_node.LocalNode.change_password">change_password</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.change_ssh_password" href="#nerve_lib.manage_node.LocalNode.change_ssh_password">change_ssh_password</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.check_management_system_url" href="#nerve_lib.manage_node.LocalNode.check_management_system_url">check_management_system_url</a></code></li>
@@ -2454,15 +2814,19 @@ if parameter is None, all active connection will be removed</dd>
 <li><code><a title="nerve_lib.manage_node.LocalNode.download_audit_log" href="#nerve_lib.manage_node.LocalNode.download_audit_log">download_audit_log</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.edit_file" href="#nerve_lib.manage_node.LocalNode.edit_file">edit_file</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.get_backup_list" href="#nerve_lib.manage_node.LocalNode.get_backup_list">get_backup_list</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.get_custom_role_permissions" href="#nerve_lib.manage_node.LocalNode.get_custom_role_permissions">get_custom_role_permissions</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.get_deploy_backup_status" href="#nerve_lib.manage_node.LocalNode.get_deploy_backup_status">get_deploy_backup_status</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.get_info" href="#nerve_lib.manage_node.LocalNode.get_info">get_info</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.get_network_configuration" href="#nerve_lib.manage_node.LocalNode.get_network_configuration">get_network_configuration</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.get_node_configuration" href="#nerve_lib.manage_node.LocalNode.get_node_configuration">get_node_configuration</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.get_secure_id" href="#nerve_lib.manage_node.LocalNode.get_secure_id">get_secure_id</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.get_vm_backup" href="#nerve_lib.manage_node.LocalNode.get_vm_backup">get_vm_backup</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.get_vm_snapshot" href="#nerve_lib.manage_node.LocalNode.get_vm_snapshot">get_vm_snapshot</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.get_workload_list" href="#nerve_lib.manage_node.LocalNode.get_workload_list">get_workload_list</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.local_node_change_resource_allocation" href="#nerve_lib.manage_node.LocalNode.local_node_change_resource_allocation">local_node_change_resource_allocation</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.localui_apply_workload_configuration" href="#nerve_lib.manage_node.LocalNode.localui_apply_workload_configuration">localui_apply_workload_configuration</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.node_configuration_apply_status" href="#nerve_lib.manage_node.LocalNode.node_configuration_apply_status">node_configuration_apply_status</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.offboard_node_local_ui" href="#nerve_lib.manage_node.LocalNode.offboard_node_local_ui">offboard_node_local_ui</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.rc_setting" href="#nerve_lib.manage_node.LocalNode.rc_setting">rc_setting</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.read_file" href="#nerve_lib.manage_node.LocalNode.read_file">read_file</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.reboot" href="#nerve_lib.manage_node.LocalNode.reboot">reboot</a></code></li>
@@ -2471,6 +2835,7 @@ if parameter is None, all active connection will be removed</dd>
 <li><code><a title="nerve_lib.manage_node.LocalNode.restore_vm_snapshot" href="#nerve_lib.manage_node.LocalNode.restore_vm_snapshot">restore_vm_snapshot</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.set_configuration" href="#nerve_lib.manage_node.LocalNode.set_configuration">set_configuration</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.set_critical_action" href="#nerve_lib.manage_node.LocalNode.set_critical_action">set_critical_action</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.set_custom_role_permissions" href="#nerve_lib.manage_node.LocalNode.set_custom_role_permissions">set_custom_role_permissions</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.set_local_repository" href="#nerve_lib.manage_node.LocalNode.set_local_repository">set_local_repository</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.set_network_configuration" href="#nerve_lib.manage_node.LocalNode.set_network_configuration">set_network_configuration</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.set_proxy" href="#nerve_lib.manage_node.LocalNode.set_proxy">set_proxy</a></code></li>

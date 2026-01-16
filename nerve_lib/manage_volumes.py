@@ -111,7 +111,7 @@ class DockerVolumes:
                     headers=headers,
                     data=m_enc,
                     accepted_status=[requests.codes.ok],
-                    timeout=(30, import_timeout),
+                    timeout=(7.5, import_timeout),
                 )
         except FileNotFoundError:
             self.ms._log.error("File not found: %s", file)
@@ -133,7 +133,7 @@ class DockerVolumes:
                 url=f"/nerve/v2/node/{dut_serial}/docker-resources/volumes/{volume_name}/export",
                 headers=headers,
                 accepted_status=[requests.codes.no_content],
-                timeout=(30, export_timeout),
+                timeout=(7.5, export_timeout),
             )
         except Exception as ex:
             self.ms._log.error("Failed to export volume data: %s", ex)

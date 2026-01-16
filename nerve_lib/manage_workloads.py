@@ -41,6 +41,7 @@ import tarfile
 import time
 from copy import deepcopy
 from typing import Optional
+from urllib.parse import quote
 
 import requests
 import yaml
@@ -97,7 +98,7 @@ class LocalWorkloads:
             requests.codes.no_content,
             requests.codes.conflict,
         ]
-        if not self.node._add_cookies:
+        if not self.node._is_logged_in:
             self.node.login()
         while True:
             m_enc_files = {}
@@ -225,7 +226,7 @@ class LocalWorkloads:
             content_type=m_enc.content_type,
             data=m_enc,
             accepted_status=[requests.codes.ok],
-            timeout=(30, import_timeout),
+            timeout=(7.5, import_timeout),
         )
 
     def export_volume_data(self, volume_name, export_timeout=30):
@@ -240,7 +241,7 @@ class LocalWorkloads:
             url=f"/api/docker-resources/volumes/{volume_name}/export",
             stream=True,
             accepted_status=[requests.codes.ok],
-            timeout=export_timeout,
+            timeout=(7.5, export_timeout),
         )
 
 
@@ -410,7 +411,14 @@ class MSWorkloads:
             m_enc_files = {}
             if "versions" in payload:
                 if "files" in payload["versions"][0]:
-                    for str_idx, content in payload["versions"][0]["files"].items():
+                    if isinstance(payload["versions"][0]["files"], dict):
+                        files = payload["versions"][0]["files"]
+                    if isinstance(payload["versions"][0]["files"], list):
+                        files = {
+                            str(idx): file_info
+                            for idx, file_info in enumerate(payload["versions"][0]["files"])
+                        }
+                    for str_idx, content in files.items():
                         file_path = ""
                         for fpath in file_paths:
                             if fpath.endswith(content["originalName"]):
@@ -893,11 +901,18 @@ class MSWorkloads:
             dict of {workload-name: [version, release_version]}.
         """
         workload_list = {}
-        workloads = (
-            self.ms.get("/nerve/v2/workloads", params={"limit": 200}, accepted_status=[requests.codes.ok])
-            .json()
-            .get("data", [])
-        )
+        workloads = []
+        page_number = 1
+        while True:
+            workloads_single_read = self.ms.get(
+                "/nerve/v2/workloads",
+                params={"limit": 50, "page": page_number},
+                accepted_status=[requests.codes.ok],
+            ).json()
+            page_number += 1
+            workloads += workloads_single_read.get("data", [])
+            if len(workloads) == workloads_single_read["count"]:
+                break
         if not read_versions:
             if compact_dict:
                 return [wrkld["name"] for wrkld in workloads]
@@ -922,7 +937,7 @@ class MSWorkloads:
                             self.ms.get(
                                 f"/nerve/v3/workloads/{workload_id}/versions/{version['_id']}",
                                 accepted_status=[requests.codes.ok],
-                            )
+                            ).json()
                         except CheckStatusCodeError as ex_msg:
                             msg = f"Workload {workload.get('name')}-{version.get('name')}: {ex_msg.value}"
                             raise CheckStatusCodeError(
@@ -1002,12 +1017,18 @@ class MSWorkloads:
         time_last_log_print = time_start
         status_old = []
         while (time.time() - time_start) < timeout:
-            dep_logs = self.ms.get(
-                "/bom/deployment/list",
-                params={"contentType": "workload", "limit": 100, "page": 1},
-                accepted_status=[requests.codes.ok],
-                timeout=(7.5, 10),
-            ).json()
+            parameters = {"limit": 50, "page": 1, "contentType": "workload"}
+            dep_logs = {"count": 0, "data": []}
+            while True:
+                deploy_list_single_read = self.ms.get(
+                    "/bom/deployment/list", params=parameters, accepted_status=[requests.codes.ok]
+                ).json()
+                parameters["page"] += 1
+                dep_logs["data"] += deploy_list_single_read.get("data", [])
+                dep_logs["count"] = deploy_list_single_read["count"]
+                if len(dep_logs["data"]) == deploy_list_single_read["count"]:
+                    break
+
             dep_log = next(
                 (
                     dep_log
@@ -1196,11 +1217,15 @@ class _WorkloadVersion:  # noqa: PLR0904
         dict
             MS API response containing worklaad information.
         """
+
+        encoded_name = quote(self.workload_name, safe="")
+
         workloads = self.owner.ms.get(
             "/nerve/v2/workloads",
-            params={"limit": 200},
+            params={"limit": 10, "filterBy": f'{{"name":"{encoded_name}"}}'},
             accepted_status=[requests.codes.ok],
         ).json()
+
         try:
             selected_workload = next(
                 workload
@@ -2088,16 +2113,17 @@ class _WorkloadVersion:  # noqa: PLR0904
     def export_workload_version(self):
         """Export workload version."""
         workload_id, version_id = self._get_ids()
-        if self._get_workload_type() == "docker-compose":
-            self.owner.ms.get(
-                f"/nerve/v3/workloads/{workload_id}/versions/{version_id}/export",
+
+        if self._get_workload().get("internalDockerRegistry", False):
+            self._log.debug("Version export of MS Registry workload stared.")
+            return self.owner.ms.post(
+                f"/nerve/v3/workloads/{workload_id}/versions/{version_id}/export-init",
                 accepted_status=[requests.codes.ok],
-                timeout=60,
+                timeout=(7.5, 360),
             )
-            self._log.info("Version export started!")
-        else:
-            self.owner.ms.get(
-                f"/nerve/v2/workload/{workload_id}/{version_id}",
-                accepted_status=[requests.codes.ok],
-            )
-            self._log.info("Version export started!")
+        self._log.debug("Version export v2 started.")
+        return self.owner.ms.get(
+            f"/nerve/v2/workload/{workload_id}/{version_id}",
+            accepted_status=[requests.codes.ok],
+            timeout=(7.5, 360),
+        )

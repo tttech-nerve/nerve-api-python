@@ -76,7 +76,7 @@ el.replaceWith(d);
     def __init__(self, ms_handle: type):
         self.ms = ms_handle
 
-    def fetch_labels(self, page_number: int = 0, limit: int = 100) -&gt; dict:
+    def fetch_labels(self) -&gt; dict:
         &#34;&#34;&#34;Fetch labels from labels list.
 
         Parameters
@@ -91,11 +91,20 @@ el.replaceWith(d);
         dict
             label list, response from api object.
         &#34;&#34;&#34;
-        return self.ms.get(
-            url=&#34;/nerve/labels/list&#34;,
-            params={&#34;limit&#34;: limit, &#34;page&#34;: page_number, &#34;filterBy&#34;: {}},
-            accepted_status=[requests.codes.ok],
-        ).json()
+        labels = {&#34;count&#34;: 0, &#34;data&#34;: []}
+        page_number = 1
+        while True:
+            labels_single_read = self.ms.get(
+                &#34;/nerve/labels/list&#34;,
+                params={&#34;limit&#34;: 50, &#34;page&#34;: page_number},
+                accepted_status=[requests.codes.ok],
+            ).json()
+            page_number += 1
+            labels[&#34;data&#34;] += labels_single_read.get(&#34;data&#34;, [])
+            labels[&#34;count&#34;] = labels_single_read[&#34;count&#34;]
+            if len(labels[&#34;data&#34;]) == labels_single_read[&#34;count&#34;]:
+                break
+        return labels
 
     def get_label(self, key: str, value: str) -&gt; dict:
         &#34;&#34;&#34;Read specific label from MS.
@@ -409,14 +418,14 @@ el.replaceWith(d);
 <div class="desc"><p>Delete all labels from the MS.</p></div>
 </dd>
 <dt id="nerve_lib.manage_labels.MSLabel.fetch_labels"><code class="name flex">
-<span>def <span class="ident">fetch_labels</span></span>(<span>self, page_number: int = 0, limit: int = 100) ‑> dict</span>
+<span>def <span class="ident">fetch_labels</span></span>(<span>self) ‑> dict</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def fetch_labels(self, page_number: int = 0, limit: int = 100) -&gt; dict:
+<pre><code class="python">def fetch_labels(self) -&gt; dict:
     &#34;&#34;&#34;Fetch labels from labels list.
 
     Parameters
@@ -431,11 +440,20 @@ el.replaceWith(d);
     dict
         label list, response from api object.
     &#34;&#34;&#34;
-    return self.ms.get(
-        url=&#34;/nerve/labels/list&#34;,
-        params={&#34;limit&#34;: limit, &#34;page&#34;: page_number, &#34;filterBy&#34;: {}},
-        accepted_status=[requests.codes.ok],
-    ).json()</code></pre>
+    labels = {&#34;count&#34;: 0, &#34;data&#34;: []}
+    page_number = 1
+    while True:
+        labels_single_read = self.ms.get(
+            &#34;/nerve/labels/list&#34;,
+            params={&#34;limit&#34;: 50, &#34;page&#34;: page_number},
+            accepted_status=[requests.codes.ok],
+        ).json()
+        page_number += 1
+        labels[&#34;data&#34;] += labels_single_read.get(&#34;data&#34;, [])
+        labels[&#34;count&#34;] = labels_single_read[&#34;count&#34;]
+        if len(labels[&#34;data&#34;]) == labels_single_read[&#34;count&#34;]:
+            break
+    return labels</code></pre>
 </details>
 <div class="desc"><p>Fetch labels from labels list.</p>
 <h2 id="parameters">Parameters</h2>

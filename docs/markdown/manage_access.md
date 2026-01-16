@@ -16,6 +16,50 @@ Example:
 Classes
 -------
 
+`InternalTestAPI(ms_handle)`
+:   Manage Internal Test API related functions. NOT FOR PRODUCTION USE!
+
+    ### Methods
+
+    `get_value(self, parameter: str)`
+    :   Get a specific configuration value.
+        
+        Parameters
+        ----------
+        parameter : str
+            Name of the top-level key in the configuration.yaml file.
+        
+        Returns
+        -------
+        type
+            Configuration value for the specified parameter.
+
+    `reset_value(self, parameter: str, configuration: str)`
+    :   Reset a specific configuration value to its default.
+        
+        Parameters
+        ----------
+        parameter : str
+            Name of the top-level key in the configuration.yaml file.
+        
+        Returns
+        -------
+        type
+            Response from the reset request.
+
+    `set_value(self, parameter: str, configuration: <module 'json' from '/home/schierl/.pyenv/versions/3.14.2/lib/python3.14/json/__init__.py'>)`
+    :   Set a specific configuration value.
+        
+        Parameters
+        ----------
+        parameter : str
+            Name of the top-level key in the configuration.yaml file.
+        
+        Returns
+        -------
+        type
+            Response from the set request.
+
 `LDAP(ms_handle)`
 :   LDAP management related functions from MS.
     
@@ -325,13 +369,13 @@ Classes
 
     ### Methods
 
-    `add(self, email: str, roles: list, first_name: str = '', last_name: str = '', role_type: str = 'local', preferred_language: str = 'en_EN') ‑> dict`
+    `add(self, email: str, roles: list, first_name: str = '', last_name: str = '', role_type: str = 'local') ‑> dict`
     :   Add a new user to the MS.
 
     `delete(self, email)`
     :   Delete a user from the MS.
 
-    `edit(self, email: str, roles: list = [], first_name='', last_name='', role_type='local', preferred_language='en_EN')`
+    `edit(self, email: str, roles: list = [], first_name='', last_name='', role_type='local')`
     :   Edit an existing user.
 
     `extract_endpoints(self, openapi_spec, output_json)`
@@ -340,8 +384,5 @@ Classes
     `get(self, email='', role_type='local')`
     :   Get a list of users.
 
-    `personal_edit(self, email: str, first_name='', last_name='', old_password='', new_password='', confirm_new_password='', preferred_language: str = 'en_EN', user_id='')`
+    `personal_edit(self, email: str, first_name='', last_name='', old_password='', new_password='', confirm_new_password='', user_id='')`
     :   Edit an personal user.
-
-    `set_language(self, user_id: str, language: str)`
-    :   Set language for a user.

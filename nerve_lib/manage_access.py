@@ -218,20 +218,14 @@ class MSUser:
         return user_list
 
     def add(
-        self,
-        email: str,
-        roles: list,
-        first_name: str = "",
-        last_name: str = "",
-        role_type: str = "local",
-        preferred_language: str = "en_EN",
+        self, email: str, roles: list, first_name: str = "", last_name: str = "", role_type: str = "local"
     ) -> dict:
         """Add a new user to the MS."""
         if not re.match(r"^[_a-z0-9-]+(.[_a-z0-9-]+)*@[a-z0-9-]+(.[a-z0-9-]+)*(.[a-z]{2,4})$", email):
             self._log.error("Invalid email specified: %s", email)
             msg = f"Error: Invalid email specified: {email}"
             raise RuntimeError(msg)
-        uname = [name.capitalize() for name in email.split("@")[0].split(".", 1)]
+        uname = [name.capitalize() for name in email.split("@", maxsplit=1)[0].split(".", 1)]
 
         role_ids = []
         for role in roles:
@@ -242,7 +236,6 @@ class MSUser:
             "lastName": last_name or uname[-1],
             "username": email,
             "profileImgURL": "",
-            "preferredLanguage": preferred_language,
             "contact": [
                 {
                     "contactType": "email",
@@ -271,15 +264,7 @@ class MSUser:
             break
         return response.json()
 
-    def edit(
-        self,
-        email: str,
-        roles: list = [],
-        first_name="",
-        last_name="",
-        role_type="local",
-        preferred_language="en_EN",
-    ):
+    def edit(self, email: str, roles: list = [], first_name="", last_name="", role_type="local"):
         """Edit an existing user."""
         payload = self.get(email, role_type)
 
@@ -295,15 +280,16 @@ class MSUser:
         if last_name:
             payload["lastName"] = last_name
 
-        if preferred_language:
-            payload["preferredLanguage"] = preferred_language
+        payload["profileImgURL"] = ""
+
+        payload["id"] = payload.pop("_id")
 
         accepted_status = [requests.codes.ok, requests.codes.forbidden]
         while True:
             m_enc = MultipartEncoder({"data": (None, json.dumps(payload), "form-data")})
 
             response = self.ms.put(
-                f"/crm/profile/{payload.get('_id')}",
+                f"/crm/profile/{payload.get('id')}",
                 data=m_enc,
                 content_type=m_enc.content_type,
                 accepted_status=accepted_status,
@@ -320,16 +306,6 @@ class MSUser:
         user_id = self.get(email)["_id"]
         self.ms.delete(f"/crm/profile/{user_id}")
 
-    def set_language(self, user_id: str, language: str):
-        """Set language for a user."""
-        payload = {"preferredLanguage": language}
-        if self.ms.version_smaller_than("2.10.0"):
-            url = f"/crm/profile/{user_id}/setLanguage"
-        else:
-            url = f"/crm/profile/{user_id}"
-        response = self.ms.put(url, json=payload, accepted_status=[requests.codes.ok])
-        return response.json()
-
     def personal_edit(
         self,
         email: str,
@@ -338,7 +314,6 @@ class MSUser:
         old_password="",
         new_password="",
         confirm_new_password="",
-        preferred_language: str = "en_EN",
         user_id="",
     ):
         """Edit an personal user."""
@@ -350,7 +325,6 @@ class MSUser:
             "lastName": last_name or self.get(email)["lastName"],
             "username": email,
             "profileImgURL": "",
-            "preferredLanguage": preferred_language,
             "contact": [
                 {
                     "contactType": "email",
@@ -489,7 +463,9 @@ class LDAP:
 
     def check_active(self):
         """Check if LDAP is active."""
-        return self.ms.get("/nerve/ldap/active", accepted_status=[requests.codes.ok], timeout=(10, 10)).json()
+        return self.ms.get(
+            "/nerve/ldap/active", accepted_status=[requests.codes.ok], timeout=(7.5, 30)
+        ).json()
 
     def get_default(self):
         """Get default LDAP configuration."""
@@ -529,7 +505,10 @@ class LDAP:
         """
         payload = {"url": url, "port": port, "bindDN": bind_dn, "password": password, "tls": secure}
         return self.ms.post(
-            "/nerve/ldap/connection/test", json=payload, accepted_status=[requests.codes.ok], timeout=15
+            "/nerve/ldap/connection/test",
+            json=payload,
+            accepted_status=[requests.codes.ok],
+            timeout=(7.5, 10),
         ).json()
 
     @classmethod
@@ -872,3 +851,70 @@ class LDAP:
 
         err_msg = f"Invalid action for function save_sync_ldap: {action}"
         raise ValueError(err_msg)
+
+
+class InternalTestAPI:
+    """Manage Internal Test API related functions. NOT FOR PRODUCTION USE!"""
+
+    def __init__(self, ms_handle):
+        self.ms = ms_handle
+        self.base_path = "/nerve/internal-test-api/"
+
+    def get_value(self, parameter: str):
+        """Get a specific configuration value.
+
+        Parameters
+        ----------
+        parameter : str
+            Name of the top-level key in the configuration.yaml file.
+
+        Returns
+        -------
+        type
+            Configuration value for the specified parameter.
+        """
+        return self.ms.get(
+            f"{self.base_path}config/{parameter}", accepted_status=[requests.codes.ok], timeout=(7.5, 30)
+        ).json()
+
+    def reset_value(self, parameter: str, configuration: str):
+        """Reset a specific configuration value to its default.
+
+        Parameters
+        ----------
+        parameter : str
+            Name of the top-level key in the configuration.yaml file.
+
+        Returns
+        -------
+        type
+            Response from the reset request.
+        """
+        self.ms.post(
+            f"{self.base_path}config/{parameter}/reload",
+            json={"config": configuration},
+            accepted_status=[requests.codes.ok],
+            timeout=(7.5, 30),
+        )
+        return self.get_value(parameter)
+
+    def set_value(self, parameter: str, configuration: json):
+        """Set a specific configuration value.
+
+        Parameters
+        ----------
+        parameter : str
+            Name of the top-level key in the configuration.yaml file.
+
+        Returns
+        -------
+        type
+            Response from the set request.
+        """
+        self.ms.patch(
+            f"{self.base_path}config/{parameter}",
+            json={"config": configuration},
+            accepted_status=[requests.codes.accepted],
+            timeout=(7.5, 30),
+        )
+        return self.get_value(parameter)

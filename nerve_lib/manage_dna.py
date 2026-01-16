@@ -82,15 +82,22 @@ class DNACommon:
         """
         config_file = {}
         response = self.handle.get(os.path.join(self.base_url, location), accepted_status=[requests.codes.ok])
-        try:
-            zip_file = ZipFile(BytesIO(response.content))
-            for cfile in zip_file.namelist():
-                self._log.info("Reading content of %s", cfile)
-                with zip_file.open(cfile) as file:
-                    config_file[cfile] = yaml.safe_load(file.read())
-            return config_file
-        except BadZipFile:
-            return {}
+        if "application/x-yaml" in response.headers.get("Content-Type"):
+            return yaml.safe_load(response.content)
+        if "application/octet-stream" in response.headers.get("Content-Type"):
+            try:
+                zip_file = ZipFile(BytesIO(response.content))
+                for cfile in zip_file.namelist():
+                    self._log.info("Reading content of %s", cfile)
+                    with zip_file.open(cfile) as file:
+                        config_file[cfile] = yaml.safe_load(file.read())
+                return config_file
+            except BadZipFile:
+                self._log.warning("Received DNA configuration is not a valid zip file")
+                return {}
+
+        self._log.error("Unexpected content-type received: %s", response.headers.get("Content-Type"))
+        return {}
 
     def get_current(self) -> dict:
         """Get the current DNA configuration.
@@ -129,6 +136,7 @@ class DNACommon:
         continue_after_restart: bool = False,
         restart_all_wl: bool = False,
         remove_images: bool = True,
+        sign_file: bool = False,
     ) -> dict:
         """Put new target configuration to the device.
 
@@ -176,6 +184,9 @@ class DNACommon:
                 "restartAllWorkloads": str(restart_all_wl).lower(),
                 "removeDockerImages": str(remove_images).lower(),
             }
+            # Only add signFile for MSDNA
+            if sign_file is not None and type(self) is MSDNA:
+                params["signFile"] = str(sign_file).lower()
 
             response = self.handle.put(
                 os.path.join(self.base_url, "target"),
@@ -183,7 +194,7 @@ class DNACommon:
                 content_type=m_enc.content_type,
                 data=m_enc,
                 accepted_status=allowed_codes,
-                timeout=(10, 60),
+                timeout=(7.5, 60),
             )
             if response.status_code == requests.codes.accepted:
                 break
@@ -204,11 +215,14 @@ class DNACommon:
         """
         response = self.handle.put(
             os.path.join(self.base_url, "target/re-apply"),
-            timeout=(7.5, 5),
             accepted_status=[requests.codes.accepted],
         )
         self._log.info("DNA config reapply triggered: %s", response.json().get("message", response.json()))
         return response.json()
+
+    def reapply_target(self) -> dict:
+        """Same as put_target_re_apply."""
+        self.put_target_re_apply()
 
     def patch_target_cancel(self) -> dict:
         """Cancle an ongoing configuration.
@@ -227,6 +241,10 @@ class DNACommon:
         except AttributeError:
             self._log.warning("DNA config canceled, unexpected response: %s", response)
         return response
+
+    def cancel_target(self) -> dict:
+        """Same as patch_target_cancel."""
+        self.patch_target_cancel()
 
 
 class MSDNA(DNACommon):
@@ -262,5 +280,79 @@ class LocalDNA(DNACommon):
             node_handle,
             "/api/dna/",
             logging.getLogger(f"LocalDNA-{node_handle.serial_number}"),
+        )
+        node_handle.login()
+
+
+class ServiceOSDNACommon(DNACommon):
+    """Common class for localUI and MS based Service OS DNA handling."""
+
+    def put_target(self, config_dict: dict) -> dict:
+        """Apply target Service OS DNA configuration using a configuration dict.
+
+        Parameters
+        ----------
+        config_dict : dict
+            Configuration dictionary to upload as YAML.
+
+        Returns
+        -------
+        dict
+            Response from the device.
+        """
+
+        yaml_content = yaml.dump(config_dict, default_flow_style=False, allow_unicode=True)
+        file_stream = BytesIO(yaml_content.encode("utf-8"))
+        file_stream.seek(0)
+        m_enc = MultipartEncoder({"file": ("update_configuration.yaml", file_stream, "application/x-yaml")})
+        url = os.path.join(self.base_url, "target")
+        self._log.info("Sending PUT request to URL: %s", url)
+        response = self.handle.put(
+            url,
+            content_type=m_enc.content_type,
+            data=m_enc,
+            accepted_status=[requests.codes.accepted, requests.codes.bad_request],
+            timeout=(7.5, 60),
+        )
+        try:
+            return response.json()
+        except Exception as e:
+            self._log.error("Failed to parse response as JSON: %s", e)
+            return {"error": str(e)}
+
+
+class ServiceOSDNA(ServiceOSDNACommon):
+    """Management system API commands to handle Service OS DNA of a device.
+
+    Parameters
+    ----------
+    ms_handle : type
+        handle to the MS 'nerve_lib.general_utils.MSHandle(...)'.
+    node_serial_number : str
+        Serial number of the connected node to execute the Service OS DNA functions with.
+    """
+
+    def __init__(self, ms_handle: type, node_serial_number: str):
+        super().__init__(
+            ms_handle,
+            f"/nerve/service-os-dna/{node_serial_number}/",
+            logging.getLogger(f"ServiceOSDNA-{node_serial_number}"),
+        )
+
+
+class LocalUIDNAServiceOS(ServiceOSDNACommon):
+    """Manage Service OS DNA of a device via Local UI API commands.
+
+    Parameters
+    ----------
+    node_handle : type
+        Handle to the node (e.g. nerve_lib.general_utils.NodeHandle(...))
+    """
+
+    def __init__(self, node_handle: type):
+        super().__init__(
+            node_handle,
+            "/api/service-os-dna/",
+            logging.getLogger(f"LocalUIDNAServiceOS-{node_handle.serial_number}"),
         )
         node_handle.login()
