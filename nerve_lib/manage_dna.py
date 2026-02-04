@@ -304,16 +304,25 @@ class ServiceOSDNACommon(DNACommon):
         yaml_content = yaml.dump(config_dict, default_flow_style=False, allow_unicode=True)
         file_stream = BytesIO(yaml_content.encode("utf-8"))
         file_stream.seek(0)
-        m_enc = MultipartEncoder({"file": ("update_configuration.yaml", file_stream, "application/x-yaml")})
         url = os.path.join(self.base_url, "target")
         self._log.info("Sending PUT request to URL: %s", url)
-        response = self.handle.put(
-            url,
-            content_type=m_enc.content_type,
-            data=m_enc,
-            accepted_status=[requests.codes.accepted, requests.codes.bad_request],
-            timeout=(7.5, 60),
-        )
+        accepted_status = [requests.codes.accepted, requests.codes.forbidden]
+        while True:
+            file_stream = BytesIO(yaml_content.encode("utf-8"))
+            file_stream.seek(0)
+            m_enc = MultipartEncoder({"file": ("update_configuration.yaml", file_stream, "application/x-yaml")})
+            response = self.handle.put(
+                url,
+                content_type=m_enc.content_type,
+                data=m_enc,
+                accepted_status=accepted_status,
+                timeout=(7.5, 60),
+            )
+            if response.status_code == requests.codes.forbidden:
+                self.handle.login()
+                accepted_status = [requests.codes.accepted]
+                continue
+            break
         try:
             return response.json()
         except Exception as e:

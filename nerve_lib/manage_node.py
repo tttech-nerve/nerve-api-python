@@ -1503,7 +1503,7 @@ class _SelectedNode:  # noqa: PLR0904
         dep_workloads = self.node.ms.get(
             f"/nerve/workload/node/{self.serial_number}/devices",
             accepted_status=[requests.codes.ok],
-            timeout=(7.5, 20),
+            timeout=(7.5, 120),
         ).json()
         if workload_name is None:
             return dep_workloads

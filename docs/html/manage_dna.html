@@ -801,16 +801,25 @@ as dictionary containing the configuration string (file-content).</dd>
         yaml_content = yaml.dump(config_dict, default_flow_style=False, allow_unicode=True)
         file_stream = BytesIO(yaml_content.encode(&#34;utf-8&#34;))
         file_stream.seek(0)
-        m_enc = MultipartEncoder({&#34;file&#34;: (&#34;update_configuration.yaml&#34;, file_stream, &#34;application/x-yaml&#34;)})
         url = os.path.join(self.base_url, &#34;target&#34;)
         self._log.info(&#34;Sending PUT request to URL: %s&#34;, url)
-        response = self.handle.put(
-            url,
-            content_type=m_enc.content_type,
-            data=m_enc,
-            accepted_status=[requests.codes.accepted, requests.codes.bad_request],
-            timeout=(7.5, 60),
-        )
+        accepted_status = [requests.codes.accepted, requests.codes.forbidden]
+        while True:
+            file_stream = BytesIO(yaml_content.encode(&#34;utf-8&#34;))
+            file_stream.seek(0)
+            m_enc = MultipartEncoder({&#34;file&#34;: (&#34;update_configuration.yaml&#34;, file_stream, &#34;application/x-yaml&#34;)})
+            response = self.handle.put(
+                url,
+                content_type=m_enc.content_type,
+                data=m_enc,
+                accepted_status=accepted_status,
+                timeout=(7.5, 60),
+            )
+            if response.status_code == requests.codes.forbidden:
+                self.handle.login()
+                accepted_status = [requests.codes.accepted]
+                continue
+            break
         try:
             return response.json()
         except Exception as e:
@@ -854,16 +863,25 @@ as dictionary containing the configuration string (file-content).</dd>
     yaml_content = yaml.dump(config_dict, default_flow_style=False, allow_unicode=True)
     file_stream = BytesIO(yaml_content.encode(&#34;utf-8&#34;))
     file_stream.seek(0)
-    m_enc = MultipartEncoder({&#34;file&#34;: (&#34;update_configuration.yaml&#34;, file_stream, &#34;application/x-yaml&#34;)})
     url = os.path.join(self.base_url, &#34;target&#34;)
     self._log.info(&#34;Sending PUT request to URL: %s&#34;, url)
-    response = self.handle.put(
-        url,
-        content_type=m_enc.content_type,
-        data=m_enc,
-        accepted_status=[requests.codes.accepted, requests.codes.bad_request],
-        timeout=(7.5, 60),
-    )
+    accepted_status = [requests.codes.accepted, requests.codes.forbidden]
+    while True:
+        file_stream = BytesIO(yaml_content.encode(&#34;utf-8&#34;))
+        file_stream.seek(0)
+        m_enc = MultipartEncoder({&#34;file&#34;: (&#34;update_configuration.yaml&#34;, file_stream, &#34;application/x-yaml&#34;)})
+        response = self.handle.put(
+            url,
+            content_type=m_enc.content_type,
+            data=m_enc,
+            accepted_status=accepted_status,
+            timeout=(7.5, 60),
+        )
+        if response.status_code == requests.codes.forbidden:
+            self.handle.login()
+            accepted_status = [requests.codes.accepted]
+            continue
+        break
     try:
         return response.json()
     except Exception as e:
