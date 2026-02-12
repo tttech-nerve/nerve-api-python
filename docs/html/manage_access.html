@@ -343,10 +343,12 @@ el.replaceWith(d);
         type
             recurringSync payload
         &#34;&#34;&#34;
+        if recurring_sync is False:
+            return {&#34;recurringSync&#34;: recurring_sync}
         return {&#34;recurringSync&#34;: recurring_sync, &#34;schedule&#34;: schedule, &#34;time&#34;: time}
 
     @classmethod
-    def relationship(cls, type=&#34;&#34;, membership=&#34;&#34;, target=&#34;&#34;):
+    def relationship(cls, type=&#34;group-user&#34;, membership=&#34;&#34;, target=&#34;&#34;):
         &#34;&#34;&#34;Set relationship details.
 
         Parameters
@@ -717,7 +719,7 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
 </dl></div>
 </dd>
 <dt id="nerve_lib.manage_access.LDAP.relationship"><code class="name flex">
-<span>def <span class="ident">relationship</span></span>(<span>type='', membership='', target='')</span>
+<span>def <span class="ident">relationship</span></span>(<span>type='group-user', membership='', target='')</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Set relationship details.</p>

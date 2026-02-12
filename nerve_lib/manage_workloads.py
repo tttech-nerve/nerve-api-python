@@ -1016,6 +1016,7 @@ class MSWorkloads:
         time_start = time.time()
         time_last_log_print = time_start
         status_old = []
+        dep_log = None
         while (time.time() - time_start) < timeout:
             parameters = {"limit": 50, "page": 1, "contentType": "workload"}
             dep_logs = {"count": 0, "data": []}
@@ -1026,17 +1027,23 @@ class MSWorkloads:
                 parameters["page"] += 1
                 dep_logs["data"] += deploy_list_single_read.get("data", [])
                 dep_logs["count"] = deploy_list_single_read["count"]
+
+                # Check if required log is already in the read logs to avoid unnecessary API calls
+                dep_log = next(
+                    (
+                        dep_log
+                        for dep_log in dep_logs.get("data", [])
+                        if dep_log.get("operation_name") == deploy_name
+                    ),
+                    None,
+                )
+
+                if dep_log:
+                    break
+
                 if len(dep_logs["data"]) == deploy_list_single_read["count"]:
                     break
 
-            dep_log = next(
-                (
-                    dep_log
-                    for dep_log in dep_logs.get("data", [])
-                    if dep_log.get("operation_name") == deploy_name
-                ),
-                None,
-            )
             if not dep_log:
                 self.ms._log.warning("Deployment %s not found, retrying... ", deploy_name)
                 time.sleep(5)
@@ -1060,7 +1067,9 @@ class MSWorkloads:
                     if task_options.get("status").upper() == "ERROR":
                         num_failed_tasks += 1
 
-                if time.time() - time_last_log_print > check_interval or status_old != status_new:
+                if (time.time() - time_last_log_print) > check_interval or sorted(status_old) != sorted(
+                    status_new
+                ):
                     # Print status every check_interval seconds or if status has changed
                     time_last_log_print = time.time()
                     status_old = deepcopy(status_new)
@@ -1114,7 +1123,9 @@ class MSWorkloads:
             if state is None:
                 return status
             if dep_log.get(state):
-                self.ms._log.info("Deployment is in expected state (%s)", state)
+                self.ms._log.info(
+                    "Deployment is in expected state (%s) after %.1f seconds", state, time.time() - time_start
+                )
                 return status
 
             time.sleep(min(check_interval, 5))
@@ -1800,7 +1811,7 @@ class _WorkloadVersion:  # noqa: PLR0904
         deploy_timeout : int, optional
             Maximal time to wait for the deployment to finish. The default is 400.
         check_interval : int, optional
-            Interval of checking the deployment state. The default is 30.
+            Interval of checking the deployment state. The default is 120.
         overwrite_existing : bool, optional
             If set, an existing workload with the same name will be overwritten. The default is True.
         retry : bool, optional
@@ -1828,11 +1839,13 @@ class _WorkloadVersion:  # noqa: PLR0904
                 self.owner.ms._log.warning("Deployment did not finish, retry to deploy workload")
                 time.sleep(10)
                 return self.deploy_full(
-                    duts,
-                    deploy_name,
-                    deploy_timeout,
-                    api_version,
+                    duts=duts,
+                    deploy_name=deploy_name,
+                    deploy_timeout=deploy_timeout,
+                    check_interval=check_interval,
+                    overwrite_existing=overwrite_existing,
                     retry=False,
+                    api_version=api_version,
                 )
             msg = f"Workload deploy ({deploy_name_new}) could not be finished"
             raise WorkloadDeployError(msg)

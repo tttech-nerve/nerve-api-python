@@ -334,8 +334,11 @@ msg.value: string error message</p></div>
         response = self.post(
             url=&#34;/auth/login&#34;,
             json={&#34;identity&#34;: self.usr, &#34;secret&#34;: self.psw},
-            accepted_status=[requests.codes.ok],
+            accepted_status=[requests.codes.ok, requests.codes.forbidden],
         )
+        if response.status_code == requests.codes.forbidden:
+            self._is_logged_in = False
+            super()._check_response(&#34;post&#34;, response, [requests.codes.ok])  # will raise error
         self._add_header[&#34;sessionid&#34;] = f&#34;{response.headers[&#39;sessionId&#39;]}&#34;
         self._is_logged_in = True
 
@@ -423,8 +426,11 @@ def version(self) -&gt; str:
     response = self.post(
         url=&#34;/auth/login&#34;,
         json={&#34;identity&#34;: self.usr, &#34;secret&#34;: self.psw},
-        accepted_status=[requests.codes.ok],
+        accepted_status=[requests.codes.ok, requests.codes.forbidden],
     )
+    if response.status_code == requests.codes.forbidden:
+        self._is_logged_in = False
+        super()._check_response(&#34;post&#34;, response, [requests.codes.ok])  # will raise error
     self._add_header[&#34;sessionid&#34;] = f&#34;{response.headers[&#39;sessionId&#39;]}&#34;
     self._is_logged_in = True
 
@@ -1088,7 +1094,6 @@ def version(self) -&gt; str:
                     if retry_count &gt; 0:
                         break
                     if response.status_code in {requests.codes.unauthorized}:
-                        time.sleep(1)
                         self.login()
                         retry_count += 1
                     else:
@@ -1170,8 +1175,11 @@ def version(self) -&gt; str:
                 &#34;/api/auth/login&#34;,
                 json={&#34;username&#34;: self.usr, &#34;password&#34;: self.psw},
                 headers=headers,
-                accepted_status=[requests.codes.ok],
+                accepted_status=[requests.codes.ok, requests.codes.unauthorized],
             )
+            if response.status_code == requests.codes.unauthorized:
+                self._is_logged_in = False
+                super()._check_status_code(&#34;POST&#34;, response, [requests.codes.ok])  # will raise error
             self._is_logged_in = True
             return response
 
@@ -1283,8 +1291,11 @@ def version(self) -&gt; str:
             &#34;/api/auth/login&#34;,
             json={&#34;username&#34;: self.usr, &#34;password&#34;: self.psw},
             headers=headers,
-            accepted_status=[requests.codes.ok],
+            accepted_status=[requests.codes.ok, requests.codes.unauthorized],
         )
+        if response.status_code == requests.codes.unauthorized:
+            self._is_logged_in = False
+            super()._check_status_code(&#34;POST&#34;, response, [requests.codes.ok])  # will raise error
         self._is_logged_in = True
         return response
 
@@ -1360,7 +1371,6 @@ def version(self) -&gt; str:
                 if retry_count &gt; 0:
                     break
                 if response.status_code in {requests.codes.unauthorized}:
-                    time.sleep(1)
                     self.login()
                     retry_count += 1
                 else:

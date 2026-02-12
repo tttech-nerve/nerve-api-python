@@ -801,7 +801,6 @@ class NodeHandle(RequestGeneral):
                     if retry_count > 0:
                         break
                     if response.status_code in {requests.codes.unauthorized}:
-                        time.sleep(1)
                         self.login()
                         retry_count += 1
                     else:
@@ -883,8 +882,11 @@ class NodeHandle(RequestGeneral):
                 "/api/auth/login",
                 json={"username": self.usr, "password": self.psw},
                 headers=headers,
-                accepted_status=[requests.codes.ok],
+                accepted_status=[requests.codes.ok, requests.codes.unauthorized],
             )
+            if response.status_code == requests.codes.unauthorized:
+                self._is_logged_in = False
+                super()._check_status_code("POST", response, [requests.codes.ok])  # will raise error
             self._is_logged_in = True
             return response
 
@@ -1073,8 +1075,11 @@ class MSHandle(RequestGeneral):
         response = self.post(
             url="/auth/login",
             json={"identity": self.usr, "secret": self.psw},
-            accepted_status=[requests.codes.ok],
+            accepted_status=[requests.codes.ok, requests.codes.forbidden],
         )
+        if response.status_code == requests.codes.forbidden:
+            self._is_logged_in = False
+            super()._check_response("post", response, [requests.codes.ok])  # will raise error
         self._add_header["sessionid"] = f"{response.headers['sessionId']}"
         self._is_logged_in = True
 

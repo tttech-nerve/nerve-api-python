@@ -310,7 +310,9 @@ class ServiceOSDNACommon(DNACommon):
         while True:
             file_stream = BytesIO(yaml_content.encode("utf-8"))
             file_stream.seek(0)
-            m_enc = MultipartEncoder({"file": ("update_configuration.yaml", file_stream, "application/x-yaml")})
+            m_enc = MultipartEncoder({
+                "file": ("update_configuration.yaml", file_stream, "application/x-yaml")
+            })
             response = self.handle.put(
                 url,
                 content_type=m_enc.content_type,

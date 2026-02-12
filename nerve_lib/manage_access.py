@@ -529,10 +529,12 @@ class LDAP:
         type
             recurringSync payload
         """
+        if recurring_sync is False:
+            return {"recurringSync": recurring_sync}
         return {"recurringSync": recurring_sync, "schedule": schedule, "time": time}
 
     @classmethod
-    def relationship(cls, type="", membership="", target=""):
+    def relationship(cls, type="group-user", membership="", target=""):
         """Set relationship details.
 
         Parameters

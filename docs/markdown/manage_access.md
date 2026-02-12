@@ -108,7 +108,7 @@ Classes
         type
             recurringSync payload
 
-    `relationship(type='', membership='', target='')`
+    `relationship(type='group-user', membership='', target='')`
     :   Set relationship details.
         
         Parameters

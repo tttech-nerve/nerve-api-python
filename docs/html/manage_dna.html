@@ -807,7 +807,9 @@ as dictionary containing the configuration string (file-content).</dd>
         while True:
             file_stream = BytesIO(yaml_content.encode(&#34;utf-8&#34;))
             file_stream.seek(0)
-            m_enc = MultipartEncoder({&#34;file&#34;: (&#34;update_configuration.yaml&#34;, file_stream, &#34;application/x-yaml&#34;)})
+            m_enc = MultipartEncoder({
+                &#34;file&#34;: (&#34;update_configuration.yaml&#34;, file_stream, &#34;application/x-yaml&#34;)
+            })
             response = self.handle.put(
                 url,
                 content_type=m_enc.content_type,
@@ -869,7 +871,9 @@ as dictionary containing the configuration string (file-content).</dd>
     while True:
         file_stream = BytesIO(yaml_content.encode(&#34;utf-8&#34;))
         file_stream.seek(0)
-        m_enc = MultipartEncoder({&#34;file&#34;: (&#34;update_configuration.yaml&#34;, file_stream, &#34;application/x-yaml&#34;)})
+        m_enc = MultipartEncoder({
+            &#34;file&#34;: (&#34;update_configuration.yaml&#34;, file_stream, &#34;application/x-yaml&#34;)
+        })
         response = self.handle.put(
             url,
             content_type=m_enc.content_type,
