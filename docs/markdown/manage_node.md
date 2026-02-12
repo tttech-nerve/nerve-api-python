@@ -26,6 +26,9 @@ Classes
 
     ### Methods
 
+    `auth_ms_on_node(self, ms_url: str, username: str, password: str)`
+    :   Authenticate the node with the management system.
+
     `change_password(self, username, old_password, new_password)`
     :   Change the password for a user.
 
@@ -68,6 +71,10 @@ Classes
     `get_backup_list(self)`
     :   Read backup list for node.
 
+    `get_custom_role_permissions(self)`
+    :   Get list of all permissions for the custom role via /api/permissions/custom-role (GET).
+        Returns: list of permission codes (strings)
+
     `get_deploy_backup_status(self, backup_id)`
     :   Get the state of a deployed backup.
 
@@ -109,6 +116,9 @@ Classes
         type
             Result of the POST request.
 
+    `offboard_node_local_ui(self)`
+    :   Offboarding node from the Local-UI.
+
     `rc_setting(self, approve: int)`
     :   Set remote connection approval settings.
         
@@ -146,8 +156,12 @@ Classes
     `restore_vm_snapshot(self, workload_name, snapshot_name)`
     :   Restore a snapshot of a VM workload.
 
-    `set_configuration(self, ms_url: str)`
+    `set_configuration(self, ms_url: str, node_name=None)`
     :   Set onboarding configuration to connect to a management system.
+        
+        Args:
+        ms_url (str): The URL of the management system.
+        node_name (str): The name of the node. Required for uki nerve-node devices.
 
     `set_critical_action(self, file_path, value)`
     :   Edit the critical actions file to change 'allow' to 'not allowed' or vice versa.
@@ -159,6 +173,11 @@ Classes
         Returns
         -------
             str: The modified content of the YAML file as a string.
+
+    `set_custom_role_permissions(self, permissions, patch_success_code=202)`
+    :   Set list of permissions for the custom role via /api/permissions/custom-role (PATCH).
+        permissions: list of permission codes (strings) ["AUTH:LOGOUT","AUTH:VIEW", ...
+        Returns: response object
 
     `set_local_repository(self, protocol, repo_type, path, user=None, password=None, options='')`
     :   Set a local repository.
