@@ -5,7 +5,7 @@ charset-normalizer==3.4.2
 cryptography==43.0.3
 idna==3.10
 lefthook==1.11.13
--e git+https://github.com/tttech-nerve/nerve-api-python.git@085d4a64d7a7026d097d4611d070f809c83c9fd7#egg=nerve_lib
+-e git+ssh://git@github.com/tttech-nerve/nerve-api-python.git@ad32f9d501739722bd10ec05b12e4496c98f5be9#egg=nerve_lib
 paramiko==3.5.1
 pycparser==2.22
 PyNaCl==1.5.0
