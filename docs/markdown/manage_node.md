@@ -26,19 +26,6 @@ Classes
 
     ### Methods
 
-    `apply_node_configuration(self, config)`
-    :   Apply a new node configuration by merging it with the current configuration.
-        The new configuration is saved to a YAML file and sent to the node.
-        
-        Parameters
-        ----------
-            config : dict
-                The new configuration to apply.
-        
-        Returns
-        -------
-            dict: The response from the node after applying the configuration.
-
     `auth_ms_on_node(self, ms_url: str, username: str, password: str)`
     :   Authenticate the node with the management system.
 
@@ -97,13 +84,6 @@ Classes
     `get_network_configuration(self)`
     :   Get network configuration of all interface.
 
-    `get_node_configuration(self)`
-    :   Get the current node configuration.
-        
-        Returns
-        -------
-            dict: The current node configuration.
-
     `get_secure_id(self)`
     :   Read the secure id of a node.
 
@@ -135,13 +115,6 @@ Classes
         -------
         type
             Result of the POST request.
-
-    `node_configuration_apply_status(self)`
-    :   Check the status of the node configuration application.
-        
-        Returns
-        -------
-            str: The status message of the node configuration application.
 
     `offboard_node_local_ui(self)`
     :   Offboarding node from the Local-UI.
