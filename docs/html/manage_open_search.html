@@ -75,7 +75,7 @@ el.replaceWith(d);
 
     def __init__(self, ms_handle):
         self.ms = ms_handle
-        self._log = logging.getLogger(&#34;User&#34;)
+        self._log = ms_handle._log.getChild(&#34;OpenSearch&#34;)
 
         self.query_filter = [{&#34;match_all&#34;: {}}]
         self.query_must = []
@@ -126,10 +126,12 @@ el.replaceWith(d);
         &#34;&#34;&#34;Define which field should be filtered by a phrase.&#34;&#34;&#34;
         return {&#34;match_phrase&#34;: {field: phrase}}
 
-    def _get_index(self, index: str, past_hours: int, search_filters: list = []):
+    def _get_index(self, index: str, past_hours: int, search_filters: list | None = None):
         &#34;&#34;&#34;Read specific index from open-search.&#34;&#34;&#34;
+        if search_filters is None:
+            search_filters = []
         # Get the current time in UTC
-        current_time = datetime.utcnow()
+        current_time = datetime.now(datetime.timezone.utc)
         past_time = current_time - timedelta(hours=past_hours)
 
         # Format the time as a string
@@ -174,27 +176,27 @@ el.replaceWith(d);
         }
         return self.__post_payload(&#34;/opensearch/internal/search/opensearch&#34;, payload)
 
-    def get_audit(self, past_hours: int = 5, search_filters: list = []):
+    def get_audit(self, past_hours: int = 5, search_filters: list | None = None):
         &#34;&#34;&#34;Get audit logs from open search.&#34;&#34;&#34;
         return self._get_index(index=&#34;audit-ms*&#34;, past_hours=past_hours, search_filters=search_filters)
 
-    def get_audit_node(self, past_hours: int = 5, search_filters: list = []):
+    def get_audit_node(self, past_hours: int = 5, search_filters: list | None = None):
         &#34;&#34;&#34;Get audit logs node from open search.&#34;&#34;&#34;
         return self._get_index(index=&#34;audit-node*&#34;, past_hours=past_hours, search_filters=search_filters)
 
-    def get_filebeat(self, past_hours: int = 5, search_filters: list = []):
+    def get_filebeat(self, past_hours: int = 5, search_filters: list | None = None):
         &#34;&#34;&#34;Get filebeat logs from open search.&#34;&#34;&#34;
         return self._get_index(index=&#34;filebeat*&#34;, past_hours=past_hours, search_filters=search_filters)
 
-    def get_nerve(self, past_hours: int = 5, search_filters: list = []):
+    def get_nerve(self, past_hours: int = 5, search_filters: list | None = None):
         &#34;&#34;&#34;Get nerve logs from open search.&#34;&#34;&#34;
         return self._get_index(index=&#34;nerve-ms-*&#34;, past_hours=past_hours, search_filters=search_filters)
 
-    def get_fluentbit(self, past_hours: int = 5, search_filters: list = []):
+    def get_fluentbit(self, past_hours: int = 5, search_filters: list | None = None):
         &#34;&#34;&#34;Get filebeat logs from open search.&#34;&#34;&#34;
         return self._get_index(index=&#34;docker-log*&#34;, past_hours=past_hours, search_filters=search_filters)
 
-    def get_audit_docker(self, past_hours: int = 5, search_filters: list = []):
+    def get_audit_docker(self, past_hours: int = 5, search_filters: list | None = None):
         &#34;&#34;&#34;Get audit logs node from open search.&#34;&#34;&#34;
         return self._get_index(
             index=&#34;audit-docker-log*&#34;, past_hours=past_hours, search_filters=search_filters
@@ -270,24 +272,28 @@ el.replaceWith(d);
 
         return matching_hits
 
-    def messages_audit(self, message_level: str = &#34;&#34;, past_hours: int = 5, search_filters: list = []):
+    def messages_audit(
+        self, message_level: str = &#34;&#34;, past_hours: int = 5, search_filters: list | None = None
+    ):
         &#34;&#34;&#34;Get messages from audit logs.
 
         message_level str, optional:
             one of &#34;info&#34;, &#34;warn&#34;, &#34;error&#34;
         &#34;&#34;&#34;
-        all_filters = deepcopy(search_filters)
+        all_filters = deepcopy(search_filters if search_filters else [])
         if message_level:
             all_filters.append(self.create_filter_matchphrase(&#34;message&#34;, f&#34;&#39;level&#39;:&#39;{message_level}&#39;&#34;))
         response_data = self.get_audit(past_hours, all_filters)
         return [msg[&#34;_source&#34;] for msg in response_data[&#34;rawResponse&#34;][&#34;hits&#34;][&#34;hits&#34;]]
 
-    def messages_filebeat(self, severity_level: str = &#34;&#34;, past_hours: int = 5, search_filters: list = []):
+    def messages_filebeat(
+        self, severity_level: str = &#34;&#34;, past_hours: int = 5, search_filters: list | None = None
+    ):
         &#34;&#34;&#34;Get messages from filebeat logs.
 
         severtiy_level: one of [&#34;Informational&#34;,&#34;Error&#34;,&#34;Warning&#34;].
         &#34;&#34;&#34;
-        all_filters = deepcopy(search_filters)
+        all_filters = deepcopy(search_filters if search_filters else [])
         if severity_level:
             all_filters.append(
                 self.create_filter_matchphrase(&#34;syslog.severity_label&#34;, severity_level.title()),
@@ -295,9 +301,11 @@ el.replaceWith(d);
         response_data = self.get_filebeat(past_hours, all_filters)
         return [msg[&#34;_source&#34;] for msg in response_data[&#34;rawResponse&#34;][&#34;hits&#34;][&#34;hits&#34;]]
 
-    def messages_nerve(self, message_level: str = &#34;&#34;, past_hours: int = 5, search_filters: list = []):
+    def messages_nerve(
+        self, message_level: str = &#34;&#34;, past_hours: int = 5, search_filters: list | None = None
+    ):
         &#34;&#34;&#34;Get messages from nerve logs.&#34;&#34;&#34;
-        all_filters = deepcopy(search_filters)
+        all_filters = deepcopy(search_filters if search_filters else [])
         if message_level:
             all_filters.append(self.create_filter_matchphrase(&#34;message&#34;, f&#34;&#39;level&#39;:&#39;{message_level}&#39;&#34;))
         response_data = self.get_nerve(past_hours, all_filters)
@@ -532,28 +540,28 @@ def create_search_multimatch_phrase(phrase):
 </code></pre></div>
 </dd>
 <dt id="nerve_lib.manage_open_search.MSOpenSearch.get_audit"><code class="name flex">
-<span>def <span class="ident">get_audit</span></span>(<span>self, past_hours: int = 5, search_filters: list = [])</span>
+<span>def <span class="ident">get_audit</span></span>(<span>self, past_hours: int = 5, search_filters: list | None = None)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get_audit(self, past_hours: int = 5, search_filters: list = []):
+<pre><code class="python">def get_audit(self, past_hours: int = 5, search_filters: list | None = None):
     &#34;&#34;&#34;Get audit logs from open search.&#34;&#34;&#34;
     return self._get_index(index=&#34;audit-ms*&#34;, past_hours=past_hours, search_filters=search_filters)</code></pre>
 </details>
 <div class="desc"><p>Get audit logs from open search.</p></div>
 </dd>
 <dt id="nerve_lib.manage_open_search.MSOpenSearch.get_audit_docker"><code class="name flex">
-<span>def <span class="ident">get_audit_docker</span></span>(<span>self, past_hours: int = 5, search_filters: list = [])</span>
+<span>def <span class="ident">get_audit_docker</span></span>(<span>self, past_hours: int = 5, search_filters: list | None = None)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get_audit_docker(self, past_hours: int = 5, search_filters: list = []):
+<pre><code class="python">def get_audit_docker(self, past_hours: int = 5, search_filters: list | None = None):
     &#34;&#34;&#34;Get audit logs node from open search.&#34;&#34;&#34;
     return self._get_index(
         index=&#34;audit-docker-log*&#34;, past_hours=past_hours, search_filters=search_filters
@@ -562,76 +570,78 @@ def create_search_multimatch_phrase(phrase):
 <div class="desc"><p>Get audit logs node from open search.</p></div>
 </dd>
 <dt id="nerve_lib.manage_open_search.MSOpenSearch.get_audit_node"><code class="name flex">
-<span>def <span class="ident">get_audit_node</span></span>(<span>self, past_hours: int = 5, search_filters: list = [])</span>
+<span>def <span class="ident">get_audit_node</span></span>(<span>self, past_hours: int = 5, search_filters: list | None = None)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get_audit_node(self, past_hours: int = 5, search_filters: list = []):
+<pre><code class="python">def get_audit_node(self, past_hours: int = 5, search_filters: list | None = None):
     &#34;&#34;&#34;Get audit logs node from open search.&#34;&#34;&#34;
     return self._get_index(index=&#34;audit-node*&#34;, past_hours=past_hours, search_filters=search_filters)</code></pre>
 </details>
 <div class="desc"><p>Get audit logs node from open search.</p></div>
 </dd>
 <dt id="nerve_lib.manage_open_search.MSOpenSearch.get_filebeat"><code class="name flex">
-<span>def <span class="ident">get_filebeat</span></span>(<span>self, past_hours: int = 5, search_filters: list = [])</span>
+<span>def <span class="ident">get_filebeat</span></span>(<span>self, past_hours: int = 5, search_filters: list | None = None)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get_filebeat(self, past_hours: int = 5, search_filters: list = []):
+<pre><code class="python">def get_filebeat(self, past_hours: int = 5, search_filters: list | None = None):
     &#34;&#34;&#34;Get filebeat logs from open search.&#34;&#34;&#34;
     return self._get_index(index=&#34;filebeat*&#34;, past_hours=past_hours, search_filters=search_filters)</code></pre>
 </details>
 <div class="desc"><p>Get filebeat logs from open search.</p></div>
 </dd>
 <dt id="nerve_lib.manage_open_search.MSOpenSearch.get_fluentbit"><code class="name flex">
-<span>def <span class="ident">get_fluentbit</span></span>(<span>self, past_hours: int = 5, search_filters: list = [])</span>
+<span>def <span class="ident">get_fluentbit</span></span>(<span>self, past_hours: int = 5, search_filters: list | None = None)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get_fluentbit(self, past_hours: int = 5, search_filters: list = []):
+<pre><code class="python">def get_fluentbit(self, past_hours: int = 5, search_filters: list | None = None):
     &#34;&#34;&#34;Get filebeat logs from open search.&#34;&#34;&#34;
     return self._get_index(index=&#34;docker-log*&#34;, past_hours=past_hours, search_filters=search_filters)</code></pre>
 </details>
 <div class="desc"><p>Get filebeat logs from open search.</p></div>
 </dd>
 <dt id="nerve_lib.manage_open_search.MSOpenSearch.get_nerve"><code class="name flex">
-<span>def <span class="ident">get_nerve</span></span>(<span>self, past_hours: int = 5, search_filters: list = [])</span>
+<span>def <span class="ident">get_nerve</span></span>(<span>self, past_hours: int = 5, search_filters: list | None = None)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get_nerve(self, past_hours: int = 5, search_filters: list = []):
+<pre><code class="python">def get_nerve(self, past_hours: int = 5, search_filters: list | None = None):
     &#34;&#34;&#34;Get nerve logs from open search.&#34;&#34;&#34;
     return self._get_index(index=&#34;nerve-ms-*&#34;, past_hours=past_hours, search_filters=search_filters)</code></pre>
 </details>
 <div class="desc"><p>Get nerve logs from open search.</p></div>
 </dd>
 <dt id="nerve_lib.manage_open_search.MSOpenSearch.messages_audit"><code class="name flex">
-<span>def <span class="ident">messages_audit</span></span>(<span>self, message_level: str = '', past_hours: int = 5, search_filters: list = [])</span>
+<span>def <span class="ident">messages_audit</span></span>(<span>self,<br>message_level: str = '',<br>past_hours: int = 5,<br>search_filters: list | None = None)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def messages_audit(self, message_level: str = &#34;&#34;, past_hours: int = 5, search_filters: list = []):
+<pre><code class="python">def messages_audit(
+    self, message_level: str = &#34;&#34;, past_hours: int = 5, search_filters: list | None = None
+):
     &#34;&#34;&#34;Get messages from audit logs.
 
     message_level str, optional:
         one of &#34;info&#34;, &#34;warn&#34;, &#34;error&#34;
     &#34;&#34;&#34;
-    all_filters = deepcopy(search_filters)
+    all_filters = deepcopy(search_filters if search_filters else [])
     if message_level:
         all_filters.append(self.create_filter_matchphrase(&#34;message&#34;, f&#34;&#39;level&#39;:&#39;{message_level}&#39;&#34;))
     response_data = self.get_audit(past_hours, all_filters)
@@ -642,19 +652,21 @@ def create_search_multimatch_phrase(phrase):
 one of "info", "warn", "error"</p></div>
 </dd>
 <dt id="nerve_lib.manage_open_search.MSOpenSearch.messages_filebeat"><code class="name flex">
-<span>def <span class="ident">messages_filebeat</span></span>(<span>self, severity_level: str = '', past_hours: int = 5, search_filters: list = [])</span>
+<span>def <span class="ident">messages_filebeat</span></span>(<span>self,<br>severity_level: str = '',<br>past_hours: int = 5,<br>search_filters: list | None = None)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def messages_filebeat(self, severity_level: str = &#34;&#34;, past_hours: int = 5, search_filters: list = []):
+<pre><code class="python">def messages_filebeat(
+    self, severity_level: str = &#34;&#34;, past_hours: int = 5, search_filters: list | None = None
+):
     &#34;&#34;&#34;Get messages from filebeat logs.
 
     severtiy_level: one of [&#34;Informational&#34;,&#34;Error&#34;,&#34;Warning&#34;].
     &#34;&#34;&#34;
-    all_filters = deepcopy(search_filters)
+    all_filters = deepcopy(search_filters if search_filters else [])
     if severity_level:
         all_filters.append(
             self.create_filter_matchphrase(&#34;syslog.severity_label&#34;, severity_level.title()),
@@ -666,16 +678,18 @@ one of "info", "warn", "error"</p></div>
 <p>severtiy_level: one of ["Informational","Error","Warning"].</p></div>
 </dd>
 <dt id="nerve_lib.manage_open_search.MSOpenSearch.messages_nerve"><code class="name flex">
-<span>def <span class="ident">messages_nerve</span></span>(<span>self, message_level: str = '', past_hours: int = 5, search_filters: list = [])</span>
+<span>def <span class="ident">messages_nerve</span></span>(<span>self,<br>message_level: str = '',<br>past_hours: int = 5,<br>search_filters: list | None = None)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def messages_nerve(self, message_level: str = &#34;&#34;, past_hours: int = 5, search_filters: list = []):
+<pre><code class="python">def messages_nerve(
+    self, message_level: str = &#34;&#34;, past_hours: int = 5, search_filters: list | None = None
+):
     &#34;&#34;&#34;Get messages from nerve logs.&#34;&#34;&#34;
-    all_filters = deepcopy(search_filters)
+    all_filters = deepcopy(search_filters if search_filters else [])
     if message_level:
         all_filters.append(self.create_filter_matchphrase(&#34;message&#34;, f&#34;&#39;level&#39;:&#39;{message_level}&#39;&#34;))
     response_data = self.get_nerve(past_hours, all_filters)

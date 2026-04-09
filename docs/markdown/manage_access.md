@@ -253,8 +253,8 @@ Classes
     
     Parameters
     ----------
-    ms_handle :
-        management system handle 'nerve_lib.general_utils.MSHandle(...)'.
+    node_handle :
+        node handle 'nerve_lib.general_utils.NodeHandle(...)'.
 
     ### Methods
 
@@ -331,11 +331,8 @@ Classes
     `delete(self, email)`
     :   Delete a user from the MS.
 
-    `edit(self, email: str, roles: list = [], first_name='', last_name='', role_type='local')`
+    `edit(self, email: str, roles: list | None = None, first_name='', last_name='', role_type='local')`
     :   Edit an existing user.
-
-    `extract_endpoints(self, openapi_spec, output_json)`
-    :   Extract endpoints from OpenAPI specification and save to JSON file.
 
     `get(self, email='', role_type='local')`
     :   Get a list of users.

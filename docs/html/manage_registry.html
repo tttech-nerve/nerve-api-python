@@ -128,13 +128,13 @@ deleting tags, and more.</p>
             json=payload,
         ).json()
 
-    def check_image_status(self, images: list[str] = []):
+    def check_image_status(self, images: list[str]):
         &#34;&#34;&#34;Check image status.
 
         Parameters
         ----------
         images : list[str]
-            image name(s).
+            image names.
 
         Returns
         -------
@@ -180,20 +180,20 @@ deleting tags, and more.</p>
 <h3>Methods</h3>
 <dl>
 <dt id="nerve_lib.manage_registry.InternalRegistry.check_image_status"><code class="name flex">
-<span>def <span class="ident">check_image_status</span></span>(<span>self, images: list[str] = [])</span>
+<span>def <span class="ident">check_image_status</span></span>(<span>self, images: list[str])</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def check_image_status(self, images: list[str] = []):
+<pre><code class="python">def check_image_status(self, images: list[str]):
     &#34;&#34;&#34;Check image status.
 
     Parameters
     ----------
     images : list[str]
-        image name(s).
+        image names.
 
     Returns
     -------
@@ -211,7 +211,7 @@ deleting tags, and more.</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>images</code></strong> :&ensp;<code>list[str]</code></dt>
-<dd>image name(s).</dd>
+<dd>image names.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>

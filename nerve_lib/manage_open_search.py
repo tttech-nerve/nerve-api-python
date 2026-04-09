@@ -30,7 +30,6 @@ Example:
 """
 
 import json
-import logging
 from copy import deepcopy
 from datetime import datetime
 from datetime import timedelta
@@ -49,7 +48,7 @@ class MSOpenSearch:
 
     def __init__(self, ms_handle):
         self.ms = ms_handle
-        self._log = logging.getLogger("User")
+        self._log = ms_handle._log.getChild("OpenSearch")
 
         self.query_filter = [{"match_all": {}}]
         self.query_must = []
@@ -100,10 +99,12 @@ class MSOpenSearch:
         """Define which field should be filtered by a phrase."""
         return {"match_phrase": {field: phrase}}
 
-    def _get_index(self, index: str, past_hours: int, search_filters: list = []):
+    def _get_index(self, index: str, past_hours: int, search_filters: list | None = None):
         """Read specific index from open-search."""
+        if search_filters is None:
+            search_filters = []
         # Get the current time in UTC
-        current_time = datetime.utcnow()
+        current_time = datetime.now(datetime.timezone.utc)
         past_time = current_time - timedelta(hours=past_hours)
 
         # Format the time as a string
@@ -148,27 +149,27 @@ class MSOpenSearch:
         }
         return self.__post_payload("/opensearch/internal/search/opensearch", payload)
 
-    def get_audit(self, past_hours: int = 5, search_filters: list = []):
+    def get_audit(self, past_hours: int = 5, search_filters: list | None = None):
         """Get audit logs from open search."""
         return self._get_index(index="audit-ms*", past_hours=past_hours, search_filters=search_filters)
 
-    def get_audit_node(self, past_hours: int = 5, search_filters: list = []):
+    def get_audit_node(self, past_hours: int = 5, search_filters: list | None = None):
         """Get audit logs node from open search."""
         return self._get_index(index="audit-node*", past_hours=past_hours, search_filters=search_filters)
 
-    def get_filebeat(self, past_hours: int = 5, search_filters: list = []):
+    def get_filebeat(self, past_hours: int = 5, search_filters: list | None = None):
         """Get filebeat logs from open search."""
         return self._get_index(index="filebeat*", past_hours=past_hours, search_filters=search_filters)
 
-    def get_nerve(self, past_hours: int = 5, search_filters: list = []):
+    def get_nerve(self, past_hours: int = 5, search_filters: list | None = None):
         """Get nerve logs from open search."""
         return self._get_index(index="nerve-ms-*", past_hours=past_hours, search_filters=search_filters)
 
-    def get_fluentbit(self, past_hours: int = 5, search_filters: list = []):
+    def get_fluentbit(self, past_hours: int = 5, search_filters: list | None = None):
         """Get filebeat logs from open search."""
         return self._get_index(index="docker-log*", past_hours=past_hours, search_filters=search_filters)
 
-    def get_audit_docker(self, past_hours: int = 5, search_filters: list = []):
+    def get_audit_docker(self, past_hours: int = 5, search_filters: list | None = None):
         """Get audit logs node from open search."""
         return self._get_index(
             index="audit-docker-log*", past_hours=past_hours, search_filters=search_filters
@@ -244,24 +245,28 @@ class MSOpenSearch:
 
         return matching_hits
 
-    def messages_audit(self, message_level: str = "", past_hours: int = 5, search_filters: list = []):
+    def messages_audit(
+        self, message_level: str = "", past_hours: int = 5, search_filters: list | None = None
+    ):
         """Get messages from audit logs.
 
         message_level str, optional:
             one of "info", "warn", "error"
         """
-        all_filters = deepcopy(search_filters)
+        all_filters = deepcopy(search_filters if search_filters else [])
         if message_level:
             all_filters.append(self.create_filter_matchphrase("message", f"'level':'{message_level}'"))
         response_data = self.get_audit(past_hours, all_filters)
         return [msg["_source"] for msg in response_data["rawResponse"]["hits"]["hits"]]
 
-    def messages_filebeat(self, severity_level: str = "", past_hours: int = 5, search_filters: list = []):
+    def messages_filebeat(
+        self, severity_level: str = "", past_hours: int = 5, search_filters: list | None = None
+    ):
         """Get messages from filebeat logs.
 
         severtiy_level: one of ["Informational","Error","Warning"].
         """
-        all_filters = deepcopy(search_filters)
+        all_filters = deepcopy(search_filters if search_filters else [])
         if severity_level:
             all_filters.append(
                 self.create_filter_matchphrase("syslog.severity_label", severity_level.title()),
@@ -269,9 +274,11 @@ class MSOpenSearch:
         response_data = self.get_filebeat(past_hours, all_filters)
         return [msg["_source"] for msg in response_data["rawResponse"]["hits"]["hits"]]
 
-    def messages_nerve(self, message_level: str = "", past_hours: int = 5, search_filters: list = []):
+    def messages_nerve(
+        self, message_level: str = "", past_hours: int = 5, search_filters: list | None = None
+    ):
         """Get messages from nerve logs."""
-        all_filters = deepcopy(search_filters)
+        all_filters = deepcopy(search_filters if search_filters else [])
         if message_level:
             all_filters.append(self.create_filter_matchphrase("message", f"'level':'{message_level}'"))
         response_data = self.get_nerve(past_hours, all_filters)

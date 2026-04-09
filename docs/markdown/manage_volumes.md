@@ -52,5 +52,41 @@ Classes
         -------
         Response object from the MS API.
 
-    `import_volume_data_ms(self, dut_serial, volume_name, file, import_timeout=30)`
+    `import_volume_data(self, dut_serial, volume_name, file_path, import_timeout=30)`
     :   Import data to a volume with improved error handling.
+
+`LocalDockerVolumes(node_handle)`
+:   Handle Docker Volumes using localUI.
+
+    ### Methods
+
+    `delete_volume(self, volume_name)`
+    :   Delete a Docker volume.
+        
+        Parameters
+        ----------
+        volume_name : str
+            Name of the volume to be deleted.
+
+    `export_volume_data(self, volume_name, file_path: str | None = None, export_timeout=30)`
+    :   Export data from a volume.
+        
+        Parameters
+        ----------
+        volume_name : str
+            Name of the volume.
+        file_path : str | None
+            Path to the file where the exported data will be saved. If None, the data will not be saved to a file.
+
+    `get_volumes(self)`
+    :   Get all Docker volumes on a node.
+
+    `import_volume_data(self, volume_name, file_path, import_timeout=30)`
+    :   Import data to a volume.
+        
+        Parameters
+        ----------
+        volume_name : str
+            Name of the volume.
+        file_path : str
+            Path to the file to be imported.

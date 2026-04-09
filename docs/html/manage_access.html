@@ -403,7 +403,7 @@ el.replaceWith(d);
         self,
         action: str,
         file_name: str,
-        ldap_payload: Optional[dict] = None,
+        ldap_payload: dict | None = None,
         recurring_sync=None,
         relationship=None,
         users=None,
@@ -885,7 +885,7 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
     self,
     action: str,
     file_name: str,
-    ldap_payload: Optional[dict] = None,
+    ldap_payload: dict | None = None,
     recurring_sync=None,
     relationship=None,
     users=None,
@@ -1084,13 +1084,13 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
 
     Parameters
     ----------
-    ms_handle :
-        management system handle &#39;nerve_lib.general_utils.MSHandle(...)&#39;.
+    node_handle :
+        node handle &#39;nerve_lib.general_utils.NodeHandle(...)&#39;.
     &#34;&#34;&#34;
 
     def __init__(self, node_handle):
         self.node = node_handle
-        self._log = logging.getLogger(&#34;User&#34;)
+        self._log = node_handle._log.getChild(&#34;User&#34;)
 
     def delete(self, username: str = &#34;&#34;):
         &#34;&#34;&#34;Delete all users or a specific user from the node.
@@ -1136,8 +1136,8 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
 </details>
 <div class="desc"><p>User management related functions from MS.</p>
 <h2 id="parameters">Parameters</h2>
-<p>ms_handle :
-management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
+<p>node_handle :
+node handle 'nerve_lib.general_utils.NodeHandle(&hellip;)'.</p></div>
 <h3>Methods</h3>
 <dl>
 <dt id="nerve_lib.manage_access.LocalUser.delete"><code class="name flex">
@@ -1254,7 +1254,7 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
 
     def __init__(self, ms_handle):
         self.ms = ms_handle
-        self._log = logging.getLogger(&#34;Role&#34;)
+        self._log = ms_handle._log.getChild(&#34;Role&#34;)
 
     def get(self, name: str = &#34;&#34;, role_type: str = &#34;local&#34;):
         &#34;&#34;&#34;Get list of available roles in MS.&#34;&#34;&#34;
@@ -1269,9 +1269,7 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
             return next(role for role in role_list if role[&#34;name&#34;] == name)
         except StopIteration:
             msg = f&#34;Role &#39;{name}&#39; not in role_type &#39;{role_type}&#39; ({[role[&#39;name&#39;] for role in role_list]})&#34;
-            raise Exception(
-                msg,
-            )
+            raise ValueError(msg)
 
     def get_permission_ui(self, name_filter: str = &#34;&#34;):
         &#34;&#34;&#34;Get list of permissions for UI class.&#34;&#34;&#34;
@@ -1303,9 +1301,7 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
                     f&#34;Permission &#39;{perm_name}&#39; not valid, use one of &#34;
                     f&#34;({[perm[&#39;name&#39;] for perm in available_permissions[&#39;data&#39;]]}&#34;
                 )
-                raise Exception(
-                    msg,
-                )
+                raise ValueError(msg)
         payload = {
             &#34;id&#34;: &#34;&#34;,
             &#34;name&#34;: name,
@@ -1361,9 +1357,7 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
                     f&#34;Permission &#39;{perm_name}&#39; not valid, use one of &#34;
                     f&#34;({[perm[&#39;name&#39;] for perm in available_permissions[&#39;data&#39;]]}&#34;
                 )
-                raise Exception(
-                    msg,
-                )
+                raise ValueError(msg)
 
         # Update fields only if they are provided
         role_id = existing_role[&#34;_id&#34;]
@@ -1414,9 +1408,7 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
                 f&#34;Permission &#39;{perm_name}&#39; not valid, use one of &#34;
                 f&#34;({[perm[&#39;name&#39;] for perm in available_permissions[&#39;data&#39;]]}&#34;
             )
-            raise Exception(
-                msg,
-            )
+            raise ValueError(msg)
     payload = {
         &#34;id&#34;: &#34;&#34;,
         &#34;name&#34;: name,
@@ -1492,9 +1484,7 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
                 f&#34;Permission &#39;{perm_name}&#39; not valid, use one of &#34;
                 f&#34;({[perm[&#39;name&#39;] for perm in available_permissions[&#39;data&#39;]]}&#34;
             )
-            raise Exception(
-                msg,
-            )
+            raise ValueError(msg)
 
     # Update fields only if they are provided
     role_id = existing_role[&#34;_id&#34;]
@@ -1540,9 +1530,7 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
         return next(role for role in role_list if role[&#34;name&#34;] == name)
     except StopIteration:
         msg = f&#34;Role &#39;{name}&#39; not in role_type &#39;{role_type}&#39; ({[role[&#39;name&#39;] for role in role_list]})&#34;
-        raise Exception(
-            msg,
-        )</code></pre>
+        raise ValueError(msg)</code></pre>
 </details>
 <div class="desc"><p>Get list of available roles in MS.</p></div>
 </dd>
@@ -1604,7 +1592,7 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
 
     def __init__(self, ms_handle):
         self.ms = ms_handle
-        self._log = logging.getLogger(&#34;User&#34;)
+        self._log = ms_handle._log.getChild(&#34;User&#34;)
         self._role = MSRole(ms_handle)
 
     def get(self, email=&#34;&#34;, role_type=&#34;local&#34;):
@@ -1622,9 +1610,7 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
                     f&#34;User &#39;{email}&#39; not in role_type &#39;{role_type}&#39; &#34;
                     f&#34;({[user[&#39;username&#39;] for user in user_list[&#39;data&#39;]]}&#34;
                 )
-                raise Exception(
-                    msg,
-                )
+                raise ValueError(msg)
         return user_list
 
     def add(
@@ -1637,9 +1623,7 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
             raise RuntimeError(msg)
         uname = [name.capitalize() for name in email.split(&#34;@&#34;, maxsplit=1)[0].split(&#34;.&#34;, 1)]
 
-        role_ids = []
-        for role in roles:
-            role_ids.append(self._role.get(role, role_type)[&#34;_id&#34;])
+        role_ids = [self._role.get(role, role_type)[&#34;_id&#34;] for role in roles]
 
         payload = {
             &#34;firstName&#34;: first_name or uname[0],
@@ -1657,32 +1641,26 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
             ],
             &#34;roles&#34;: role_ids,
         }
-        accepted_status = [requests.codes.ok, requests.codes.forbidden]
-        while True:
-            m_enc = MultipartEncoder({&#34;data&#34;: (None, json.dumps(payload), &#34;form-data&#34;)})
 
-            response = self.ms.post(
-                &#34;/crm/profile&#34;,
-                data=m_enc,
-                content_type=m_enc.content_type,
-                accepted_status=accepted_status,
-            )
-            if response.status_code == requests.codes.forbidden:
-                self.node.login()
-                accepted_status = [requests.codes.ok]
-                continue
-            break
+        m_enc_data = {&#34;data&#34;: (None, json.dumps(payload), &#34;form-data&#34;)}
+
+        response = self.ms.post(
+            &#34;/crm/profile&#34;,
+            m_enc_data=m_enc_data,
+            accepted_status=[requests.codes.ok],
+        )
         return response.json()
 
-    def edit(self, email: str, roles: list = [], first_name=&#34;&#34;, last_name=&#34;&#34;, role_type=&#34;local&#34;):
+    def edit(self, email: str, roles: list | None = None, first_name=&#34;&#34;, last_name=&#34;&#34;, role_type=&#34;local&#34;):
         &#34;&#34;&#34;Edit an existing user.&#34;&#34;&#34;
         payload = self.get(email, role_type)
 
         if roles:
-            role_ids = []
-            for role in roles:
-                role_ids.append(self._role.get(role, role_type)[&#34;_id&#34;])
+            role_ids = [self._role.get(role, role_type)[&#34;_id&#34;] for role in roles]
             payload[&#34;roles&#34;] = role_ids
+        else:
+            role_dicts = payload.get(&#34;roles&#34;, [])
+            payload[&#34;roles&#34;] = [role_dict[&#34;_id&#34;] for role_dict in role_dicts]
 
         if first_name:
             payload[&#34;firstName&#34;] = first_name
@@ -1694,21 +1672,13 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
 
         payload[&#34;id&#34;] = payload.pop(&#34;_id&#34;)
 
-        accepted_status = [requests.codes.ok, requests.codes.forbidden]
-        while True:
-            m_enc = MultipartEncoder({&#34;data&#34;: (None, json.dumps(payload), &#34;form-data&#34;)})
+        m_enc_data = {&#34;data&#34;: (None, json.dumps(payload), &#34;form-data&#34;)}
 
-            response = self.ms.put(
-                f&#34;/crm/profile/{payload.get(&#39;id&#39;)}&#34;,
-                data=m_enc,
-                content_type=m_enc.content_type,
-                accepted_status=accepted_status,
-            )
-            if response.status_code == requests.codes.forbidden:
-                self.node.login()
-                accepted_status = [requests.codes.ok]
-                continue
-            break
+        response = self.ms.put(
+            f&#34;/crm/profile/{payload.get(&#39;id&#39;)}&#34;,
+            m_enc_data=m_enc_data,
+            accepted_status=[requests.codes.ok],
+        )
         return response.json()
 
     def delete(self, email):
@@ -1749,58 +1719,14 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
             &#34;confirmPassword&#34;: confirm_new_password,
         }
 
-        accepted_status = [requests.codes.ok, requests.codes.forbidden]
-        while True:
-            m_enc = MultipartEncoder({&#34;data&#34;: (None, json.dumps(payload), &#34;form-data&#34;)})
+        m_enc_data = {&#34;data&#34;: (None, json.dumps(payload), &#34;form-data&#34;)}
 
-            response = self.ms.put(
-                &#34;/crm/personalProfile&#34;,
-                data=m_enc,
-                content_type=m_enc.content_type,
-                accepted_status=accepted_status,
-            )
-            if response.status_code == requests.codes.forbidden:
-                self.node.login()
-                accepted_status = [requests.codes.ok]
-                continue
-            break
-        return response.json()
-
-    def extract_endpoints(self, openapi_spec, output_json):
-        &#34;&#34;&#34;Extract endpoints from OpenAPI specification and save to JSON file.&#34;&#34;&#34;
-        try:
-            with open(openapi_spec, &#34;r&#34;, encoding=&#34;utf-8&#34;) as file:
-                if &#34;.yml&#34; in openapi_spec or &#34;.yaml&#34; in openapi_spec:
-                    data = yaml.safe_load(file)
-                elif &#34;.json&#34; in openapi_spec:
-                    data = json.load(file)
-                else:
-                    self._log.error(&#34;API spec file format not supported!&#34;)
-
-                # Extract endpoints from paths and save to JSON file
-                if &#34;paths&#34; in data:
-                    paths = data[&#34;paths&#34;]
-                    endpoints = []
-
-                    for path, methods in paths.items():
-                        endpoint_data = {&#34;Endpoint&#34;: path, &#34;Methods&#34;: list(methods.keys())}
-                        endpoints.append(endpoint_data)
-
-                    with open(output_json, &#34;w&#34;, encoding=&#34;utf-8&#34;) as json_file:
-                        json.dump(endpoints, json_file, indent=2)
-                    self._log.info(&#34;Endpoints saved to %s&#34;, output_json)
-                else:
-                    msg = &#34;No &#39;paths&#39; field found in the OpenAPI specification.&#34;
-                    raise ValueError(msg)
-
-        except FileNotFoundError:
-            self._log.error(&#34;File not found: %s&#34;, output_json)
-        except yaml.YAMLError:
-            self._log.error(&#34;Invalid YAML format in file: %s&#34;, openapi_spec)
-        except json.JSONDecodeError:
-            self._log.exception(&#34;JSON decoding error&#34;)
-        except Exception:
-            self._log.exception(&#34;An error occurred&#34;)</code></pre>
+        response = self.ms.put(
+            &#34;/crm/personalProfile&#34;,
+            m_enc_data=m_enc_data,
+            accepted_status=[requests.codes.ok],
+        )
+        return response.json()</code></pre>
 </details>
 <div class="desc"><p>User management related functions from MS.</p>
 <h2 id="parameters">Parameters</h2>
@@ -1826,9 +1752,7 @@ handle to node 'nerve_lib.general_utils.NodeHandle(&hellip;)'.</p></div>
         raise RuntimeError(msg)
     uname = [name.capitalize() for name in email.split(&#34;@&#34;, maxsplit=1)[0].split(&#34;.&#34;, 1)]
 
-    role_ids = []
-    for role in roles:
-        role_ids.append(self._role.get(role, role_type)[&#34;_id&#34;])
+    role_ids = [self._role.get(role, role_type)[&#34;_id&#34;] for role in roles]
 
     payload = {
         &#34;firstName&#34;: first_name or uname[0],
@@ -1846,21 +1770,14 @@ handle to node 'nerve_lib.general_utils.NodeHandle(&hellip;)'.</p></div>
         ],
         &#34;roles&#34;: role_ids,
     }
-    accepted_status = [requests.codes.ok, requests.codes.forbidden]
-    while True:
-        m_enc = MultipartEncoder({&#34;data&#34;: (None, json.dumps(payload), &#34;form-data&#34;)})
 
-        response = self.ms.post(
-            &#34;/crm/profile&#34;,
-            data=m_enc,
-            content_type=m_enc.content_type,
-            accepted_status=accepted_status,
-        )
-        if response.status_code == requests.codes.forbidden:
-            self.node.login()
-            accepted_status = [requests.codes.ok]
-            continue
-        break
+    m_enc_data = {&#34;data&#34;: (None, json.dumps(payload), &#34;form-data&#34;)}
+
+    response = self.ms.post(
+        &#34;/crm/profile&#34;,
+        m_enc_data=m_enc_data,
+        accepted_status=[requests.codes.ok],
+    )
     return response.json()</code></pre>
 </details>
 <div class="desc"><p>Add a new user to the MS.</p></div>
@@ -1881,22 +1798,23 @@ handle to node 'nerve_lib.general_utils.NodeHandle(&hellip;)'.</p></div>
 <div class="desc"><p>Delete a user from the MS.</p></div>
 </dd>
 <dt id="nerve_lib.manage_access.MSUser.edit"><code class="name flex">
-<span>def <span class="ident">edit</span></span>(<span>self, email: str, roles: list = [], first_name='', last_name='', role_type='local')</span>
+<span>def <span class="ident">edit</span></span>(<span>self,<br>email: str,<br>roles: list | None = None,<br>first_name='',<br>last_name='',<br>role_type='local')</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def edit(self, email: str, roles: list = [], first_name=&#34;&#34;, last_name=&#34;&#34;, role_type=&#34;local&#34;):
+<pre><code class="python">def edit(self, email: str, roles: list | None = None, first_name=&#34;&#34;, last_name=&#34;&#34;, role_type=&#34;local&#34;):
     &#34;&#34;&#34;Edit an existing user.&#34;&#34;&#34;
     payload = self.get(email, role_type)
 
     if roles:
-        role_ids = []
-        for role in roles:
-            role_ids.append(self._role.get(role, role_type)[&#34;_id&#34;])
+        role_ids = [self._role.get(role, role_type)[&#34;_id&#34;] for role in roles]
         payload[&#34;roles&#34;] = role_ids
+    else:
+        role_dicts = payload.get(&#34;roles&#34;, [])
+        payload[&#34;roles&#34;] = [role_dict[&#34;_id&#34;] for role_dict in role_dicts]
 
     if first_name:
         payload[&#34;firstName&#34;] = first_name
@@ -1908,70 +1826,16 @@ handle to node 'nerve_lib.general_utils.NodeHandle(&hellip;)'.</p></div>
 
     payload[&#34;id&#34;] = payload.pop(&#34;_id&#34;)
 
-    accepted_status = [requests.codes.ok, requests.codes.forbidden]
-    while True:
-        m_enc = MultipartEncoder({&#34;data&#34;: (None, json.dumps(payload), &#34;form-data&#34;)})
+    m_enc_data = {&#34;data&#34;: (None, json.dumps(payload), &#34;form-data&#34;)}
 
-        response = self.ms.put(
-            f&#34;/crm/profile/{payload.get(&#39;id&#39;)}&#34;,
-            data=m_enc,
-            content_type=m_enc.content_type,
-            accepted_status=accepted_status,
-        )
-        if response.status_code == requests.codes.forbidden:
-            self.node.login()
-            accepted_status = [requests.codes.ok]
-            continue
-        break
+    response = self.ms.put(
+        f&#34;/crm/profile/{payload.get(&#39;id&#39;)}&#34;,
+        m_enc_data=m_enc_data,
+        accepted_status=[requests.codes.ok],
+    )
     return response.json()</code></pre>
 </details>
 <div class="desc"><p>Edit an existing user.</p></div>
-</dd>
-<dt id="nerve_lib.manage_access.MSUser.extract_endpoints"><code class="name flex">
-<span>def <span class="ident">extract_endpoints</span></span>(<span>self, openapi_spec, output_json)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def extract_endpoints(self, openapi_spec, output_json):
-    &#34;&#34;&#34;Extract endpoints from OpenAPI specification and save to JSON file.&#34;&#34;&#34;
-    try:
-        with open(openapi_spec, &#34;r&#34;, encoding=&#34;utf-8&#34;) as file:
-            if &#34;.yml&#34; in openapi_spec or &#34;.yaml&#34; in openapi_spec:
-                data = yaml.safe_load(file)
-            elif &#34;.json&#34; in openapi_spec:
-                data = json.load(file)
-            else:
-                self._log.error(&#34;API spec file format not supported!&#34;)
-
-            # Extract endpoints from paths and save to JSON file
-            if &#34;paths&#34; in data:
-                paths = data[&#34;paths&#34;]
-                endpoints = []
-
-                for path, methods in paths.items():
-                    endpoint_data = {&#34;Endpoint&#34;: path, &#34;Methods&#34;: list(methods.keys())}
-                    endpoints.append(endpoint_data)
-
-                with open(output_json, &#34;w&#34;, encoding=&#34;utf-8&#34;) as json_file:
-                    json.dump(endpoints, json_file, indent=2)
-                self._log.info(&#34;Endpoints saved to %s&#34;, output_json)
-            else:
-                msg = &#34;No &#39;paths&#39; field found in the OpenAPI specification.&#34;
-                raise ValueError(msg)
-
-    except FileNotFoundError:
-        self._log.error(&#34;File not found: %s&#34;, output_json)
-    except yaml.YAMLError:
-        self._log.error(&#34;Invalid YAML format in file: %s&#34;, openapi_spec)
-    except json.JSONDecodeError:
-        self._log.exception(&#34;JSON decoding error&#34;)
-    except Exception:
-        self._log.exception(&#34;An error occurred&#34;)</code></pre>
-</details>
-<div class="desc"><p>Extract endpoints from OpenAPI specification and save to JSON file.</p></div>
 </dd>
 <dt id="nerve_lib.manage_access.MSUser.get"><code class="name flex">
 <span>def <span class="ident">get</span></span>(<span>self, email='', role_type='local')</span>
@@ -1996,9 +1860,7 @@ handle to node 'nerve_lib.general_utils.NodeHandle(&hellip;)'.</p></div>
                 f&#34;User &#39;{email}&#39; not in role_type &#39;{role_type}&#39; &#34;
                 f&#34;({[user[&#39;username&#39;] for user in user_list[&#39;data&#39;]]}&#34;
             )
-            raise Exception(
-                msg,
-            )
+            raise ValueError(msg)
     return user_list</code></pre>
 </details>
 <div class="desc"><p>Get a list of users.</p></div>
@@ -2044,21 +1906,13 @@ handle to node 'nerve_lib.general_utils.NodeHandle(&hellip;)'.</p></div>
         &#34;confirmPassword&#34;: confirm_new_password,
     }
 
-    accepted_status = [requests.codes.ok, requests.codes.forbidden]
-    while True:
-        m_enc = MultipartEncoder({&#34;data&#34;: (None, json.dumps(payload), &#34;form-data&#34;)})
+    m_enc_data = {&#34;data&#34;: (None, json.dumps(payload), &#34;form-data&#34;)}
 
-        response = self.ms.put(
-            &#34;/crm/personalProfile&#34;,
-            data=m_enc,
-            content_type=m_enc.content_type,
-            accepted_status=accepted_status,
-        )
-        if response.status_code == requests.codes.forbidden:
-            self.node.login()
-            accepted_status = [requests.codes.ok]
-            continue
-        break
+    response = self.ms.put(
+        &#34;/crm/personalProfile&#34;,
+        m_enc_data=m_enc_data,
+        accepted_status=[requests.codes.ok],
+    )
     return response.json()</code></pre>
 </details>
 <div class="desc"><p>Edit an personal user.</p></div>
@@ -2122,11 +1976,10 @@ handle to node 'nerve_lib.general_utils.NodeHandle(&hellip;)'.</p></div>
 </li>
 <li>
 <h4><code><a title="nerve_lib.manage_access.MSUser" href="#nerve_lib.manage_access.MSUser">MSUser</a></code></h4>
-<ul class="two-column">
+<ul class="">
 <li><code><a title="nerve_lib.manage_access.MSUser.add" href="#nerve_lib.manage_access.MSUser.add">add</a></code></li>
 <li><code><a title="nerve_lib.manage_access.MSUser.delete" href="#nerve_lib.manage_access.MSUser.delete">delete</a></code></li>
 <li><code><a title="nerve_lib.manage_access.MSUser.edit" href="#nerve_lib.manage_access.MSUser.edit">edit</a></code></li>
-<li><code><a title="nerve_lib.manage_access.MSUser.extract_endpoints" href="#nerve_lib.manage_access.MSUser.extract_endpoints">extract_endpoints</a></code></li>
 <li><code><a title="nerve_lib.manage_access.MSUser.get" href="#nerve_lib.manage_access.MSUser.get">get</a></code></li>
 <li><code><a title="nerve_lib.manage_access.MSUser.personal_edit" href="#nerve_lib.manage_access.MSUser.personal_edit">personal_edit</a></code></li>
 </ul>

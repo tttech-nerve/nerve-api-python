@@ -1,21 +1,21 @@
 [project]
 name = "nerve_lib"
-version = "1.1.0"
+version = "1.2.0"
 description = "Nerve API library"
 authors = [{ name = "Nerve Development Team", email = "dev@nerve.cloud" }]
 readme = "README.md"
-requires-python = ">=3.10,<4.0"
+requires-python = ">=3.11,<4.0"
 dependencies = [
     "pyyaml (>=6.0.2,<7.0.0)",
-    "paramiko (>=3.5.1,<4.0.0)",
-    "sshtunnel (>=0.4.0,<0.5.0)",
+    "paramiko (>=4.0.0,<5.0.0)",
     "scp (>=0.15.0,<0.16.0)",
     "requests-toolbelt (>=1.0.0,<2.0.0)",
+    "asyncssh (>=2.22.0,<3.0.0)",
 ]
 
 [tool.poetry.group.dev.dependencies]
-lefthook = "^1.11.13"
-ruff = "^0.12.5"
+lefthook = "^2.0.15"
+ruff = "^0.15.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

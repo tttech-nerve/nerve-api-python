@@ -54,29 +54,25 @@ Classes
         type
             response object of the post command.
 
-    `export_volume_data(self, volume_name, export_timeout=30)`
-    :   Import data to a volume.
+    `get_compose_workload_details(self, workload_name)`
+    :   Get detailed information about docker-compose workload services.
         
-        Parameters
-        ----------
-        volume_name : str
-            Name of the volume.
+        Get detailed information about services of a docker-compose workload,
+        including service names, container names, image names, environment
+        variables, networks, ports, , restart policies and statuses of all
+        services
+
+    `get_compose_workload_docker_inspect(self, workload_name, service_name)`
+    :   Get docker inspect output for specified compose service Docker container.
+        
+        Gets all data returned by running the docker inspect command for the
+        specified Docker container.
 
     `get_workload_details(self, workload_name)`
     :   Read details of a deployed workload.
 
     `get_workload_list(self)`
     :   Get list of deployed workloads.
-
-    `import_volume_data(self, volume_name, file, import_timeout=30)`
-    :   Import data to a volume.
-        
-        Parameters
-        ----------
-        volume_name : str
-            Name of the volume.
-        file : str
-            Path to the file to be imported.
 
     `undeploy(self, workload_name: str = '', remove_images: bool = True)`
     :   Undeploy workload.
@@ -143,14 +139,14 @@ Classes
         dict
             Deployment state information when command is finished.
 
-    `gen_workload_configuration(self, provision_type: str, file_paths: list[str] = '', wrkld_name: str = 'test_workload', wrkld_version_name: str = 'test_version', container_name: str = 'test_container', release_name: str = '', description: str = '', label: list = [], networks: list = ['bridge'], ports: list[dict] = [], docker_volumes: list[dict] = [], restart_on_config_update: bool = False, env_var: list[dict] = '', remote_connections: list[dict] = [], restart_policy: str = 'no', limit_cpus: str | None = None, limit_memory: dict | None = None, released: bool = False, auth_usr: str = '', auth_psw: str = '', vm_num_cpus: int = 1, vm_memory: dict = {'unit': 'MB', 'value': 700}, vm_snapshot: dict = {'enabled': False}, compose_dict: dict = {}, docker_config_volumes: list = [], api_version: int = 2, internal_docker_registry: bool = False) ‑> dict`
+    `gen_workload_configuration(self, provision_type: str, file_paths: str | list[str] = '', wrkld_name: str = 'test_workload', wrkld_version_name: str = 'test_version', container_name: str = 'test_container', release_name: str = '', description: str = '', label: list[str] | None = None, networks: list[str] | None = None, ports: list[dict] | None = None, docker_volumes: list[dict] | None = None, restart_on_config_update: bool = False, env_var: list[dict] | None = None, remote_connections: list[dict] | None = None, restart_policy: str = 'no', limit_cpus: str | None = None, limit_memory: dict | None = None, released: bool = False, auth_usr: str = '', auth_psw: str = '', vm_num_cpus: int = 1, vm_memory: dict | None = None, vm_snapshot: dict | None = None, compose_dict: dict | None = None, docker_config_volumes: list[dict] | None = None, api_version: int = 2, internal_docker_registry: bool = False) ‑> dict`
     :   Provision of Docker.
         
         Parameters
         ----------
         provision_type : str
             One of "docker", "registry", "vm", "codesys", "docker-compose"
-        file_paths : str/list
+        file_paths : str | list[str]
             Files to be added to option "file: {}"
             'vm' workload requires img and xml file to be defined
         wrkld_name : str, optional
@@ -163,44 +159,49 @@ Classes
             Name of the release version. The default is wrkld_version_name.
         description : str, optional
             Description of Workload
-        label : str, optional
+        label : list[str], optional
             Labels to be defined for a workload
-        networks : str, optional
+        networks : list[str], optional
             Docker workload networks. The default is ["bridge"].
             for vm type set network similar to this example:
                 [{"type":"NAT","interface":"default"},
                 {"type":"Bridged","interface":"isolated1"}]
-        ports : str, optional
-            Port binding for docker workload. The default is "".
+        ports : list[dict], optional
+            Port binding for docker workload. The default is [].
             api1: str (e.g. "80:8080/tcp")
             api2: List of dict [{'protocol':'TCP','host_port': 80, 'container_port': 8080}]
-        docker_volumes : str/list, optional
-            mapped volumes in docker workload. The default is "".
+        docker_volumes : list[dict], optional
+            mapped volumes in docker workload. The default is [].
             api1: volumes defined as string(e.g. "NGINX_1:/var/www/nginx")
-            api2: list of dict {"volumeName": str, "containerPath": str,  "configurationStorage": bool}
+            api2: list of dict [{"volumeName": str, "containerPath": str,  "configurationStorage": bool}]
         restart_on_config_update : bool, optional
             Restart container on confuration update (of docker-volume with "configurationStorage: True")
-        env_var : string/list, optional
-            environment variables in docker workload. The default is "".
+        env_var : list[dict], optional
+            environment variables in docker workload. The default is [].
             api1: string (e.g. LOG_LEVEL=Info)
-            api2: list of dict {"env_variable": str, "container_value": str}
-        remote_connections : list, optional
+            api2: list of dict [{"env_variable": str, "container_value": str}]
+        remote_connections : list[dict], optional
             List of remote connections. The default is [].
-            List is a dict {"type": "TUNNEL or SCREEN",
-                            "name": str,
-                            "acknowledgment": "No or Yes",.
-                            "serviceName": Required for compose workload only, name of the service
-                            "hostname": ip-address
-                            "port": int,
-                            "localPort": int}
+            List of dict [{"type": "TUNNEL or SCREEN",
+                           "name": str,
+                           "acknowledgment": "No or Yes",.
+                           "serviceName": Required for compose workload only, name of the service
+                           "hostname": ip-address
+                           "port": int,
+                           "localPort": int}]
         restart_policy : str, optional
             Container restart policy (no, on-failure, always, unless-stopped). The default is "no"
         limit_cpus : str, optional
             Set CPU limit for workload
         limit_memory : dict, optional
             Set Memory limit for workload (e.g. {"unit": "MB", "value": 256})
+        vm_memory: dict, optional
+            Set memory configuration for VM workload (user-permission 'VM workload memory' required)
+                e.g. {"unit": "MB", "value": 700}
         vm_snapshot : dict, optional
             Set snapshot configuration for VM workload (user-permission 'VM workload snapshot' required)
+                e.g. {"enabled": True, "value": 1, "unit": "GB"}
+                default is disabled: {"enabled": False}
         released : bool, optional
             Mark workload as released version
         aut_usr, aut_psw : str, optional
@@ -212,13 +213,15 @@ Classes
         api_version : int, 1,2 or 3
             Default is 2- APIv1 does not support PATCH'ing workloads with new versions.
 
-    `get_workloads_dict(self, read_versions=True, read_compose_details=True, compact_dict=True) ‑> dict`
+    `get_workloads_dict(self, read_versions=True, read_compose_details=True, compact_dict=True, ignore_read_error=False) ‑> dict`
     :   Read workloads list of MS.
         
         Returns
         -------
         dict
             dict of {workload-name: [version, release_version]}.
+        
+        Note: variable .failed_get_workloads is set to the number of failed reads after executing this function
 
     `provision_compose_workload(self, payload: dict, update_workload: bool)`
     :   Create new docker-compose workload.
@@ -230,7 +233,7 @@ Classes
         update_workload : bool
             Patch the workload with new paramters, if set to false, the workload will only be created, not changed.
 
-    `provision_workload(self, payload: dict, file_paths: list[str] = [], api_version: int = 2, patch_version: bool = True, registry_download_timeout: int = 400) ‑> None`
+    `provision_workload(self, payload: dict, file_paths: list[str] | None = None, api_version: int = 2, patch_version: bool = True, registry_download_timeout: int = 400) ‑> None`
     :   Provision a new workload to the MS.
         
         Parameters
@@ -241,6 +244,7 @@ Classes
             pathes to the workload related files. The default is [].
         api_version : int, optional
             API version to be used, one of 1, 2, 3. The default is 2.
+            API version 3 is required for internalDockerRegistry or docker-compose workloads
         patch_version : bool, optional
             If set, existing workload with same name/version will be patched. The default is True.
         registry_download_timeout : int, optional

@@ -40,12 +40,10 @@ import re
 import tarfile
 import time
 from copy import deepcopy
-from typing import Optional
 from urllib.parse import quote
 
 import requests
 import yaml
-from requests_toolbelt import MultipartEncoder
 
 from .general_utils import CheckStatusCodeError
 
@@ -73,7 +71,7 @@ class LocalWorkloads:
 
     def __init__(self, node_handle: type):
         self.node = node_handle
-        self._log = logging.getLogger(f"Workloads-{self.node.serial_number}")
+        self._log = node_handle._log.getChild("Workloads")
 
     def deploy_workload(self, file_paths: list[str], deploy_timeout: int = 300) -> type:
         """Deploy workload on node directly.
@@ -90,53 +88,33 @@ class LocalWorkloads:
         type
             response object of the post command.
         """
-        open_files = []
-        connect_error_count = 0
         accepted_status = [
             requests.codes.ok,
-            requests.codes.unauthorized,
             requests.codes.no_content,
             requests.codes.conflict,
         ]
         if not self.node._is_logged_in:
             self.node.login()
-        while True:
-            m_enc_files = {}
 
-            if type(file_paths) is str:
-                file_paths = [file_paths]
+        m_enc_data = {}
 
+        if type(file_paths) is str:
+            file_paths = [file_paths]
+
+        with contextlib.ExitStack() as stack:
             for idx, file_path in enumerate(file_paths):
-                bin_file = open(file_path, "rb")
-                open_files.append(bin_file)
-                m_enc_files[f"file{int(idx) + 1}" if len(file_paths) > 1 else "file"] = (
+                m_enc_data[f"file{int(idx) + 1}" if len(file_paths) > 1 else "file"] = (
                     os.path.basename(file_path),
-                    bin_file,
+                    stack.enter_context(open(file_path, "rb")),
                     "form-data",
                 )
 
-            m_enc = MultipartEncoder(m_enc_files)
-
-            try:
-                response = self.node.post(
-                    url="/api/workloads/deploy",
-                    content_type=m_enc.content_type,
-                    data=m_enc,
-                    timeout=(7.5, deploy_timeout),
-                    accepted_status=accepted_status,
-                )
-            except requests.exceptions.ConnectionError:
-                if connect_error_count < 1:
-                    connect_error_count += 1
-                    self._log.warning("Received a connection error, try to login and execute command again")
-                    self.node.login()
-                    continue
-                raise
-
-            if response.status_code == requests.codes.unauthorized:
-                self.node.login()
-                accepted_status = [requests.codes.ok]
-                continue
+            response = self.node.post(
+                url="/api/workloads/deploy",
+                m_enc_data=m_enc_data,
+                timeout=(7.5, deploy_timeout),
+                accepted_status=accepted_status,
+            )
 
             if response.status_code == requests.codes.conflict:
                 self._log.info("Workload deployment conflict - attempting deployment again.")
@@ -144,23 +122,18 @@ class LocalWorkloads:
                 try:
                     response = self.node.post(
                         url="/api/workloads/deploy",
-                        content_type=m_enc.content_type,
-                        data=m_enc,
+                        m_enc_data=m_enc_data,
                         timeout=(7.5, deploy_timeout),
-                        accepted_status=accepted_status,
+                        accepted_status=[requests.codes.ok, requests.codes.no_content],
                     )
-                except Exception as e:
+                except CheckStatusCodeError as ex_msg:
                     if response.status_code == requests.codes.conflict:
                         self._log.error("Workload deployment failed again due to conflict.")
                         msg = "Deployment failed due to a conflict (HTTP 409) after retry."
-                        raise RuntimeError(msg) from e
-                    raise  # Re-raise the original exception if it's not a conflict
-            break
+                        raise RuntimeError(msg) from ex_msg
 
-        for bin_file in open_files:
-            bin_file.close()
-        self._log.info("Local Workload %s deployed", file_paths)
-        return response
+            self._log.info("Local Workload %s deployed", file_paths)
+            return response.json()
 
     def get_workload_list(self):
         """Get list of deployed workloads."""
@@ -209,40 +182,35 @@ class LocalWorkloads:
             for wrkld in workloads_data["workloads"]:
                 self.control(wrkld["name"], "UNDEPLOY", remove_images)
 
-    def import_volume_data(self, volume_name, file, import_timeout=30):
-        """Import data to a volume.
+    def get_compose_workload_details(self, workload_name):
+        """Get detailed information about docker-compose workload services.
 
-        Parameters
-        ----------
-        volume_name : str
-            Name of the volume.
-        file : str
-            Path to the file to be imported.
+        Get detailed information about services of a docker-compose workload,
+        including service names, container names, image names, environment
+        variables, networks, ports, , restart policies and statuses of all
+        services
         """
-        m_enc = MultipartEncoder({"file": (os.path.basename(file), open(file, "rb"), "form-data")})
-
-        return self.node.post(
-            url=f"/api/docker-resources/volumes/{volume_name}/import",
-            content_type=m_enc.content_type,
-            data=m_enc,
-            accepted_status=[requests.codes.ok],
-            timeout=(7.5, import_timeout),
-        )
-
-    def export_volume_data(self, volume_name, export_timeout=30):
-        """Import data to a volume.
-
-        Parameters
-        ----------
-        volume_name : str
-            Name of the volume.
-        """
+        workloads_data = self.get_workload_list()
+        workload = next(wrkld for wrkld in workloads_data["workloads"] if workload_name == wrkld.get("name"))
+        device_id = workload["deviceId"]
         return self.node.get(
-            url=f"/api/docker-resources/volumes/{volume_name}/export",
-            stream=True,
+            f"/api/workloads/{device_id}/compose-services-details",
             accepted_status=[requests.codes.ok],
-            timeout=(7.5, export_timeout),
-        )
+        ).json()
+
+    def get_compose_workload_docker_inspect(self, workload_name, service_name):
+        """Get docker inspect output for specified compose service Docker container.
+
+        Gets all data returned by running the docker inspect command for the
+        specified Docker container.
+        """
+        workloads_data = self.get_workload_list()
+        workload = next(wrkld for wrkld in workloads_data["workloads"] if workload_name == wrkld.get("name"))
+        device_id = workload["deviceId"]
+        return self.node.get(
+            f"/api/workloads/{device_id}/compose-service-docker-inspect/{service_name}",
+            accepted_status=[requests.codes.ok],
+        ).json()
 
 
 class MSWorkloads:
@@ -260,12 +228,15 @@ class MSWorkloads:
 
     def __init__(self, ms_handle: type):
         self.ms = ms_handle
-        self._log = logging.getLogger("Workloads")
+        self._log = ms_handle._log.getChild("Workloads") if ms_handle else logging.getLogger("Workloads")
+
+        # when executing .get_workloads_dict, and a listing failed, this variable shows the number of failed reads
+        self.failed_get_workloads = 0
 
     def provision_workload(
         self,
         payload: dict,
-        file_paths: list[str] = [],
+        file_paths: list[str] | None = None,
         api_version: int = 2,
         patch_version: bool = True,
         registry_download_timeout: int = 400,
@@ -280,12 +251,23 @@ class MSWorkloads:
             pathes to the workload related files. The default is [].
         api_version : int, optional
             API version to be used, one of 1, 2, 3. The default is 2.
+            API version 3 is required for internalDockerRegistry or docker-compose workloads
         patch_version : bool, optional
             If set, existing workload with same name/version will be patched. The default is True.
         registry_download_timeout : int, optional
             Maximal download time of a registry workload. The default is 400.
         """
-        if api_version == self.API_V1:
+        if file_paths is None:
+            file_paths = []
+
+        for version_item in payload.get("versions", []):
+            if isinstance(version_item.get("files", None), list):
+                version_item["files"] = {
+                    str(idx): file_info for idx, file_info in enumerate(version_item["files"])
+                }
+                self._log.debug("Reformatted 'files' from list to dict with keys '0', '1', ...")
+
+        if api_version == self.API_V1:  # noqa: PLR1702
             self.__send_provision_workload("/nerve/workload", file_paths, payload, False)
         elif api_version in {self.API_V2, self.API_V3}:
             update_workload = False
@@ -326,12 +308,26 @@ class MSWorkloads:
                     registry_download_timeout,
                 )
             elif payload["type"] == "docker" and api_version == self.API_V3:
+                self._log.debug("Provisioning docker workload with API v3")
                 # Step 1: Create Workload
                 self.provision_compose_workload(payload, update_workload)
                 # Step2: Create Version
                 wl_version.create_compose_version(payload["versions"][0], patch_version)
                 # Step3: Upload files
-                wl_version.set_compose_repo(file_paths, type="docker")
+                if payload.get("internalDockerRegistry") == True:
+                    workload_json_files = [file for file in file_paths if file.endswith("workload.json")]
+                    for file in workload_json_files:
+                        with open(file, "r", encoding="utf-8") as f:
+                            content = json.load(f)
+                            for file_info in content["version"].get("files", []):
+                                if file_info["sourceInfo"]["type"] == "docker-image":
+                                    repo = file_info["sourceInfo"]["source"]
+                                    repo = self.ms.ms_url + "/" + repo
+
+                                    wl_version.set_compose_repo(
+                                        repo=repo,
+                                        type="docker",
+                                    )
 
             elif api_version == self.API_V3 and payload["type"] == "docker-compose":
                 # docker compose workload only
@@ -343,21 +339,29 @@ class MSWorkloads:
                 wl_version.create_compose_version(payload["versions"][0], patch_version)
 
                 # Step3: Upload files
-                for file_path in file_paths:
-                    if type(file_path) is str and os.path.splitext(file_path)[-1] in {".yaml", ".yml"}:
-                        with open(file_path, "r", encoding="utf-8") as file:
-                            compose_content = yaml.safe_load(file)
-                        wl_version.set_compose_content(
-                            compose_content,
-                            os.path.split(file_path)[-1],
-                            patch_version,
-                        )
+                compose_file = next(
+                    (
+                        file_path
+                        for file_path in file_paths
+                        if isinstance(file_path, str) and file_path.endswith((".yaml", ".yml"))
+                    ),
+                    None,
+                )
+                with open(compose_file, "r", encoding="utf-8") as file:
+                    compose_content = yaml.safe_load(file)
+                wl_version.set_compose_content(
+                    compose_content,
+                    os.path.split(compose_file)[-1],
+                    patch_version,
+                )
+                image_names = [
+                    service.get("image", "") for service in compose_content.get("services", {}).values()
+                ]
 
                 # Step4: Upload image file(s)
                 for file_path in file_paths:
-                    if type(file_path) is str:
-                        if os.path.splitext(file_path)[-1] == ".tar":
-                            wl_version.set_compose_image(file_path, patch_version)
+                    if type(file_path) is str and os.path.splitext(file_path)[-1] == ".tar":
+                        wl_version.set_compose_image(file_path, patch_version, image_names)
                     elif type(file_path) is dict:
                         wl_version.set_compose_repo(
                             file_path.get("repo"),
@@ -399,17 +403,16 @@ class MSWorkloads:
             "url": endpoint_url,
             "json": deepcopy(payload),
             "timeout": (7.5, 30000),
-            "accepted_status": [requests.codes.ok, requests.codes.forbidden],
+            "accepted_status": [requests.codes.ok],
         }
 
-        open_files = []
-        connect_error_count = 0
-        while True:  # noqa: PLR1702
-            if type(file_paths) is str:
-                file_paths = [file_paths]
+        if type(file_paths) is str:
+            file_paths = [file_paths]
 
-            m_enc_files = {}
+        with contextlib.ExitStack() as stack:
             if "versions" in payload:
+                self._log.debug("Adding payload data to request")
+                m_enc_data = {"data": (None, json.dumps(payload), "form-data")}
                 if "files" in payload["versions"][0]:
                     if isinstance(payload["versions"][0]["files"], dict):
                         files = payload["versions"][0]["files"]
@@ -419,71 +422,39 @@ class MSWorkloads:
                             for idx, file_info in enumerate(payload["versions"][0]["files"])
                         }
                     for str_idx, content in files.items():
-                        file_path = ""
-                        for fpath in file_paths:
-                            if fpath.endswith(content["originalName"]):
-                                file_path = fpath
-
-                        if file_path:
-                            self._log.debug("Opening File %s", file_path)
-                            bin_file = open(file_path, "rb")
-                            open_files.append(bin_file)
-
-                            m_enc_files[
-                                f"file{int(str_idx) + 1}"
-                                if len(payload["versions"][0]["files"]) > 1
-                                else "file"
-                            ] = (
-                                content["originalName"],
-                                bin_file,
-                                "form-data",
-                            )
-
-                data = {"data": (None, json.dumps(payload), "form-data")}
-                data |= m_enc_files
-                m_enc = MultipartEncoder(data)
-                kwargs_provision |= {
-                    "content_type": m_enc.content_type,
-                    "data": m_enc,
-                }
-
-            try:
-                if update_workload:
-                    if "internalDockerRegistry" in kwargs_provision["json"]:
-                        # InternalDockerRegistry cant be changed, so we need to remove it from the payload for updating the workload
-                        del kwargs_provision["json"]["internalDockerRegistry"]
-                    response = self.ms.patch(**kwargs_provision)
-                else:
-                    if requests.codes.conflict not in kwargs_provision["accepted_status"]:
-                        kwargs_provision["accepted_status"].append(requests.codes.conflict)
-                    if self.ms.version_smaller_than("2.10.0"):
-                        if "internalDockerRegistry" in kwargs_provision["json"]:
-                            # InternalDockerRegistry is not supported with MS version < 2.10.0
-                            del kwargs_provision["json"]["internalDockerRegistry"]
-                    response = self.ms.post(**kwargs_provision)
-                    if response.status_code == requests.codes.conflict:
-                        self.ms._log.warning(
-                            "Workload with same name already exists. Assuming the workload was already deployed"
-                            " before",
+                        file_path = next(
+                            (fpath for fpath in file_paths if fpath.endswith(content["originalName"])), None
                         )
-                if response.status_code == requests.codes.forbidden:
-                    self.ms.login()
-                    if requests.codes.forbidden in kwargs_provision["accepted_status"]:
-                        kwargs_provision["accepted_status"].pop(
-                            kwargs_provision["accepted_status"].index(requests.codes.forbidden),
-                        )
-                    continue
-                break
-            except requests.exceptions.ConnectionError:
-                if connect_error_count < 1:
-                    connect_error_count += 1
-                    self._log.warning("Received a connection error, try to login and execute command again")
-                    self.ms.login()
-                    continue
-                raise
 
-        for bin_file in open_files:
-            bin_file.close()
+                        if not file_path:
+                            continue
+
+                        self._log.debug("Adding file '%s' to request", file_path)
+
+                        m_enc_data[
+                            f"file{int(str_idx) + 1}" if len(payload["versions"][0]["files"]) > 1 else "file"
+                        ] = (
+                            content["originalName"],
+                            stack.enter_context(open(file_path, "rb")),
+                            "form-data",
+                        )
+
+                kwargs_provision["m_enc_data"] = m_enc_data
+            if self.ms.version_smaller_than("2.10.0") or update_workload:
+                # InternalDockerRegistry is not supported with MS version < 2.10.0
+                # InternalDockerRegistry not needed for patching workload
+                kwargs_provision["json"].pop("internalDockerRegistry", None)
+            if update_workload:
+                response = self.ms.patch(**kwargs_provision)
+            else:
+                if requests.codes.conflict not in kwargs_provision["accepted_status"]:
+                    kwargs_provision["accepted_status"].append(requests.codes.conflict)
+                response = self.ms.post(**kwargs_provision)
+                if response.status_code == requests.codes.conflict:
+                    self.ms._log.warning(
+                        "Workload with same name already exists. Assuming the workload was already deployed"
+                        " before",
+                    )
 
         if "versions" in payload:
             version_name = payload["versions"][0]["name"]
@@ -515,7 +486,6 @@ class MSWorkloads:
             self.ms._log.info("Provisioned workload '%s'", payload["name"])
         else:
             self.ms._log.info("Workload provision response: %s", response.json())
-        time.sleep(5)  # Allow the MS to finish provisioning steps
 
     def __fix_workload_config_v1_networks(self, networks):
         """Validate and fix 'networks' input."""
@@ -538,11 +508,10 @@ class MSWorkloads:
         if type(ports) is list:
             self._log.warning("API V1 requires ports definition as a string, reformatting...")
 
-            ports_str_list = []
-            for port_cfg in ports:
-                ports_str_list.append(
-                    f"{port_cfg['host_port']}={port_cfg['container_port']}/{port_cfg.get('protocol', 'UDP')}",
-                )
+            ports_str_list = [
+                f"{port_cfg['host_port']}={port_cfg['container_port']}/{port_cfg.get('protocol', 'UDP')}"
+                for port_cfg in ports
+            ]
 
             return "\n".join(ports_str_list)
 
@@ -578,9 +547,9 @@ class MSWorkloads:
         """Validate and fix 'docker_volumes' input."""
         if type(docker_volumes) is list:
             self._log.warning("API V1 requires docker_volumes definition as a string, reformatting...")
-            docker_vols_new = []
-            for docker_vol in docker_volumes:
-                docker_vols_new.append(f"{docker_vol['volumeName']}:{docker_vol['containerPath']}")
+            docker_vols_new = [
+                f"{docker_vol['volumeName']}:{docker_vol['containerPath']}" for docker_vol in docker_volumes
+            ]
             return "\n".join(docker_vols_new)
         return docker_volumes
 
@@ -594,13 +563,14 @@ class MSWorkloads:
                     "Provide docker_volumes as a list of [{'volumeName': str, 'containerPath': str, 'configurationStorage': bool}, ...]. Trying to reformat from"
                     " string... ",
                 )
-                docker_vols_new = []
-                for docker_vol in docker_volumes.split("\n"):
-                    docker_vols_new.append({
+                docker_vols_new = [
+                    {
                         "volumeName": docker_vol.split(":")[0],
                         "containerPath": docker_vol.split(":")[1],
                         "configurationStorage": False,
-                    })
+                    }
+                    for docker_vol in docker_volumes.split("\n")
+                ]
                 docker_volumes = docker_vols_new
         return docker_volumes
 
@@ -608,9 +578,7 @@ class MSWorkloads:
         """Validate and fix 'env_var' input."""
         if type(env_var) is list:
             self._log.warning("API V1 requires env_var definition as a string, reformatting...")
-            env_var_new = []
-            for env in env_var:
-                env_var_new.append(f"{env['env_variable']}={env['container_value']}")
+            env_var_new = [f"{env['env_variable']}={env['container_value']}" for env in env_var]
             return "\n".join(env_var_new)
         return env_var
 
@@ -623,12 +591,10 @@ class MSWorkloads:
                 self._log.warning(
                     "Provide env_var as a list of [{'env_variable': str, 'container_value': str}, ...]. Trying to reformat from string... ",
                 )
-                env_var_new = []
-                for env in env_var.split("\n"):
-                    env_var_new.append({
-                        "env_variable": env.split("=")[0],
-                        "container_value": env.split("=")[1],
-                    })
+                env_var_new = [
+                    {"env_variable": env.split("=")[0], "container_value": env.split("=")[1]}
+                    for env in env_var.split("\n")
+                ]
                 env_var = env_var_new
         return env_var
 
@@ -642,33 +608,33 @@ class MSWorkloads:
             vm_memory = {"unit": memory[0][1], "value": int(memory[0][0])}
         return vm_memory
 
-    def gen_workload_configuration(  # noqa: PLR0913, PLR0917
+    def gen_workload_configuration(  # noqa: PLR0913, PLR0915, PLR0917
         self,
         provision_type: str,
-        file_paths: list[str] = "",
+        file_paths: str | list[str] = "",
         wrkld_name: str = "test_workload",
         wrkld_version_name: str = "test_version",
         container_name: str = "test_container",
         release_name: str = "",
         description: str = "",
-        label: list = [],
-        networks: list = ["bridge"],
-        ports: list[dict] = [],
-        docker_volumes: list[dict] = [],
+        label: list[str] | None = None,
+        networks: list[str] | None = None,
+        ports: list[dict] | None = None,
+        docker_volumes: list[dict] | None = None,
         restart_on_config_update: bool = False,
-        env_var: list[dict] = "",
-        remote_connections: list[dict] = [],
+        env_var: list[dict] | None = None,
+        remote_connections: list[dict] | None = None,
         restart_policy: str = "no",
-        limit_cpus: Optional[str] = None,
-        limit_memory: Optional[dict] = None,
+        limit_cpus: str | None = None,
+        limit_memory: dict | None = None,
         released: bool = False,
         auth_usr: str = "",
         auth_psw: str = "",
         vm_num_cpus: int = 1,
-        vm_memory: dict = {"unit": "MB", "value": 700},
-        vm_snapshot: dict = {"enabled": False},
-        compose_dict: dict = {},
-        docker_config_volumes: list = [],
+        vm_memory: dict | None = None,
+        vm_snapshot: dict | None = None,
+        compose_dict: dict | None = None,
+        docker_config_volumes: list[dict] | None = None,
         api_version: int = 2,
         internal_docker_registry: bool = False,
     ) -> dict:
@@ -678,7 +644,7 @@ class MSWorkloads:
         ----------
         provision_type : str
             One of "docker", "registry", "vm", "codesys", "docker-compose"
-        file_paths : str/list
+        file_paths : str | list[str]
             Files to be added to option "file: {}"
             'vm' workload requires img and xml file to be defined
         wrkld_name : str, optional
@@ -691,44 +657,49 @@ class MSWorkloads:
             Name of the release version. The default is wrkld_version_name.
         description : str, optional
             Description of Workload
-        label : str, optional
+        label : list[str], optional
             Labels to be defined for a workload
-        networks : str, optional
+        networks : list[str], optional
             Docker workload networks. The default is ["bridge"].
             for vm type set network similar to this example:
                 [{"type":"NAT","interface":"default"},
                 {"type":"Bridged","interface":"isolated1"}]
-        ports : str, optional
-            Port binding for docker workload. The default is "".
+        ports : list[dict], optional
+            Port binding for docker workload. The default is [].
             api1: str (e.g. "80:8080/tcp")
             api2: List of dict [{'protocol':'TCP','host_port': 80, 'container_port': 8080}]
-        docker_volumes : str/list, optional
-            mapped volumes in docker workload. The default is "".
+        docker_volumes : list[dict], optional
+            mapped volumes in docker workload. The default is [].
             api1: volumes defined as string(e.g. "NGINX_1:/var/www/nginx")
-            api2: list of dict {"volumeName": str, "containerPath": str,  "configurationStorage": bool}
+            api2: list of dict [{"volumeName": str, "containerPath": str,  "configurationStorage": bool}]
         restart_on_config_update : bool, optional
             Restart container on confuration update (of docker-volume with "configurationStorage: True")
-        env_var : string/list, optional
-            environment variables in docker workload. The default is "".
+        env_var : list[dict], optional
+            environment variables in docker workload. The default is [].
             api1: string (e.g. LOG_LEVEL=Info)
-            api2: list of dict {"env_variable": str, "container_value": str}
-        remote_connections : list, optional
+            api2: list of dict [{"env_variable": str, "container_value": str}]
+        remote_connections : list[dict], optional
             List of remote connections. The default is [].
-            List is a dict {"type": "TUNNEL or SCREEN",
-                            "name": str,
-                            "acknowledgment": "No or Yes",.
-                            "serviceName": Required for compose workload only, name of the service
-                            "hostname": ip-address
-                            "port": int,
-                            "localPort": int}
+            List of dict [{"type": "TUNNEL or SCREEN",
+                           "name": str,
+                           "acknowledgment": "No or Yes",.
+                           "serviceName": Required for compose workload only, name of the service
+                           "hostname": ip-address
+                           "port": int,
+                           "localPort": int}]
         restart_policy : str, optional
             Container restart policy (no, on-failure, always, unless-stopped). The default is "no"
         limit_cpus : str, optional
             Set CPU limit for workload
         limit_memory : dict, optional
             Set Memory limit for workload (e.g. {"unit": "MB", "value": 256})
+        vm_memory: dict, optional
+            Set memory configuration for VM workload (user-permission 'VM workload memory' required)
+                e.g. {"unit": "MB", "value": 700}
         vm_snapshot : dict, optional
             Set snapshot configuration for VM workload (user-permission 'VM workload snapshot' required)
+                e.g. {"enabled": True, "value": 1, "unit": "GB"}
+                default is disabled: {"enabled": False}
         released : bool, optional
             Mark workload as released version
         aut_usr, aut_psw : str, optional
@@ -742,6 +713,19 @@ class MSWorkloads:
 
         """
         """Common payload elements for v1 and v2 workload endpoint payloads"""
+
+        if ports is None:
+            ports = []
+        if docker_volumes is None:
+            docker_volumes = []
+        if env_var is None:
+            env_var = []
+        if compose_dict is None:
+            compose_dict = {}
+        if vm_memory is None:
+            vm_memory = {"unit": "MB", "value": 700}
+        if networks is None:
+            networks = ["bridge"]
 
         if type(file_paths) is str:
             file_paths = [file_paths]
@@ -761,7 +745,7 @@ class MSWorkloads:
                 {
                     "name": wrkld_version_name[:40],
                     "releaseName": release_name[:40],
-                    "selectors": label,
+                    "selectors": label if label is not None else [],
                 },
             ],
         }
@@ -792,7 +776,7 @@ class MSWorkloads:
         payload["versions"][0] |= {
             "released": released,
             "deleted": False,
-            "remoteConnections": remote_connections,
+            "remoteConnections": remote_connections if remote_connections is not None else [],
         }
 
         if provision_type not in {"docker-compose", "registry"}:
@@ -839,13 +823,13 @@ class MSWorkloads:
             if api_version == self.API_V2:
                 payload["versions"][0] |= {"capabilities": []}
                 payload["versions"][0][properties_name] |= {
-                    "snapshot": vm_snapshot,
+                    "snapshot": vm_snapshot if vm_snapshot is not None else {"enabled": False},
                     "PCI_passthrough": [],
                 }
         if provision_type == "docker-compose":
             config_storage = None
             payload["versions"][0]["workloadSpecificProperties"] = {"dockerConfigurationStorage": []}
-            for docker_config in docker_config_volumes:
+            for docker_config in docker_config_volumes if docker_config_volumes is not None else []:
                 try:
                     docker_config_volume = compose_dict["services"][docker_config["service"]]["volumes"][
                         int(docker_config.get("volume_id", 0))
@@ -874,8 +858,10 @@ class MSWorkloads:
             payload["versions"][0] = {}
             payload["versions"][0]["name"] = wrkld_version_name
             payload["versions"][0]["released"] = released
-            payload["versions"][0]["selectors"] = label
-            payload["versions"][0]["remoteConnections"] = remote_connections
+            payload["versions"][0]["selectors"] = label if label is not None else []
+            payload["versions"][0]["remoteConnections"] = (
+                remote_connections if remote_connections is not None else []
+            )
             payload["versions"][0]["workloadSpecificProperties"] = {
                 "port_mappings_protocol": ports,
                 "environment_variables": env_var,
@@ -892,16 +878,21 @@ class MSWorkloads:
             }
         return payload
 
-    def get_workloads_dict(self, read_versions=True, read_compose_details=True, compact_dict=True) -> dict:
+    def get_workloads_dict(
+        self, read_versions=True, read_compose_details=True, compact_dict=True, ignore_read_error=False
+    ) -> dict:
         """Read workloads list of MS.
 
         Returns
         -------
         dict
             dict of {workload-name: [version, release_version]}.
+
+        Note: variable .failed_get_workloads is set to the number of failed reads after executing this function
         """
         workload_list = {}
         workloads = []
+        self.failed_get_workloads = 0
         page_number = 1
         while True:
             workloads_single_read = self.ms.get(
@@ -917,13 +908,14 @@ class MSWorkloads:
             if compact_dict:
                 return [wrkld["name"] for wrkld in workloads]
             return workloads
-        for workload in workloads:
+        for workload in workloads:  # noqa: PLR1702
             workload_id = workload.get("_id")
             if workload.get("type") == "docker-compose" or (
                 workload.get("type") == "docker" and workload.get("internalDockerRegistry")
             ):
                 versions = (
-                    self.ms.get(
+                    self.ms
+                    .get(
                         f"/nerve/v3/workloads/{workload_id}/versions",
                         accepted_status=[requests.codes.ok],
                     )
@@ -939,19 +931,35 @@ class MSWorkloads:
                                 accepted_status=[requests.codes.ok],
                             ).json()
                         except CheckStatusCodeError as ex_msg:
-                            msg = f"Workload {workload.get('name')}-{version.get('name')}: {ex_msg.value}"
-                            raise CheckStatusCodeError(
-                                msg,
-                                ex_msg.status_code,
-                                ex_msg.response_text,
-                            )
+                            msg = f"Workload '{workload.get('name')}-{version.get('name')}': {ex_msg.value}"
+                            self._log.error(msg)
+                            self.failed_get_workloads += 1
+                            if not ignore_read_error:
+                                raise CheckStatusCodeError(
+                                    msg,
+                                    ex_msg.status_code,
+                                    ex_msg.response_text,
+                                )
 
             else:
-                versions = (
-                    self.ms.get(f"/nerve/v2/workloads/{workload_id}", accepted_status=[requests.codes.ok])
-                    .json()
-                    .get("versions")
-                )
+                try:
+                    versions = (
+                        self.ms
+                        .get(f"/nerve/v2/workloads/{workload_id}", accepted_status=[requests.codes.ok])
+                        .json()
+                        .get("versions")
+                    )
+                except CheckStatusCodeError as ex_msg:
+                    msg = f"Cannot read workload version list for workload '{workload.get('name')}': {ex_msg.value}"
+                    self._log.error(msg)
+                    versions = []
+                    self.failed_get_workloads += 1
+                    if not ignore_read_error:
+                        raise CheckStatusCodeError(
+                            msg,
+                            ex_msg.status_code,
+                            ex_msg.response_text,
+                        )
             if compact_dict:
                 workload_list[workload.get("name")] = []
                 for version in versions:
@@ -987,7 +995,7 @@ class MSWorkloads:
     def check_for_deployment_state(
         self,
         deploy_name: str,
-        state: Optional[str] = None,
+        state: str | None = None,
         timeout: int = 400,
         check_interval: int = 60,
     ) -> dict:
@@ -1017,22 +1025,25 @@ class MSWorkloads:
         time_last_log_print = time_start
         status_old = []
         dep_log = None
+        # API response key changed from "data" to "list" in version 3.2.0
+        list_key = "data" if self.ms.version_smaller_than("3.2.0") else "list"
+
         while (time.time() - time_start) < timeout:
             parameters = {"limit": 50, "page": 1, "contentType": "workload"}
-            dep_logs = {"count": 0, "data": []}
+            dep_logs = {"count": 0, list_key: []}
             while True:
                 deploy_list_single_read = self.ms.get(
                     "/bom/deployment/list", params=parameters, accepted_status=[requests.codes.ok]
                 ).json()
                 parameters["page"] += 1
-                dep_logs["data"] += deploy_list_single_read.get("data", [])
+                dep_logs[list_key] += deploy_list_single_read.get(list_key, [])
                 dep_logs["count"] = deploy_list_single_read["count"]
 
                 # Check if required log is already in the read logs to avoid unnecessary API calls
                 dep_log = next(
                     (
                         dep_log
-                        for dep_log in dep_logs.get("data", [])
+                        for dep_log in dep_logs.get(list_key, [])
                         if dep_log.get("operation_name") == deploy_name
                     ),
                     None,
@@ -1041,7 +1052,7 @@ class MSWorkloads:
                 if dep_log:
                     break
 
-                if len(dep_logs["data"]) == deploy_list_single_read["count"]:
+                if len(dep_logs[list_key]) == deploy_list_single_read["count"]:
                     break
 
             if not dep_log:
@@ -1061,7 +1072,7 @@ class MSWorkloads:
                     accepted_status=[requests.codes.ok],
                 ).json()
 
-                for feedback in detail_status.get("data", []):
+                for feedback in detail_status.get(list_key, []):
                     task_options = feedback.get("taskOptions")
                     status_new.append(task_options.get("status"))
                     if task_options.get("status").upper() == "ERROR":
@@ -1081,7 +1092,7 @@ class MSWorkloads:
                         dep_log.get("campaignOptions", {}).get("progress"),
                     )
 
-                    for feedback in detail_status.get("data", []):
+                    for feedback in detail_status.get(list_key, []):
                         task_options = feedback.get("taskOptions")
                         self._log.info(
                             " - Node %s: [ Status: %s, Progress: %s%% ]",
@@ -1097,7 +1108,7 @@ class MSWorkloads:
                                 json.dumps(feedback["errorFeedback"], indent=4),
                             )
 
-                if num_failed_tasks == len(detail_status.get("data")):
+                if num_failed_tasks == len(detail_status.get(list_key, [])):
                     self._log.error(
                         "Overall Status is in progress, but all workload deployments have failed",
                     )
@@ -1109,12 +1120,21 @@ class MSWorkloads:
                     accepted_status=[requests.codes.ok],
                 ).json()
                 self.ms._log.error("Deployment of %s failed", deploy_name)
-                for feedback in detail_status.get("data", []):
-                    self.ms._log.error(
-                        " - Node %s Error-details: %s",
+                for feedback in detail_status.get(list_key, []):
+                    task_options = feedback.get("taskOptions")
+                    self._log.info(
+                        " - Node %s: [ Status: %s, Progress: %s%% ]",
                         feedback.get("device"),
-                        json.dumps(feedback["errorFeedback"], indent=4),
+                        task_options.get("status"),
+                        task_options.get("progress"),
                     )
+
+                    if task_options.get("status").upper() == "ERROR":
+                        self.ms._log.error(
+                            " - Node %s Error-details: %s",
+                            feedback.get("device"),
+                            json.dumps(feedback["errorFeedback"], indent=4),
+                        )
 
                 return status
             if dep_log.get("isFinished"):
@@ -1135,26 +1155,18 @@ class MSWorkloads:
     def validate_compose_content(self, content: dict, file_name: str = "compose-file.yaml") -> dict:
         """Validate if the content of a compose-file is valid."""
         yml_file = yaml.dump(content, indent=4, default_flow_style=False, sort_keys=False)
-        accepted_status = [requests.codes.ok, requests.codes.forbidden]
-        while True:
-            m_enc = MultipartEncoder({
+        resp = self.ms.post(
+            "/nerve/v3/workloads/compose",
+            m_enc_data={
                 "type": "compose",
                 "origin": "upload",
                 "source": "file",
                 "file": (file_name, yml_file, "form-data"),
-            })
-            resp = self.ms.post(
-                "/nerve/v3/workloads/compose",
-                accepted_status=accepted_status,
-                data=m_enc,
-                content_type=m_enc.content_type,
-            )
+            },
+            accepted_status=[requests.codes.ok],
+        )
 
-            if resp.status_code == requests.codes.forbidden:
-                self.ms.login()
-                accepted_status = [requests.codes.ok]
-                continue
-            return resp.json()
+        return resp.json()
 
     def WorkloadVersion(self, workload_name: str, version: str = "", release_version: str = ""):
         """Handle to specific workload of a MS.
@@ -1198,11 +1210,11 @@ class _WorkloadVersion:  # noqa: PLR0904
 
         self.owner = owner
         if version:
-            self._log = logging.getLogger(f"{workload_name}/{version}")
+            self._log = owner._log.getChild(f"{workload_name}/{version}")
         elif release_version:
-            self._log = logging.getLogger(f"{workload_name}/{release_version}")
+            self._log = owner._log.getChild(f"{workload_name}/{release_version}")
         else:
-            self._log = logging.getLogger(f"{workload_name}/latest")
+            self._log = owner._log.getChild(f"{workload_name}/latest")
 
         # Values beeing updated on demand, default to None to verify if they had been updated already
         self.__workload_type = None
@@ -1265,18 +1277,12 @@ class _WorkloadVersion:  # noqa: PLR0904
         """
         workload_id = self._get_workload_id()
 
-        if self._get_workload_type() == "docker-compose":
+        if self._get_workload_type() == "docker-compose" or (
+            self._get_workload_type() == "docker" and api_version == self.owner.API_V3
+        ):
             versions = (
-                self.owner.ms.get(
-                    f"/nerve/v3/workloads/{workload_id}/versions",
-                    accepted_status=[requests.codes.ok],
-                )
-                .json()
-                .get("data")
-            )
-        elif self._get_workload_type() == "docker" and api_version == self.owner.API_V3:
-            versions = (
-                self.owner.ms.get(
+                self.owner.ms
+                .get(
                     f"/nerve/v3/workloads/{workload_id}/versions",
                     accepted_status=[requests.codes.ok],
                 )
@@ -1285,7 +1291,8 @@ class _WorkloadVersion:  # noqa: PLR0904
             )
         else:
             versions = (
-                self.owner.ms.get(f"/nerve/v2/workloads/{workload_id}", accepted_status=[requests.codes.ok])
+                self.owner.ms
+                .get(f"/nerve/v2/workloads/{workload_id}", accepted_status=[requests.codes.ok])
                 .json()
                 .get("versions")
             )
@@ -1322,7 +1329,27 @@ class _WorkloadVersion:  # noqa: PLR0904
 
         return workload_id, self.__version_id
 
-    def get_container(self, include_version=True) -> dict:
+    def _get_additional_version_details(self, api_version=2) -> dict:
+        """Read additional version details only available in APIv3.
+
+        Returns
+        -------
+        dict
+            dict containing additional version details.
+        """
+        if api_version == self.owner.API_V3:
+            workload_id, version_id = self._get_ids(api_version=api_version)
+            return self.owner.ms.get(
+                f"/nerve/v3/workloads/{workload_id}/versions/{version_id}",
+                accepted_status=[requests.codes.ok],
+            ).json()
+
+        msg = "Additional version details are only available for APIv3, please update API version to 3 to use this function"
+        raise RuntimeError(
+            msg,
+        )
+
+    def get_container(self, include_version=True, api_version=2) -> dict:
         """Read workload container information.
 
         Returns
@@ -1333,7 +1360,15 @@ class _WorkloadVersion:  # noqa: PLR0904
         workload = self._get_workload()
         workload["versions"] = []
         if include_version:
-            version = self._get_versions(selected_version=True)
+            version = self._get_versions(selected_version=True, api_version=api_version)
+            if api_version == self.owner.API_V3:
+                version_info = self._get_additional_version_details(api_version=api_version)
+                remote_connections = version_info.get("remoteConnections", [])
+                for idx, remote_connection in enumerate(remote_connections):
+                    remote_connections[idx] = {
+                        key: value for key, value in remote_connection.items() if value is not None
+                    }
+                version[0] = version_info
             workload["versions"] = version
 
         return workload
@@ -1377,27 +1412,20 @@ class _WorkloadVersion:  # noqa: PLR0904
                 )
         elif container_version.get("versions"):
             self._log.debug("Patching workload including version with APIv2")
-            accepted_status = [requests.codes.ok, requests.codes.forbidden]
-            while True:
-                m_enc = MultipartEncoder({"data": (None, json.dumps(container_version), "form-data")})
-                resp = self.owner.ms.patch(
-                    "/nerve/v2/workloads",
-                    data=m_enc,
-                    content_type=m_enc.content_type,
-                    accepted_status=accepted_status,
-                )
-                if resp.status_code == requests.codes.forbidden:
-                    self.owner.ms.login()
-                    accepted_status = [requests.codes.ok]
-                    continue
-                break
+            m_enc_data = {"data": (None, json.dumps(container_version), "form-data")}
+            resp = self.owner.ms.patch(
+                "/nerve/v2/workloads",
+                m_enc_data=m_enc_data,
+                accepted_status=[requests.codes.ok],
+            )
         else:
             self._log.debug("Patching workload with APIv2")
-            self.owner.ms.patch(
+            resp = self.owner.ms.patch(
                 f"/nerve/v2/workloads/{workload_id}",
                 json=container_version,
                 accepted_status=[requests.codes.ok],
             )
+        return resp.json()
 
     def mod_env_var(self, env_name: str, env_value: str) -> None:
         """Modify the environment variable of a container.
@@ -1456,7 +1484,7 @@ class _WorkloadVersion:  # noqa: PLR0904
             yaml.SafeLoader,
         )
 
-    def set_compose_image(self, image_path: str, patch_version=True) -> None:
+    def set_compose_image(self, image_path: str, patch_version=True, image_names: list | None = None) -> None:
         """Upload an compose image.
 
         Parameters
@@ -1486,65 +1514,48 @@ class _WorkloadVersion:  # noqa: PLR0904
                                 break
 
         try:
-            file = self.get_compose_workload_file("docker-image", repo_tags[-1])
+            for image_name in image_names or []:
+                if image_name.startswith(repo_tags[-1].split(":", -1)[0]):
+                    source_tag = image_name
+                    break
+            else:
+                source_tag = repo_tags[-1]
+            file = self.get_compose_workload_file("docker-image", source_tag)
             if not patch_version:
                 self._log.info(
                     "File with RepoTag %s already exists, skipping patching the file",
                     file.get("source"),
                 )
-                return
+                return {}
             file_id = file["_id"]
-            self.owner.ms._log.info("Patching image file with source %s", file.get("source"))
+            self.owner.ms._log.info("Patching image file with source '%s'", file.get("source"))
         except ValueError:
             file_id = ""
-            self._log.info("Uploading Image with RepoTag: %s", repo_tags[-1])
+            self._log.info("Uploading Image with RepoTag: '%s'", source_tag)
 
-        open_files = []
-        accepted_status = [requests.codes.ok, requests.codes.forbidden]
-        connect_error_count = 0
-        while True:
-            bin_file = open(image_path, "rb")
-            open_files.append(bin_file)
-            m_enc = MultipartEncoder({
+        with open(image_path, "rb") as bin_file:
+            m_enc_data = {
                 "type": "docker-image",
                 "origin": "upload",
-                "source": f"file;{repo_tags[-1]}",
+                "source": f"file;{source_tag}",
                 "file": (os.path.split(image_path)[-1], bin_file, "form-data"),
-            })
+            }
 
-            try:
-                if file_id:
-                    response = self.owner.ms.patch(
-                        f"/nerve/v3/workloads/{workload_id}/versions/{version_id}/files/{file_id}",
-                        accepted_status=accepted_status,
-                        data=m_enc,
-                        content_type=m_enc.content_type,
-                        timeout=(7.5, 30000),
-                    )
-                else:
-                    response = self.owner.ms.post(
-                        f"/nerve/v3/workloads/{workload_id}/versions/{version_id}/files",
-                        accepted_status=accepted_status,
-                        data=m_enc,
-                        content_type=m_enc.content_type,
-                        timeout=(7.5, 30000),
-                    )
-            except requests.exceptions.ConnectionError:
-                if connect_error_count > 1:
-                    raise
-                connect_error_count += 1
-                self.owner.ms.login()
-                accepted_status = [requests.codes.ok]
-                continue
-
-            if response.status_code == requests.codes.forbidden:
-                self.owner.ms.login()
-                accepted_status = [requests.codes.ok]
-                continue
-            break
-
-        for bin_file in open_files:
-            bin_file.close()
+            if file_id:
+                response = self.owner.ms.patch(
+                    f"/nerve/v3/workloads/{workload_id}/versions/{version_id}/files/{file_id}",
+                    m_enc_data=m_enc_data,
+                    accepted_status=[requests.codes.ok],
+                    timeout=(7.5, 30000),
+                )
+            else:
+                response = self.owner.ms.post(
+                    f"/nerve/v3/workloads/{workload_id}/versions/{version_id}/files",
+                    m_enc_data=m_enc_data,
+                    accepted_status=[requests.codes.ok],
+                    timeout=(7.5, 30000),
+                )
+        return response.json()
 
     def set_compose_repo(self, repo: str, user: str = "", password: str = "", type="docker-compose") -> None:
         """Set a compose repository.
@@ -1558,54 +1569,36 @@ class _WorkloadVersion:  # noqa: PLR0904
         password : str, optional
             password for authentification on repo. The default is "".
         """
-        if type == "docker-compose":
-            workload_id, version_id = self._get_ids()
-            try:
-                file_id = self.get_compose_workload_file("docker-image", repo)["_id"]
-            except ValueError:
-                file_id = ""
-        elif type == "docker":
-            workload_id, version_id = self._get_ids(api_version=3)
+        workload_id, version_id = self._get_ids(api_version=3)
+        try:
+            file_id = self.get_compose_workload_file("docker-image", repo)["_id"]
+        except ValueError:
             file_id = ""
 
-        accepted_status = [requests.codes.ok, requests.codes.forbidden]
-        while True:
-            m_enc = MultipartEncoder({
-                "type": "docker-image",
-                "origin": "docker-repo",
-                "source": repo,
-                **({"username": user} if user else {}),
-                **({"password": password} if password else {}),
-            })
-            if file_id:
-                self.owner.ms._log.info("Patching compose docker-repo with name %s", repo)
-                resp = self.owner.ms.patch(
-                    f"/nerve/v3/workloads/{workload_id}/versions/{version_id}/files/{file_id}",
-                    accepted_status=accepted_status,
-                    data=m_enc,
-                    content_type=m_enc.content_type,
-                )
-            else:
-                if type == "docker":
-                    m_enc = MultipartEncoder({
-                        "type": "docker-image",
-                        "origin": "docker-repo",
-                        "source": repo,
-                    })
-                self._log.info("Setting Registry docker repo for %s", repo)
-                m_enc.type = "compose"
-                m_enc.origin = "upload"
-                resp = self.owner.ms.post(
-                    f"/nerve/v3/workloads/{workload_id}/versions/{version_id}/files",
-                    accepted_status=accepted_status,
-                    data=m_enc,
-                    content_type=m_enc.content_type,
-                )
-            if resp.status_code == requests.codes.forbidden:
-                self.owner.ms.login()
-                accepted_status = [requests.codes.ok]
-                continue
-            break
+        # For repo references we are NOT uploading a file -> origin must be 'docker-repo'
+        m_enc_data = {
+            "type": "docker-image",
+            "origin": "docker-repo",
+            "source": str(repo),
+            **({"username": user} if user else {}),
+            **({"password": password} if password else {}),
+        }
+
+        if file_id:
+            self.owner.ms._log.info("Patching compose docker-repo with name %s", repo)
+            resp = self.owner.ms.patch(
+                f"/nerve/v3/workloads/{workload_id}/versions/{version_id}/files/{file_id}",
+                m_enc_data=m_enc_data,
+                accepted_status=[requests.codes.ok],
+            )
+        else:
+            # Create a new docker-repo "file" entry (no upload)
+            resp = self.owner.ms.post(
+                f"/nerve/v3/workloads/{workload_id}/versions/{version_id}/files",
+                m_enc_data=m_enc_data,
+                accepted_status=[requests.codes.ok],
+            )
+        return resp.json()
 
     def get_compose_deployable_state(self, registry_download_timeout: int = 300) -> bool:
         """Check deployable state.
@@ -1652,7 +1645,21 @@ class _WorkloadVersion:  # noqa: PLR0904
                 break
 
             time.sleep(10)
-
+        # check is deployable state again after registry download is finished, because sometimes the state is not updated immediately after download is finished
+        time.sleep(5)
+        response = self.owner.ms.get(
+            url=f"/nerve/v3/workloads/{workload_id}/versions",
+            accepted_status=[requests.codes.ok],
+        ).json()
+        if self.version:
+            workload_info = next(
+                wrkld_info for wrkld_info in response["data"] if wrkld_info.get("name") == self.version
+            )
+        else:
+            workload_info = response["data"][-1]
+        if workload_info["isDeployable"]:
+            self._log.info("Docker compose workload is deployable")
+            return True
         self._log.warning("Docker compose workload is NOT deployable")
         return False
 
@@ -1676,53 +1683,43 @@ class _WorkloadVersion:  # noqa: PLR0904
         self._get_workload_type("docker-compose")  # check if the workload type is a docker-compose workload
         workload_id, version_id = self._get_ids()
 
-        yml_file = yaml.dump(content, indent=4, default_flow_style=False, sort_keys=False)
-
         try:
             file = self.get_compose_workload_file("compose")
             if not patch_version:
                 self._log.info("Compose file already exists, skipping patching the file")
-                return
+                return {}
             file_id = file["_id"]
             self._log.info("Patching compose file with name %s", file.get("originalName"))
         except ValueError:
             file_id = ""
             self._log.info("Creating compose file")
 
-        accepted_status = [requests.codes.ok, requests.codes.forbidden]
-        while True:
-            m_enc = MultipartEncoder({
-                "type": "compose",
-                "origin": "upload",
-                "source": "file",
-                "file": (file_name, yml_file, "form-data"),
-            })
-            if file_id:
-                resp = self.owner.ms.patch(
-                    f"/nerve/v3/workloads/{workload_id}/versions/{version_id}/files/{file_id}",
-                    accepted_status=accepted_status,
-                    data=m_enc,
-                    content_type=m_enc.content_type,
-                )
-            else:
-                resp = self.owner.ms.post(
-                    f"/nerve/v3/workloads/{workload_id}/versions/{version_id}/files",
-                    accepted_status=accepted_status,
-                    data=m_enc,
-                    content_type=m_enc.content_type,
-                )
-
-            if resp.status_code == requests.codes.forbidden:
-                self.owner.ms.login()
-                accepted_status = [requests.codes.ok]
-                continue
-            break
+        yml_file = yaml.dump(content, indent=4, default_flow_style=False, sort_keys=False)
+        m_enc_data = {
+            "type": "compose",
+            "origin": "upload",
+            "source": "file",
+            "file": (file_name, yml_file, "form-data"),
+        }
+        if file_id:
+            resp = self.owner.ms.patch(
+                f"/nerve/v3/workloads/{workload_id}/versions/{version_id}/files/{file_id}",
+                m_enc_data=m_enc_data,
+                accepted_status=[requests.codes.ok],
+            )
+        else:
+            resp = self.owner.ms.post(
+                f"/nerve/v3/workloads/{workload_id}/versions/{version_id}/files",
+                m_enc_data=m_enc_data,
+                accepted_status=[requests.codes.ok],
+            )
         self._log.debug("Compose file uploaded")
+        return resp.json()
 
     def deploy(
         self,
         duts: list[type],
-        deploy_name: Optional[str] = None,
+        deploy_name: str | None = None,
         overwrite_existing: bool = True,
         api_version=2,
     ) -> dict:
@@ -1759,10 +1756,7 @@ class _WorkloadVersion:  # noqa: PLR0904
                         self._log.info("Workload version is already deployed on %s", dut.serial_number)
                         exclude_duts.append(dut)
 
-        duts_deploy = []
-        for dut in duts:
-            if dut not in exclude_duts:
-                duts_deploy.append(dut)
+        duts_deploy = [dut for dut in duts if dut not in exclude_duts]
 
         if deploy_name is None:
             if self.version:
@@ -1775,10 +1769,11 @@ class _WorkloadVersion:  # noqa: PLR0904
             "deployName": deploy_name[:35],
             "dryRun": False,
             "nodes": [dut.serial_number for dut in duts_deploy],
-            "retryTimes": 3,
             "versionId": version_id,
             "workloadId": workload_id,
         }
+        if self.owner.ms.version_smaller_than("3.2.0"):
+            payload["retryTimes"] = 3
         if duts_deploy != []:
             response = self.owner.ms.post(
                 url="/bom/nerve/workload/deploy",
@@ -1792,7 +1787,7 @@ class _WorkloadVersion:  # noqa: PLR0904
     def deploy_full(
         self,
         duts: list[type],
-        deploy_name: Optional[str] = None,
+        deploy_name: str | None = None,
         deploy_timeout: int = 400,
         check_interval: int = 120,
         overwrite_existing: bool = True,
@@ -1947,36 +1942,25 @@ class _WorkloadVersion:  # noqa: PLR0904
 
         The data will be read from the provided yaml file path.
         """
-        accepted_status = [requests.codes.ok, requests.codes.forbidden]
-        while True:
-            import_file = [
-                (
-                    "file",
-                    (
-                        os.path.basename(yaml_file_path),
-                        open(yaml_file_path, "rb"),
-                        "application/octet-stream",
-                    ),
-                ),
-            ]
-            m_enc = MultipartEncoder(import_file)
+        with open(yaml_file_path, "rb") as file:
+            m_enc_data = {
+                "file": (
+                    os.path.basename(yaml_file_path),
+                    file,
+                    "application/octet-stream",
+                )
+            }
 
             workload_id, version_id = self._get_ids()
             resp = self.owner.ms.put(
                 f"/nerve/v3/workloads/{workload_id}/versions/{version_id}/import-remote-connections",
-                content_type=m_enc.content_type,
-                data=m_enc,
-                accepted_status=accepted_status,
+                m_enc_data=m_enc_data,
+                accepted_status=[requests.codes.ok],
             )
-            if resp.status_code == requests.codes.forbidden:
-                self.owner.ms.login()
-                accepted_status = [requests.codes.ok]
-                continue
-            break
 
         return resp.json()
 
-    def create_compose_version(self, payload_version: dict, patch_version: bool = False):
+    def create_compose_version(self, payload_version: dict, patch_version: bool = False) -> None:
         """Create or update a compose-version.
 
         Parameters
@@ -1996,7 +1980,7 @@ class _WorkloadVersion:  # noqa: PLR0904
         if patch_version:
             if "_id" not in payload2:
                 with contextlib.suppress(ValueError):
-                    _, version_id = self._get_ids()
+                    _, version_id = self._get_ids(api_version=self.owner.API_V3)
             else:
                 version_id = payload2["_id"]
                 del payload2["_id"]
@@ -2106,7 +2090,7 @@ class _WorkloadVersion:  # noqa: PLR0904
         self.owner.ms.delete(f"/nerve/v3/workloads/{workload_id}")
         self._log.info("Workload removed")
 
-    def define_all_compose_files(self, payload: list[str] = []):
+    def define_all_compose_files(self, payload: list[str] | None = None):
         """Define files used for Docker Compose.
 
         Parameters
@@ -2114,7 +2098,7 @@ class _WorkloadVersion:  # noqa: PLR0904
         payload: list[str]
             list of files to be defined
         """
-        payload2 = {"files": payload}
+        payload2 = {"files": payload if payload is not None else []}
         workload_id, version_id = self._get_ids()
         self.owner.ms.post(
             f"/nerve/v3/workloads/{workload_id}/versions/{version_id}/define-all-files",
@@ -2123,20 +2107,52 @@ class _WorkloadVersion:  # noqa: PLR0904
         )
         self._log.info("All files are correctly defined!")
 
-    def export_workload_version(self):
+    def export_workload_version(self, timeout_secs: int = 600, api_version: int = 2) -> dict:
         """Export workload version."""
-        workload_id, version_id = self._get_ids()
-
+        workload_id, version_id = self._get_ids(api_version=api_version)
         if self._get_workload().get("internalDockerRegistry", False):
             self._log.debug("Version export of MS Registry workload stared.")
-            return self.owner.ms.post(
+            returnval = self.owner.ms.post(
                 f"/nerve/v3/workloads/{workload_id}/versions/{version_id}/export-init",
-                accepted_status=[requests.codes.ok],
+                accepted_status=[requests.codes.ok, requests.codes.accepted],
                 timeout=(7.5, 360),
+            )
+            self._log.debug("Export init response is %s:", returnval)
+            poll_interval_secs = 10  # (10 seconds)
+            deadline = time.time() + timeout_secs
+
+            while time.time() < deadline:
+                if (
+                    self
+                    ._get_versions(selected_version=True, api_version=api_version)[0]
+                    .get("export")
+                    .get("status")
+                    == "completed"
+                ):
+                    export_url = f"/nerve_workload/storage/exports/{self._get_versions(selected_version=True, api_version=api_version)[0].get('export').get('archiveName')}"
+                    response = self.owner.ms.get(
+                        export_url,
+                        accepted_status=[requests.codes.ok, requests.codes.accepted],
+                        timeout=(7.5, 360),
+                    )
+                    self._log.info("Export ready for download %s:", export_url)
+                    return response
+                self._log.debug(
+                    "Export not ready yet (status %s). Retrying in %s seconds...",
+                    self
+                    ._get_versions(selected_version=True, api_version=api_version)[0]
+                    .get("export")
+                    .get("status"),
+                    poll_interval_secs,
+                )
+                time.sleep(poll_interval_secs)
+                continue
+            raise WorkloadDeployError(
+                f"Workload export was not ready for download after {timeout_secs} seconds."
             )
         self._log.debug("Version export v2 started.")
         return self.owner.ms.get(
             f"/nerve/v2/workload/{workload_id}/{version_id}",
-            accepted_status=[requests.codes.ok],
+            accepted_status=[requests.codes.ok, requests.codes.accepted],
             timeout=(7.5, 360),
         )

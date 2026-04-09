@@ -69,7 +69,7 @@ el.replaceWith(d);
 
     def __init__(self, node_handle: type):
         self.node = node_handle
-        self._log = logging.getLogger(&#34;NodeLocalUi&#34;)
+        self._log = node_handle._log.getChild(&#34;Node&#34;)
         self.__node_version = None
 
     @property
@@ -174,6 +174,10 @@ el.replaceWith(d);
             payload[&#34;nodeName&#34;] = node_name
         self.node.post(&#34;/api/setup/configurations&#34;, json=payload, accepted_status=[requests.codes.ok])
 
+    def get_configuration(self):
+        &#34;&#34;&#34;Get onboarding configuration.&#34;&#34;&#34;
+        return self.node.get(&#34;/api/setup/configurations&#34;, accepted_status=[requests.codes.ok]).json()
+
     def auth_ms_on_node(self, ms_url: str, username: str, password: str):
         &#34;&#34;&#34;Authenticate the node with the management system.&#34;&#34;&#34;
         payload = {
@@ -203,12 +207,14 @@ el.replaceWith(d);
         &#34;&#34;&#34;Read the secure id of a node.&#34;&#34;&#34;
         if self.version_smaller_than(&#34;2.10.0&#34;):
             return (
-                self.node.get(&#34;/api/setup/configurations/secureId&#34;, accepted_status=[requests.codes.ok])
+                self.node
+                .get(&#34;/api/setup/configurations/secureId&#34;, accepted_status=[requests.codes.ok])
                 .json()
                 .get(&#34;secureId&#34;)
             )
         return (
-            self.node.get(&#34;/api/setup/configurations/secure-id&#34;, accepted_status=[requests.codes.ok])
+            self.node
+            .get(&#34;/api/setup/configurations/secure-id&#34;, accepted_status=[requests.codes.ok])
             .json()
             .get(&#34;secureId&#34;)
         )
@@ -218,9 +224,9 @@ el.replaceWith(d);
         try:
             response = self.node.get(&#34;/api/setup/node/info&#34;, accepted_status=[requests.codes.ok])
             info = response.json()
-        except requests.exceptions.JSONDecodeError as err:
+        except requests.exceptions.JSONDecodeError:
             self._log.error(&#34;GET /api/setup/node/info: Invalid json: %s&#34;, response.text)
-            raise err
+            raise
         return info
 
     def get_workload_list(self):
@@ -251,19 +257,16 @@ el.replaceWith(d);
             &#34;configurations&#34;: configurations,
             &#34;restartOnConfigurationUpdate&#34;: True,
         }
-        m_enc = MultipartEncoder(
-            fields={
-                &#34;file&#34;: (zip_file, open(zip_file, &#34;rb&#34;), &#34;application/octet-stream&#34;),
-                &#34;data&#34;: json.dumps(payload_data),
-            },
-        )
-        return self.node.post(
-            f&#34;/api/workloads/{device_id}/apply-configuration&#34;,
-            data=m_enc,
-            content_type=m_enc.content_type,
-            accepted_status=[requests.codes.ok, requests.codes.no_content],
-            timeout=(7.5, 10),
-        )
+        with open(zip_file, &#34;rb&#34;) as zip_open:
+            return self.node.post(
+                f&#34;/api/workloads/{device_id}/apply-configuration&#34;,
+                m_enc_data={
+                    &#34;file&#34;: (zip_file, zip_open, &#34;application/octet-stream&#34;),
+                    &#34;data&#34;: json.dumps(payload_data),
+                },
+                accepted_status=[requests.codes.ok, requests.codes.no_content],
+                timeout=(7.5, 10),
+            )
 
     def create_vm_backup(self, workload_name, backup_name):
         &#34;&#34;&#34;Create a backup of a VM workload over LocalUI.&#34;&#34;&#34;
@@ -362,9 +365,8 @@ el.replaceWith(d);
         ).json()
 
         for status in response[&#34;workloads&#34;]:
-            if status[&#34;workloadId&#34;] == backup_id:
-                if &#34;deviceId&#34; in status:
-                    return True
+            if status[&#34;workloadId&#34;] == backup_id and &#34;deviceId&#34; in status:
+                return True
         return False
 
     def get_vm_snapshot(self, workload_name):
@@ -605,12 +607,12 @@ el.replaceWith(d);
 
     def set_network_configuration(
         self,
-        interface,
-        allocation,
-        ip_address=&#34;0.0.0.0&#34;,
-        netmask=&#34;0.0.0.0&#34;,
-        gateway=&#34;0.0.0.0&#34;,
-        domain_names=[],
+        interface: str,
+        allocation: str,
+        ip_address: str = &#34;0.0.0.0&#34;,
+        netmask: str = &#34;0.0.0.0&#34;,
+        gateway: str = &#34;0.0.0.0&#34;,
+        domain_names: list | None = None,
     ):
         &#34;&#34;&#34;Set network configuration of an interface.
 
@@ -639,7 +641,7 @@ el.replaceWith(d);
                         &#34;ip_address&#34;: ip_address,
                         &#34;netmask&#34;: netmask,
                         &#34;gateway&#34;: gateway,
-                        &#34;domainNames&#34;: domain_names,
+                        &#34;domainNames&#34;: domain_names if domain_names is not None else [],
                     }
                 ]
             },
@@ -683,7 +685,7 @@ el.replaceWith(d);
         &#34;&#34;&#34;Write content to a file on the device.&#34;&#34;&#34;
         command = f&#34;echo &#39;{password}&#39; | sudo -S bash -c &#39;echo \&#34;{content}\&#34; &gt; {file_path}&#39;&#34;
         result = self.node.ssh.execute(command)
-        logging.info(&#34;Modified content of the file: %s&#34;, result)
+        self._log.info(&#34;Modified content of the file: %s&#34;, result)
         return result
 
     def set_critical_action(self, file_path, value):
@@ -699,7 +701,7 @@ el.replaceWith(d);
             str: The modified content of the YAML file as a string.
         &#34;&#34;&#34;
         content = self.read_file(file_path)
-        logging.info(&#34;Content of the file: %s&#34;, content)
+        self._log.info(&#34;Content of the file: %s&#34;, content)
         data = yaml.safe_load(content)
 
         # Modify the YAML content
@@ -711,7 +713,7 @@ el.replaceWith(d);
                     source[&#34;value&#34;] = &#34;allow&#34;
 
         modified_content = yaml.safe_dump(data)
-        logging.info(&#34;Modified content of the file: %s&#34;, modified_content)
+        self._log.info(&#34;Modified content of the file: %s&#34;, modified_content)
         return modified_content
 
     def get_custom_role_permissions(self):
@@ -1068,7 +1070,7 @@ Type of schedule (Interval, Day)</p></div>
     &#34;&#34;&#34;Write content to a file on the device.&#34;&#34;&#34;
     command = f&#34;echo &#39;{password}&#39; | sudo -S bash -c &#39;echo \&#34;{content}\&#34; &gt; {file_path}&#39;&#34;
     result = self.node.ssh.execute(command)
-    logging.info(&#34;Modified content of the file: %s&#34;, result)
+    self._log.info(&#34;Modified content of the file: %s&#34;, result)
     return result</code></pre>
 </details>
 <div class="desc"><p>Write content to a file on the device.</p></div>
@@ -1086,6 +1088,20 @@ Type of schedule (Interval, Day)</p></div>
     return self.node.get(&#34;/api/repositories&#34;, timeout=(7.5, 15)).json()</code></pre>
 </details>
 <div class="desc"><p>Read backup list for node.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.get_configuration"><code class="name flex">
+<span>def <span class="ident">get_configuration</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_configuration(self):
+    &#34;&#34;&#34;Get onboarding configuration.&#34;&#34;&#34;
+    return self.node.get(&#34;/api/setup/configurations&#34;, accepted_status=[requests.codes.ok]).json()</code></pre>
+</details>
+<div class="desc"><p>Get onboarding configuration.</p></div>
 </dd>
 <dt id="nerve_lib.manage_node.LocalNode.get_custom_role_permissions"><code class="name flex">
 <span>def <span class="ident">get_custom_role_permissions</span></span>(<span>self)</span>
@@ -1124,9 +1140,8 @@ Returns: list of permission codes (strings)</p></div>
     ).json()
 
     for status in response[&#34;workloads&#34;]:
-        if status[&#34;workloadId&#34;] == backup_id:
-            if &#34;deviceId&#34; in status:
-                return True
+        if status[&#34;workloadId&#34;] == backup_id and &#34;deviceId&#34; in status:
+            return True
     return False</code></pre>
 </details>
 <div class="desc"><p>Get the state of a deployed backup.</p></div>
@@ -1144,9 +1159,9 @@ Returns: list of permission codes (strings)</p></div>
     try:
         response = self.node.get(&#34;/api/setup/node/info&#34;, accepted_status=[requests.codes.ok])
         info = response.json()
-    except requests.exceptions.JSONDecodeError as err:
+    except requests.exceptions.JSONDecodeError:
         self._log.error(&#34;GET /api/setup/node/info: Invalid json: %s&#34;, response.text)
-        raise err
+        raise
     return info</code></pre>
 </details>
 <div class="desc"><p>Read all node info elements.</p></div>
@@ -1180,12 +1195,14 @@ Returns: list of permission codes (strings)</p></div>
     &#34;&#34;&#34;Read the secure id of a node.&#34;&#34;&#34;
     if self.version_smaller_than(&#34;2.10.0&#34;):
         return (
-            self.node.get(&#34;/api/setup/configurations/secureId&#34;, accepted_status=[requests.codes.ok])
+            self.node
+            .get(&#34;/api/setup/configurations/secureId&#34;, accepted_status=[requests.codes.ok])
             .json()
             .get(&#34;secureId&#34;)
         )
     return (
-        self.node.get(&#34;/api/setup/configurations/secure-id&#34;, accepted_status=[requests.codes.ok])
+        self.node
+        .get(&#34;/api/setup/configurations/secure-id&#34;, accepted_status=[requests.codes.ok])
         .json()
         .get(&#34;secureId&#34;)
     )</code></pre>
@@ -1305,19 +1322,16 @@ Returns: list of permission codes (strings)</p></div>
         &#34;configurations&#34;: configurations,
         &#34;restartOnConfigurationUpdate&#34;: True,
     }
-    m_enc = MultipartEncoder(
-        fields={
-            &#34;file&#34;: (zip_file, open(zip_file, &#34;rb&#34;), &#34;application/octet-stream&#34;),
-            &#34;data&#34;: json.dumps(payload_data),
-        },
-    )
-    return self.node.post(
-        f&#34;/api/workloads/{device_id}/apply-configuration&#34;,
-        data=m_enc,
-        content_type=m_enc.content_type,
-        accepted_status=[requests.codes.ok, requests.codes.no_content],
-        timeout=(7.5, 10),
-    )</code></pre>
+    with open(zip_file, &#34;rb&#34;) as zip_open:
+        return self.node.post(
+            f&#34;/api/workloads/{device_id}/apply-configuration&#34;,
+            m_enc_data={
+                &#34;file&#34;: (zip_file, zip_open, &#34;application/octet-stream&#34;),
+                &#34;data&#34;: json.dumps(payload_data),
+            },
+            accepted_status=[requests.codes.ok, requests.codes.no_content],
+            timeout=(7.5, 10),
+        )</code></pre>
 </details>
 <div class="desc"><p>Add a workload configuration via localui.</p>
 <h2 id="parameters">Parameters</h2>
@@ -1572,7 +1586,7 @@ node_name (str): The name of the node. Required for uki nerve-node devices.</p><
         str: The modified content of the YAML file as a string.
     &#34;&#34;&#34;
     content = self.read_file(file_path)
-    logging.info(&#34;Content of the file: %s&#34;, content)
+    self._log.info(&#34;Content of the file: %s&#34;, content)
     data = yaml.safe_load(content)
 
     # Modify the YAML content
@@ -1584,7 +1598,7 @@ node_name (str): The name of the node. Required for uki nerve-node devices.</p><
                 source[&#34;value&#34;] = &#34;allow&#34;
 
     modified_content = yaml.safe_dump(data)
-    logging.info(&#34;Modified content of the file: %s&#34;, modified_content)
+    self._log.info(&#34;Modified content of the file: %s&#34;, modified_content)
     return modified_content</code></pre>
 </details>
 <div class="desc"><p>Edit the critical actions file to change 'allow' to 'not allowed' or vice versa.</p>
@@ -1651,7 +1665,7 @@ Returns: response object</p></div>
 <div class="desc"><p>Set a local repository.</p></div>
 </dd>
 <dt id="nerve_lib.manage_node.LocalNode.set_network_configuration"><code class="name flex">
-<span>def <span class="ident">set_network_configuration</span></span>(<span>self,<br>interface,<br>allocation,<br>ip_address='0.0.0.0',<br>netmask='0.0.0.0',<br>gateway='0.0.0.0',<br>domain_names=[])</span>
+<span>def <span class="ident">set_network_configuration</span></span>(<span>self,<br>interface: str,<br>allocation: str,<br>ip_address: str = '0.0.0.0',<br>netmask: str = '0.0.0.0',<br>gateway: str = '0.0.0.0',<br>domain_names: list | None = None)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1660,12 +1674,12 @@ Returns: response object</p></div>
 </summary>
 <pre><code class="python">def set_network_configuration(
     self,
-    interface,
-    allocation,
-    ip_address=&#34;0.0.0.0&#34;,
-    netmask=&#34;0.0.0.0&#34;,
-    gateway=&#34;0.0.0.0&#34;,
-    domain_names=[],
+    interface: str,
+    allocation: str,
+    ip_address: str = &#34;0.0.0.0&#34;,
+    netmask: str = &#34;0.0.0.0&#34;,
+    gateway: str = &#34;0.0.0.0&#34;,
+    domain_names: list | None = None,
 ):
     &#34;&#34;&#34;Set network configuration of an interface.
 
@@ -1694,7 +1708,7 @@ Returns: response object</p></div>
                     &#34;ip_address&#34;: ip_address,
                     &#34;netmask&#34;: netmask,
                     &#34;gateway&#34;: gateway,
-                    &#34;domainNames&#34;: domain_names,
+                    &#34;domainNames&#34;: domain_names if domain_names is not None else [],
                 }
             ]
         },
@@ -1930,12 +1944,12 @@ Returns: response object</p></div>
 
     def __init__(self, ms_handle: type):
         self.ms = ms_handle
-        self._log = logging.getLogger(&#34;NodeMS&#34;)
+        self._log = ms_handle._log.getChild(&#34;Node&#34;)
 
         self.node_tree = _MSNodeTree(self.ms)
         self.node_update = _MSNodeUpdate(self.ms)
 
-    def get_nodes(self, serial_number: Optional[str] = None) -&gt; dict:
+    def get_nodes(self, serial_number: str | None = None) -&gt; dict:
         &#34;&#34;&#34;Read node list of MS.
 
         Parameters
@@ -1960,7 +1974,7 @@ Returns: response object</p></div>
         # Return the entire node list
         return node_list
 
-    def get_nodes_by_name(self, node_name_filter: Optional[str] = None) -&gt; dict:
+    def get_nodes_by_name(self, node_name_filter: str | None = None) -&gt; dict:
         &#34;&#34;&#34;Read node list of MS filtered by name of the node.
 
         Parameters
@@ -2030,8 +2044,8 @@ Returns: response object</p></div>
         model: str,
         secure_id: str,
         serial_number: str,
-        labels: list = [],
-        remote_connections: list = [],
+        labels: list | None = None,
+        remote_connections: list | None = None,
     ) -&gt; dict:
         &#34;&#34;&#34;Create new node on MS.
 
@@ -2046,9 +2060,9 @@ Returns: response object</p></div>
         serial_number : str
             serial_number of the node.
         labels : list, optional
-            list of labels. The default is [].
+            list of labels. The default is None.
         remote_connections : list, optional
-            remote connections to be added. The default is [].
+            remote connections to be added. The default is None.
 
         Returns
         -------
@@ -2060,8 +2074,8 @@ Returns: response object</p></div>
             &#34;model&#34;: model,
             &#34;secureId&#34;: secure_id,
             &#34;serialNumber&#34;: serial_number,
-            &#34;labels&#34;: labels,
-            &#34;remoteConnections&#34;: remote_connections,
+            &#34;labels&#34;: labels if labels is not None else [],
+            &#34;remoteConnections&#34;: remote_connections if remote_connections is not None else [],
         }
         return self.ms.post(&#34;/nerve/node&#34;, json=payload, accepted_status=[requests.codes.ok]).json()
 
@@ -2084,7 +2098,7 @@ Returns: response object</p></div>
 
         return active_connections.get(&#34;data&#34;, [])
 
-    def remove_active_remote_connections(self, remote_ids: Optional[list] = None) -&gt; type:
+    def remove_active_remote_connections(self, remote_ids: list | None = None) -&gt; type:
         &#34;&#34;&#34;Remove established remote connections from MS.
 
         Parameters
@@ -2208,7 +2222,7 @@ Returns: response object</p></div>
 </dl></div>
 </dd>
 <dt id="nerve_lib.manage_node.MSNode.create_node"><code class="name flex">
-<span>def <span class="ident">create_node</span></span>(<span>self,<br>name: str,<br>model: str,<br>secure_id: str,<br>serial_number: str,<br>labels: list = [],<br>remote_connections: list = []) ‑> dict</span>
+<span>def <span class="ident">create_node</span></span>(<span>self,<br>name: str,<br>model: str,<br>secure_id: str,<br>serial_number: str,<br>labels: list | None = None,<br>remote_connections: list | None = None) ‑> dict</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -2221,8 +2235,8 @@ Returns: response object</p></div>
     model: str,
     secure_id: str,
     serial_number: str,
-    labels: list = [],
-    remote_connections: list = [],
+    labels: list | None = None,
+    remote_connections: list | None = None,
 ) -&gt; dict:
     &#34;&#34;&#34;Create new node on MS.
 
@@ -2237,9 +2251,9 @@ Returns: response object</p></div>
     serial_number : str
         serial_number of the node.
     labels : list, optional
-        list of labels. The default is [].
+        list of labels. The default is None.
     remote_connections : list, optional
-        remote connections to be added. The default is [].
+        remote connections to be added. The default is None.
 
     Returns
     -------
@@ -2251,8 +2265,8 @@ Returns: response object</p></div>
         &#34;model&#34;: model,
         &#34;secureId&#34;: secure_id,
         &#34;serialNumber&#34;: serial_number,
-        &#34;labels&#34;: labels,
-        &#34;remoteConnections&#34;: remote_connections,
+        &#34;labels&#34;: labels if labels is not None else [],
+        &#34;remoteConnections&#34;: remote_connections if remote_connections is not None else [],
     }
     return self.ms.post(&#34;/nerve/node&#34;, json=payload, accepted_status=[requests.codes.ok]).json()</code></pre>
 </details>
@@ -2268,9 +2282,9 @@ Returns: response object</p></div>
 <dt><strong><code>serial_number</code></strong> :&ensp;<code>str</code></dt>
 <dd>serial_number of the node.</dd>
 <dt><strong><code>labels</code></strong> :&ensp;<code>list</code>, optional</dt>
-<dd>list of labels. The default is [].</dd>
+<dd>list of labels. The default is None.</dd>
 <dt><strong><code>remote_connections</code></strong> :&ensp;<code>list</code>, optional</dt>
-<dd>remote connections to be added. The default is [].</dd>
+<dd>remote connections to be added. The default is None.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
@@ -2426,7 +2440,7 @@ establishing remote connection (used for ACL).</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get_nodes(self, serial_number: Optional[str] = None) -&gt; dict:
+<pre><code class="python">def get_nodes(self, serial_number: str | None = None) -&gt; dict:
     &#34;&#34;&#34;Read node list of MS.
 
     Parameters
@@ -2472,7 +2486,7 @@ The default is None.</dd>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get_nodes_by_name(self, node_name_filter: Optional[str] = None) -&gt; dict:
+<pre><code class="python">def get_nodes_by_name(self, node_name_filter: str | None = None) -&gt; dict:
     &#34;&#34;&#34;Read node list of MS filtered by name of the node.
 
     Parameters
@@ -2522,7 +2536,7 @@ The default is None.</dd>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def remove_active_remote_connections(self, remote_ids: Optional[list] = None) -&gt; type:
+<pre><code class="python">def remove_active_remote_connections(self, remote_ids: list | None = None) -&gt; type:
     &#34;&#34;&#34;Remove established remote connections from MS.
 
     Parameters
@@ -2615,6 +2629,7 @@ if parameter is None, all active connection will be removed</dd>
 <li><code><a title="nerve_lib.manage_node.LocalNode.download_audit_log" href="#nerve_lib.manage_node.LocalNode.download_audit_log">download_audit_log</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.edit_file" href="#nerve_lib.manage_node.LocalNode.edit_file">edit_file</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.get_backup_list" href="#nerve_lib.manage_node.LocalNode.get_backup_list">get_backup_list</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.get_configuration" href="#nerve_lib.manage_node.LocalNode.get_configuration">get_configuration</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.get_custom_role_permissions" href="#nerve_lib.manage_node.LocalNode.get_custom_role_permissions">get_custom_role_permissions</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.get_deploy_backup_status" href="#nerve_lib.manage_node.LocalNode.get_deploy_backup_status">get_deploy_backup_status</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.get_info" href="#nerve_lib.manage_node.LocalNode.get_info">get_info</a></code></li>

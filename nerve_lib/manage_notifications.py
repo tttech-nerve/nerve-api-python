@@ -29,11 +29,9 @@ Example:
     <list of available notifications>
 """
 
-import logging
 import os
 
 import requests
-from requests_toolbelt import MultipartEncoder
 
 
 class MSNotifications:
@@ -47,10 +45,10 @@ class MSNotifications:
 
     def __init__(self, ms_handle):
         self.ms = ms_handle
-        self._log = logging.getLogger("Notification")
+        self._log = ms_handle._log.getChild("Notification")
 
     @staticmethod
-    def __prepare_content(text_header, text_msg, image_path, active, show_before_login):
+    def __prepare_content(text_header, text_msg, image_path, active, show_before_login, image_open=None):
         m_enc_data = {
             "headerText": text_header,
             "textMessage": text_msg,
@@ -63,30 +61,22 @@ class MSNotifications:
                 image_type = "jpeg"
             m_enc_data["image"] = (
                 os.path.basename(image_path),
-                open(image_path, "rb"),
+                image_open,
                 f"image/{image_type}",
             )
         return m_enc_data
 
     def create(self, text_header, text_msg, image_path="", active=True, show_before_login=False):
         """Create a new notification item."""
-        m_enc_data = self.__prepare_content(text_header, text_msg, image_path, active, show_before_login)
-
-        accepted_status = [requests.codes.ok, requests.codes.forbidden]
-        while True:
-            m_enc = MultipartEncoder(m_enc_data)
-
+        with open(image_path, "rb") if image_path else None as image_open:
+            m_enc_data = self.__prepare_content(
+                text_header, text_msg, image_path, active, show_before_login, image_open
+            )
             resp = self.ms.post(
                 "/nerve/notifications",
-                content_type=m_enc.content_type,
-                data=m_enc,
-                accepted_status=accepted_status,
+                m_enc_data=m_enc_data,
+                accepted_status=[requests.codes.ok],
             )
-            if resp.status_code == requests.codes.forbidden:
-                self.ms.login()
-                accepted_status = [requests.codes.ok]
-                continue
-            break
         self._log.info("Created Notification %s", text_header)
         return resp.json()
 
@@ -99,25 +89,18 @@ class MSNotifications:
         active=True,
         show_before_login=False,
     ):
-        """Create a new notification item."""
-        m_enc_data = self.__prepare_content(text_header, text_msg, image_path, active, show_before_login)
-
-        accepted_status = [requests.codes.ok, requests.codes.forbidden]
-        while True:
-            m_enc = MultipartEncoder(m_enc_data)
-
+        """Edit an existing notification item."""
+        with open(image_path, "rb") if image_path else None as image_open:
+            m_enc_data = self.__prepare_content(
+                text_header, text_msg, image_path, active, show_before_login, image_open
+            )
             resp = self.ms.put(
                 f"/nerve/notifications/{notification_id}",
-                content_type=m_enc.content_type,
-                data=m_enc,
-                accepted_status=accepted_status,
+                m_enc_data=m_enc_data,
+                accepted_status=[requests.codes.ok],
             )
-            if resp.status_code == requests.codes.forbidden:
-                self.ms.login()
-                accepted_status = [requests.codes.ok]
-                continue
-            break
-        self._log.info("Created Notification %s", text_header)
+
+        self._log.info("Edited Notification %s", text_header)
         return resp.json()
 
     def get(self):

@@ -71,6 +71,9 @@ Classes
     `get_backup_list(self)`
     :   Read backup list for node.
 
+    `get_configuration(self)`
+    :   Get onboarding configuration.
+
     `get_custom_role_permissions(self)`
     :   Get list of all permissions for the custom role via /api/permissions/custom-role (GET).
         Returns: list of permission codes (strings)
@@ -182,7 +185,7 @@ Classes
     `set_local_repository(self, protocol, repo_type, path, user=None, password=None, options='')`
     :   Set a local repository.
 
-    `set_network_configuration(self, interface, allocation, ip_address='0.0.0.0', netmask='0.0.0.0', gateway='0.0.0.0', domain_names=[])`
+    `set_network_configuration(self, interface: str, allocation: str, ip_address: str = '0.0.0.0', netmask: str = '0.0.0.0', gateway: str = '0.0.0.0', domain_names: list | None = None)`
     :   Set network configuration of an interface.
         
         Parameters
@@ -258,7 +261,7 @@ Classes
         type
             handle to the node.
 
-    `create_node(self, name: str, model: str, secure_id: str, serial_number: str, labels: list = [], remote_connections: list = []) ‑> dict`
+    `create_node(self, name: str, model: str, secure_id: str, serial_number: str, labels: list | None = None, remote_connections: list | None = None) ‑> dict`
     :   Create new node on MS.
         
         Parameters
@@ -272,9 +275,9 @@ Classes
         serial_number : str
             serial_number of the node.
         labels : list, optional
-            list of labels. The default is [].
+            list of labels. The default is None.
         remote_connections : list, optional
-            remote connections to be added. The default is [].
+            remote connections to be added. The default is None.
         
         Returns
         -------

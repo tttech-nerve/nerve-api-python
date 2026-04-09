@@ -65,7 +65,7 @@ el.replaceWith(d);
 <dl>
 <dt id="nerve_lib.manage_dna.DNACommon"><code class="flex name class">
 <span>class <span class="ident">DNACommon</span></span>
-<span>(</span><span>handle, base_url: str, log: type)</span>
+<span>(</span><span>handle, base_url: str, log: logging.Logger)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -81,11 +81,11 @@ el.replaceWith(d);
         node or ms handle.
     base_url : str
         depending on node or ms handle, the base_url must be defined correct.
-    log : type
+    log : logging.Logger
         used logger to output logging data.
     &#34;&#34;&#34;
 
-    def __init__(self, handle, base_url: str, log: type):
+    def __init__(self, handle, base_url: str, log: logging.Logger):
         self.handle = handle
         self._log = log
         self.base_url = base_url
@@ -114,12 +114,12 @@ el.replaceWith(d);
                     self._log.info(&#34;Reading content of %s&#34;, cfile)
                     with zip_file.open(cfile) as file:
                         config_file[cfile] = yaml.safe_load(file.read())
-                return config_file
             except BadZipFile:
                 self._log.warning(&#34;Received DNA configuration is not a valid zip file&#34;)
-                return {}
-
-        self._log.error(&#34;Unexpected content-type received: %s&#34;, response.headers.get(&#34;Content-Type&#34;))
+            else:
+                return config_file
+        else:
+            self._log.error(&#34;Unexpected content-type received: %s&#34;, response.headers.get(&#34;Content-Type&#34;))
         return {}
 
     def get_current(self) -&gt; dict:
@@ -178,53 +178,45 @@ el.replaceWith(d);
         dict
             Configuration response from the device.
         &#34;&#34;&#34;
-        allowed_codes = [requests.codes.accepted, requests.codes.unauthorized, requests.codes.forbidden]
-        while True:
-            if type(config_file) is dict:
-                # Expect a dict containing the correct config format
-                file_name = &#34;config.zip&#34;
-                zip_bin = BytesIO()
-                with ZipFile(zip_bin, &#34;w&#34;) as zip_object:
-                    # Adding files that need to be zipped
-                    zip_object.writestr(&#34;update_configuration.yaml&#34;, yaml.dump(config_file))
-            elif type(config_file) is tuple:
-                # Expect a File IO stream which contains the zip file
-                file_name = config_file[0]
-                zip_bin = config_file[1]
-                zip_bin.seek(0, 0)
-            else:
-                msg = (
-                    &#34;Invalid Input, config_file should either by a valid dict or a tuple with&#34;
-                    &#34;filename and FileIO stream&#34;
-                )
-                raise ValueError(
-                    msg,
-                )
-            m_enc = MultipartEncoder({&#34;file&#34;: (file_name, zip_bin, &#34;form-data&#34;)})
 
-            params = {
-                &#34;continueInCaseOfRestart&#34;: str(continue_after_restart).lower(),
-                &#34;restartAllWorkloads&#34;: str(restart_all_wl).lower(),
-                &#34;removeDockerImages&#34;: str(remove_images).lower(),
-            }
-            # Only add signFile for MSDNA
-            if sign_file is not None and type(self) is MSDNA:
-                params[&#34;signFile&#34;] = str(sign_file).lower()
-
-            response = self.handle.put(
-                os.path.join(self.base_url, &#34;target&#34;),
-                params=params,
-                content_type=m_enc.content_type,
-                data=m_enc,
-                accepted_status=allowed_codes,
-                timeout=(7.5, 60),
+        if type(config_file) is dict:
+            # Expect a dict containing the correct config format
+            file_name = &#34;config.zip&#34;
+            zip_bin = BytesIO()
+            with ZipFile(zip_bin, &#34;w&#34;) as zip_object:
+                # Adding files that need to be zipped
+                zip_object.writestr(&#34;update_configuration.yaml&#34;, yaml.dump(config_file))
+        elif type(config_file) is tuple:
+            # Expect a File IO stream which contains the zip file
+            file_name = config_file[0]
+            zip_bin = config_file[1]
+            zip_bin.seek(0, 0)
+        else:
+            msg = (
+                &#34;Invalid Input, config_file should either by a valid dict or a tuple with&#34;
+                &#34;filename and FileIO stream&#34;
             )
-            if response.status_code == requests.codes.accepted:
-                break
+            raise ValueError(
+                msg,
+            )
+        m_enc_data = {&#34;file&#34;: (file_name, zip_bin, &#34;form-data&#34;)}
 
-            self._log.debug(&#34;Not authorized, performing login and retry execution&#34;)
-            self.handle.login()
-            allowed_codes = [requests.codes.accepted]
+        params = {
+            &#34;continueInCaseOfRestart&#34;: str(continue_after_restart).lower(),
+            &#34;restartAllWorkloads&#34;: str(restart_all_wl).lower(),
+            &#34;removeDockerImages&#34;: str(remove_images).lower(),
+        }
+        # Only add signFile for MSDNA
+        if sign_file is not None and type(self) is MSDNA:
+            params[&#34;signFile&#34;] = str(sign_file).lower()
+
+        response = self.handle.put(
+            os.path.join(self.base_url, &#34;target&#34;),
+            params=params,
+            m_enc_data=m_enc_data,
+            accepted_status=[requests.codes.accepted],
+        )
+
         self._log.info(&#34;DNA config applied: %s&#34;, response.json().get(&#34;message&#34;, response.json()))
         return response.json()
 
@@ -267,7 +259,23 @@ el.replaceWith(d);
 
     def cancel_target(self) -&gt; dict:
         &#34;&#34;&#34;Same as patch_target_cancel.&#34;&#34;&#34;
-        self.patch_target_cancel()</code></pre>
+        self.patch_target_cancel()
+
+    def wait_for_finish(self, timeout: int = 60) -&gt; dict:
+        &#34;&#34;&#34;Wait for the configuration process to finish, by checking the status until it is not &#39;RECONFIGURING&#39; anymore.&#34;&#34;&#34;
+        start_time = time.time()
+        while time.time() - start_time &lt; timeout:
+            dna_status = self.get_status()
+            if dna_status[&#34;status&#34;] in {&#34;APPLIED&#34;, &#34;MODIFIED&#34;}:
+                self.handle._log.info(&#34;DNA configuration status: %s&#34;, dna_status[&#34;message&#34;])
+                return dna_status
+            if dna_status[&#34;status&#34;] != &#34;RECONFIGURING&#34;:
+                self.handle._log.error(&#34;Unexpected DNA configuration status: %s&#34;, dna_status)
+                raise RuntimeError(f&#34;Unexpected status &#39;{dna_status}&#39;, apply configuration failed&#34;)
+            time.sleep(1)
+        raise RuntimeError(
+            f&#34;Status is still &#39;RECONFIGURING&#39; after {timeout} seconds, apply configuration failed&#34;
+        )</code></pre>
 </details>
 <div class="desc"><p>Common class for localUI and MS based DNA handling.</p>
 <h2 id="parameters">Parameters</h2>
@@ -276,7 +284,7 @@ el.replaceWith(d);
 <dd>node or ms handle.</dd>
 <dt><strong><code>base_url</code></strong> :&ensp;<code>str</code></dt>
 <dd>depending on node or ms handle, the base_url must be defined correct.</dd>
-<dt><strong><code>log</code></strong> :&ensp;<code>type</code></dt>
+<dt><strong><code>log</code></strong> :&ensp;<code>logging.Logger</code></dt>
 <dd>used logger to output logging data.</dd>
 </dl></div>
 <h3>Subclasses</h3>
@@ -443,53 +451,45 @@ el.replaceWith(d);
     dict
         Configuration response from the device.
     &#34;&#34;&#34;
-    allowed_codes = [requests.codes.accepted, requests.codes.unauthorized, requests.codes.forbidden]
-    while True:
-        if type(config_file) is dict:
-            # Expect a dict containing the correct config format
-            file_name = &#34;config.zip&#34;
-            zip_bin = BytesIO()
-            with ZipFile(zip_bin, &#34;w&#34;) as zip_object:
-                # Adding files that need to be zipped
-                zip_object.writestr(&#34;update_configuration.yaml&#34;, yaml.dump(config_file))
-        elif type(config_file) is tuple:
-            # Expect a File IO stream which contains the zip file
-            file_name = config_file[0]
-            zip_bin = config_file[1]
-            zip_bin.seek(0, 0)
-        else:
-            msg = (
-                &#34;Invalid Input, config_file should either by a valid dict or a tuple with&#34;
-                &#34;filename and FileIO stream&#34;
-            )
-            raise ValueError(
-                msg,
-            )
-        m_enc = MultipartEncoder({&#34;file&#34;: (file_name, zip_bin, &#34;form-data&#34;)})
 
-        params = {
-            &#34;continueInCaseOfRestart&#34;: str(continue_after_restart).lower(),
-            &#34;restartAllWorkloads&#34;: str(restart_all_wl).lower(),
-            &#34;removeDockerImages&#34;: str(remove_images).lower(),
-        }
-        # Only add signFile for MSDNA
-        if sign_file is not None and type(self) is MSDNA:
-            params[&#34;signFile&#34;] = str(sign_file).lower()
-
-        response = self.handle.put(
-            os.path.join(self.base_url, &#34;target&#34;),
-            params=params,
-            content_type=m_enc.content_type,
-            data=m_enc,
-            accepted_status=allowed_codes,
-            timeout=(7.5, 60),
+    if type(config_file) is dict:
+        # Expect a dict containing the correct config format
+        file_name = &#34;config.zip&#34;
+        zip_bin = BytesIO()
+        with ZipFile(zip_bin, &#34;w&#34;) as zip_object:
+            # Adding files that need to be zipped
+            zip_object.writestr(&#34;update_configuration.yaml&#34;, yaml.dump(config_file))
+    elif type(config_file) is tuple:
+        # Expect a File IO stream which contains the zip file
+        file_name = config_file[0]
+        zip_bin = config_file[1]
+        zip_bin.seek(0, 0)
+    else:
+        msg = (
+            &#34;Invalid Input, config_file should either by a valid dict or a tuple with&#34;
+            &#34;filename and FileIO stream&#34;
         )
-        if response.status_code == requests.codes.accepted:
-            break
+        raise ValueError(
+            msg,
+        )
+    m_enc_data = {&#34;file&#34;: (file_name, zip_bin, &#34;form-data&#34;)}
 
-        self._log.debug(&#34;Not authorized, performing login and retry execution&#34;)
-        self.handle.login()
-        allowed_codes = [requests.codes.accepted]
+    params = {
+        &#34;continueInCaseOfRestart&#34;: str(continue_after_restart).lower(),
+        &#34;restartAllWorkloads&#34;: str(restart_all_wl).lower(),
+        &#34;removeDockerImages&#34;: str(remove_images).lower(),
+    }
+    # Only add signFile for MSDNA
+    if sign_file is not None and type(self) is MSDNA:
+        params[&#34;signFile&#34;] = str(sign_file).lower()
+
+    response = self.handle.put(
+        os.path.join(self.base_url, &#34;target&#34;),
+        params=params,
+        m_enc_data=m_enc_data,
+        accepted_status=[requests.codes.accepted],
+    )
+
     self._log.info(&#34;DNA config applied: %s&#34;, response.json().get(&#34;message&#34;, response.json()))
     return response.json()</code></pre>
 </details>
@@ -554,6 +554,32 @@ as dictionary containing the configuration string (file-content).</dd>
 </details>
 <div class="desc"><p>Same as put_target_re_apply.</p></div>
 </dd>
+<dt id="nerve_lib.manage_dna.DNACommon.wait_for_finish"><code class="name flex">
+<span>def <span class="ident">wait_for_finish</span></span>(<span>self, timeout: int = 60) ‑> dict</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def wait_for_finish(self, timeout: int = 60) -&gt; dict:
+    &#34;&#34;&#34;Wait for the configuration process to finish, by checking the status until it is not &#39;RECONFIGURING&#39; anymore.&#34;&#34;&#34;
+    start_time = time.time()
+    while time.time() - start_time &lt; timeout:
+        dna_status = self.get_status()
+        if dna_status[&#34;status&#34;] in {&#34;APPLIED&#34;, &#34;MODIFIED&#34;}:
+            self.handle._log.info(&#34;DNA configuration status: %s&#34;, dna_status[&#34;message&#34;])
+            return dna_status
+        if dna_status[&#34;status&#34;] != &#34;RECONFIGURING&#34;:
+            self.handle._log.error(&#34;Unexpected DNA configuration status: %s&#34;, dna_status)
+            raise RuntimeError(f&#34;Unexpected status &#39;{dna_status}&#39;, apply configuration failed&#34;)
+        time.sleep(1)
+    raise RuntimeError(
+        f&#34;Status is still &#39;RECONFIGURING&#39; after {timeout} seconds, apply configuration failed&#34;
+    )</code></pre>
+</details>
+<div class="desc"><p>Wait for the configuration process to finish, by checking the status until it is not 'RECONFIGURING' anymore.</p></div>
+</dd>
 </dl>
 </dd>
 <dt id="nerve_lib.manage_dna.LocalDNA"><code class="flex name class">
@@ -578,9 +604,14 @@ as dictionary containing the configuration string (file-content).</dd>
         super().__init__(
             node_handle,
             &#34;/api/dna/&#34;,
-            logging.getLogger(f&#34;LocalDNA-{node_handle.serial_number}&#34;),
+            node_handle._log.getChild(&#34;DNA&#34;),
         )
-        node_handle.login()</code></pre>
+
+    def put_target(self, config_file, **kwargs) -&gt; dict:
+        if not self.handle._is_logged_in:
+            self._log.debug(&#34;Not logged in, performing login and retrying put_target&#34;)
+            self.handle.login()
+        return super().put_target(config_file)</code></pre>
 </details>
 <div class="desc"><p>Manage the DNA of a device directly using localUI API comamnds.</p>
 <h2 id="parameters">Parameters</h2>
@@ -604,6 +635,7 @@ as dictionary containing the configuration string (file-content).</dd>
 <li><code><a title="nerve_lib.manage_dna.DNACommon.put_target" href="#nerve_lib.manage_dna.DNACommon.put_target">put_target</a></code></li>
 <li><code><a title="nerve_lib.manage_dna.DNACommon.put_target_re_apply" href="#nerve_lib.manage_dna.DNACommon.put_target_re_apply">put_target_re_apply</a></code></li>
 <li><code><a title="nerve_lib.manage_dna.DNACommon.reapply_target" href="#nerve_lib.manage_dna.DNACommon.reapply_target">reapply_target</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.DNACommon.wait_for_finish" href="#nerve_lib.manage_dna.DNACommon.wait_for_finish">wait_for_finish</a></code></li>
 </ul>
 </li>
 </ul>
@@ -630,9 +662,14 @@ as dictionary containing the configuration string (file-content).</dd>
         super().__init__(
             node_handle,
             &#34;/api/service-os-dna/&#34;,
-            logging.getLogger(f&#34;LocalUIDNAServiceOS-{node_handle.serial_number}&#34;),
+            node_handle._log.getChild(&#34;ServiceOSDNA&#34;),
         )
-        node_handle.login()</code></pre>
+
+    def put_target(self, config_file, **kwargs) -&gt; dict:
+        if not self.handle._is_logged_in:
+            self._log.debug(&#34;Not logged in, performing login and executing put_target&#34;)
+            self.handle.login()
+        return super().put_target(config_file)</code></pre>
 </details>
 <div class="desc"><p>Manage Service OS DNA of a device via Local UI API commands.</p>
 <h2 id="parameters">Parameters</h2>
@@ -657,6 +694,7 @@ as dictionary containing the configuration string (file-content).</dd>
 <li><code><a title="nerve_lib.manage_dna.ServiceOSDNACommon.put_target" href="#nerve_lib.manage_dna.ServiceOSDNACommon.put_target">put_target</a></code></li>
 <li><code><a title="nerve_lib.manage_dna.ServiceOSDNACommon.put_target_re_apply" href="#nerve_lib.manage_dna.DNACommon.put_target_re_apply">put_target_re_apply</a></code></li>
 <li><code><a title="nerve_lib.manage_dna.ServiceOSDNACommon.reapply_target" href="#nerve_lib.manage_dna.DNACommon.reapply_target">reapply_target</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.ServiceOSDNACommon.wait_for_finish" href="#nerve_lib.manage_dna.DNACommon.wait_for_finish">wait_for_finish</a></code></li>
 </ul>
 </li>
 </ul>
@@ -685,7 +723,7 @@ as dictionary containing the configuration string (file-content).</dd>
         super().__init__(
             ms_handle,
             f&#34;/nerve/dna/{node_serial_number}/&#34;,
-            logging.getLogger(f&#34;MSDNA-{node_serial_number}&#34;),
+            ms_handle._log.getChild(f&#34;MSDNA-{node_serial_number}&#34;),
         )</code></pre>
 </details>
 <div class="desc"><p>Management system API commands to handle DNA of a device.</p>
@@ -712,6 +750,7 @@ as dictionary containing the configuration string (file-content).</dd>
 <li><code><a title="nerve_lib.manage_dna.DNACommon.put_target" href="#nerve_lib.manage_dna.DNACommon.put_target">put_target</a></code></li>
 <li><code><a title="nerve_lib.manage_dna.DNACommon.put_target_re_apply" href="#nerve_lib.manage_dna.DNACommon.put_target_re_apply">put_target_re_apply</a></code></li>
 <li><code><a title="nerve_lib.manage_dna.DNACommon.reapply_target" href="#nerve_lib.manage_dna.DNACommon.reapply_target">reapply_target</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.DNACommon.wait_for_finish" href="#nerve_lib.manage_dna.DNACommon.wait_for_finish">wait_for_finish</a></code></li>
 </ul>
 </li>
 </ul>
@@ -740,7 +779,7 @@ as dictionary containing the configuration string (file-content).</dd>
         super().__init__(
             ms_handle,
             f&#34;/nerve/service-os-dna/{node_serial_number}/&#34;,
-            logging.getLogger(f&#34;ServiceOSDNA-{node_serial_number}&#34;),
+            ms_handle._log.getChild(f&#34;ServiceOSDNA-{node_serial_number}&#34;),
         )</code></pre>
 </details>
 <div class="desc"><p>Management system API commands to handle Service OS DNA of a device.</p>
@@ -768,13 +807,14 @@ as dictionary containing the configuration string (file-content).</dd>
 <li><code><a title="nerve_lib.manage_dna.ServiceOSDNACommon.put_target" href="#nerve_lib.manage_dna.ServiceOSDNACommon.put_target">put_target</a></code></li>
 <li><code><a title="nerve_lib.manage_dna.ServiceOSDNACommon.put_target_re_apply" href="#nerve_lib.manage_dna.DNACommon.put_target_re_apply">put_target_re_apply</a></code></li>
 <li><code><a title="nerve_lib.manage_dna.ServiceOSDNACommon.reapply_target" href="#nerve_lib.manage_dna.DNACommon.reapply_target">reapply_target</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.ServiceOSDNACommon.wait_for_finish" href="#nerve_lib.manage_dna.DNACommon.wait_for_finish">wait_for_finish</a></code></li>
 </ul>
 </li>
 </ul>
 </dd>
 <dt id="nerve_lib.manage_dna.ServiceOSDNACommon"><code class="flex name class">
 <span>class <span class="ident">ServiceOSDNACommon</span></span>
-<span>(</span><span>handle, base_url: str, log: type)</span>
+<span>(</span><span>handle, base_url: str, log: logging.Logger)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -800,33 +840,14 @@ as dictionary containing the configuration string (file-content).</dd>
 
         yaml_content = yaml.dump(config_dict, default_flow_style=False, allow_unicode=True)
         file_stream = BytesIO(yaml_content.encode(&#34;utf-8&#34;))
-        file_stream.seek(0)
         url = os.path.join(self.base_url, &#34;target&#34;)
-        self._log.info(&#34;Sending PUT request to URL: %s&#34;, url)
-        accepted_status = [requests.codes.accepted, requests.codes.forbidden]
-        while True:
-            file_stream = BytesIO(yaml_content.encode(&#34;utf-8&#34;))
-            file_stream.seek(0)
-            m_enc = MultipartEncoder({
-                &#34;file&#34;: (&#34;update_configuration.yaml&#34;, file_stream, &#34;application/x-yaml&#34;)
-            })
-            response = self.handle.put(
-                url,
-                content_type=m_enc.content_type,
-                data=m_enc,
-                accepted_status=accepted_status,
-                timeout=(7.5, 60),
-            )
-            if response.status_code == requests.codes.forbidden:
-                self.handle.login()
-                accepted_status = [requests.codes.accepted]
-                continue
-            break
-        try:
-            return response.json()
-        except Exception as e:
-            self._log.error(&#34;Failed to parse response as JSON: %s&#34;, e)
-            return {&#34;error&#34;: str(e)}</code></pre>
+        m_enc_data = {&#34;file&#34;: (&#34;update_configuration.yaml&#34;, file_stream, &#34;application/x-yaml&#34;)}
+        response = self.handle.put(
+            url,
+            m_enc_data=m_enc_data,
+            accepted_status=[requests.codes.accepted],
+        )
+        return response.json()</code></pre>
 </details>
 <div class="desc"><p>Common class for localUI and MS based Service OS DNA handling.</p></div>
 <h3>Ancestors</h3>
@@ -864,33 +885,14 @@ as dictionary containing the configuration string (file-content).</dd>
 
     yaml_content = yaml.dump(config_dict, default_flow_style=False, allow_unicode=True)
     file_stream = BytesIO(yaml_content.encode(&#34;utf-8&#34;))
-    file_stream.seek(0)
     url = os.path.join(self.base_url, &#34;target&#34;)
-    self._log.info(&#34;Sending PUT request to URL: %s&#34;, url)
-    accepted_status = [requests.codes.accepted, requests.codes.forbidden]
-    while True:
-        file_stream = BytesIO(yaml_content.encode(&#34;utf-8&#34;))
-        file_stream.seek(0)
-        m_enc = MultipartEncoder({
-            &#34;file&#34;: (&#34;update_configuration.yaml&#34;, file_stream, &#34;application/x-yaml&#34;)
-        })
-        response = self.handle.put(
-            url,
-            content_type=m_enc.content_type,
-            data=m_enc,
-            accepted_status=accepted_status,
-            timeout=(7.5, 60),
-        )
-        if response.status_code == requests.codes.forbidden:
-            self.handle.login()
-            accepted_status = [requests.codes.accepted]
-            continue
-        break
-    try:
-        return response.json()
-    except Exception as e:
-        self._log.error(&#34;Failed to parse response as JSON: %s&#34;, e)
-        return {&#34;error&#34;: str(e)}</code></pre>
+    m_enc_data = {&#34;file&#34;: (&#34;update_configuration.yaml&#34;, file_stream, &#34;application/x-yaml&#34;)}
+    response = self.handle.put(
+        url,
+        m_enc_data=m_enc_data,
+        accepted_status=[requests.codes.accepted],
+    )
+    return response.json()</code></pre>
 </details>
 <div class="desc"><p>Apply target Service OS DNA configuration using a configuration dict.</p>
 <h2 id="parameters">Parameters</h2>
@@ -916,6 +918,7 @@ as dictionary containing the configuration string (file-content).</dd>
 <li><code><a title="nerve_lib.manage_dna.DNACommon.patch_target_cancel" href="#nerve_lib.manage_dna.DNACommon.patch_target_cancel">patch_target_cancel</a></code></li>
 <li><code><a title="nerve_lib.manage_dna.DNACommon.put_target_re_apply" href="#nerve_lib.manage_dna.DNACommon.put_target_re_apply">put_target_re_apply</a></code></li>
 <li><code><a title="nerve_lib.manage_dna.DNACommon.reapply_target" href="#nerve_lib.manage_dna.DNACommon.reapply_target">reapply_target</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.DNACommon.wait_for_finish" href="#nerve_lib.manage_dna.DNACommon.wait_for_finish">wait_for_finish</a></code></li>
 </ul>
 </li>
 </ul>
@@ -948,6 +951,7 @@ as dictionary containing the configuration string (file-content).</dd>
 <li><code><a title="nerve_lib.manage_dna.DNACommon.put_target" href="#nerve_lib.manage_dna.DNACommon.put_target">put_target</a></code></li>
 <li><code><a title="nerve_lib.manage_dna.DNACommon.put_target_re_apply" href="#nerve_lib.manage_dna.DNACommon.put_target_re_apply">put_target_re_apply</a></code></li>
 <li><code><a title="nerve_lib.manage_dna.DNACommon.reapply_target" href="#nerve_lib.manage_dna.DNACommon.reapply_target">reapply_target</a></code></li>
+<li><code><a title="nerve_lib.manage_dna.DNACommon.wait_for_finish" href="#nerve_lib.manage_dna.DNACommon.wait_for_finish">wait_for_finish</a></code></li>
 </ul>
 </li>
 <li>
