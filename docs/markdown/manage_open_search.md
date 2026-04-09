@@ -59,34 +59,34 @@ Classes
         >>> kwargs = {"partial_message": "partial text of the message"}
         >>> opensearch.filter_docker_logs(past_hours=5, container_name="my_container", **kwargs)
 
-    `get_audit(self, past_hours: int = 5, search_filters: list = [])`
+    `get_audit(self, past_hours: int = 5, search_filters: list | None = None)`
     :   Get audit logs from open search.
 
-    `get_audit_docker(self, past_hours: int = 5, search_filters: list = [])`
+    `get_audit_docker(self, past_hours: int = 5, search_filters: list | None = None)`
     :   Get audit logs node from open search.
 
-    `get_audit_node(self, past_hours: int = 5, search_filters: list = [])`
+    `get_audit_node(self, past_hours: int = 5, search_filters: list | None = None)`
     :   Get audit logs node from open search.
 
-    `get_filebeat(self, past_hours: int = 5, search_filters: list = [])`
+    `get_filebeat(self, past_hours: int = 5, search_filters: list | None = None)`
     :   Get filebeat logs from open search.
 
-    `get_fluentbit(self, past_hours: int = 5, search_filters: list = [])`
+    `get_fluentbit(self, past_hours: int = 5, search_filters: list | None = None)`
     :   Get filebeat logs from open search.
 
-    `get_nerve(self, past_hours: int = 5, search_filters: list = [])`
+    `get_nerve(self, past_hours: int = 5, search_filters: list | None = None)`
     :   Get nerve logs from open search.
 
-    `messages_audit(self, message_level: str = '', past_hours: int = 5, search_filters: list = [])`
+    `messages_audit(self, message_level: str = '', past_hours: int = 5, search_filters: list | None = None)`
     :   Get messages from audit logs.
         
         message_level str, optional:
             one of "info", "warn", "error"
 
-    `messages_filebeat(self, severity_level: str = '', past_hours: int = 5, search_filters: list = [])`
+    `messages_filebeat(self, severity_level: str = '', past_hours: int = 5, search_filters: list | None = None)`
     :   Get messages from filebeat logs.
         
         severtiy_level: one of ["Informational","Error","Warning"].
 
-    `messages_nerve(self, message_level: str = '', past_hours: int = 5, search_filters: list = [])`
+    `messages_nerve(self, message_level: str = '', past_hours: int = 5, search_filters: list | None = None)`
     :   Get messages from nerve logs.

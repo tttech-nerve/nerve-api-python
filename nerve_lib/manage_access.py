@@ -30,13 +30,9 @@ Example:
 """
 
 import json
-import logging
 import re
-from typing import Optional
 
 import requests
-import yaml
-from requests_toolbelt import MultipartEncoder
 
 
 class MSRole:
@@ -50,7 +46,7 @@ class MSRole:
 
     def __init__(self, ms_handle):
         self.ms = ms_handle
-        self._log = logging.getLogger("Role")
+        self._log = ms_handle._log.getChild("Role")
 
     def get(self, name: str = "", role_type: str = "local"):
         """Get list of available roles in MS."""
@@ -65,9 +61,7 @@ class MSRole:
             return next(role for role in role_list if role["name"] == name)
         except StopIteration:
             msg = f"Role '{name}' not in role_type '{role_type}' ({[role['name'] for role in role_list]})"
-            raise Exception(
-                msg,
-            )
+            raise ValueError(msg)
 
     def get_permission_ui(self, name_filter: str = ""):
         """Get list of permissions for UI class."""
@@ -99,9 +93,7 @@ class MSRole:
                     f"Permission '{perm_name}' not valid, use one of "
                     f"({[perm['name'] for perm in available_permissions['data']]}"
                 )
-                raise Exception(
-                    msg,
-                )
+                raise ValueError(msg)
         payload = {
             "id": "",
             "name": name,
@@ -157,9 +149,7 @@ class MSRole:
                     f"Permission '{perm_name}' not valid, use one of "
                     f"({[perm['name'] for perm in available_permissions['data']]}"
                 )
-                raise Exception(
-                    msg,
-                )
+                raise ValueError(msg)
 
         # Update fields only if they are provided
         role_id = existing_role["_id"]
@@ -194,7 +184,7 @@ class MSUser:
 
     def __init__(self, ms_handle):
         self.ms = ms_handle
-        self._log = logging.getLogger("User")
+        self._log = ms_handle._log.getChild("User")
         self._role = MSRole(ms_handle)
 
     def get(self, email="", role_type="local"):
@@ -212,9 +202,7 @@ class MSUser:
                     f"User '{email}' not in role_type '{role_type}' "
                     f"({[user['username'] for user in user_list['data']]}"
                 )
-                raise Exception(
-                    msg,
-                )
+                raise ValueError(msg)
         return user_list
 
     def add(
@@ -227,9 +215,7 @@ class MSUser:
             raise RuntimeError(msg)
         uname = [name.capitalize() for name in email.split("@", maxsplit=1)[0].split(".", 1)]
 
-        role_ids = []
-        for role in roles:
-            role_ids.append(self._role.get(role, role_type)["_id"])
+        role_ids = [self._role.get(role, role_type)["_id"] for role in roles]
 
         payload = {
             "firstName": first_name or uname[0],
@@ -247,32 +233,26 @@ class MSUser:
             ],
             "roles": role_ids,
         }
-        accepted_status = [requests.codes.ok, requests.codes.forbidden]
-        while True:
-            m_enc = MultipartEncoder({"data": (None, json.dumps(payload), "form-data")})
 
-            response = self.ms.post(
-                "/crm/profile",
-                data=m_enc,
-                content_type=m_enc.content_type,
-                accepted_status=accepted_status,
-            )
-            if response.status_code == requests.codes.forbidden:
-                self.node.login()
-                accepted_status = [requests.codes.ok]
-                continue
-            break
+        m_enc_data = {"data": (None, json.dumps(payload), "form-data")}
+
+        response = self.ms.post(
+            "/crm/profile",
+            m_enc_data=m_enc_data,
+            accepted_status=[requests.codes.ok],
+        )
         return response.json()
 
-    def edit(self, email: str, roles: list = [], first_name="", last_name="", role_type="local"):
+    def edit(self, email: str, roles: list | None = None, first_name="", last_name="", role_type="local"):
         """Edit an existing user."""
         payload = self.get(email, role_type)
 
         if roles:
-            role_ids = []
-            for role in roles:
-                role_ids.append(self._role.get(role, role_type)["_id"])
+            role_ids = [self._role.get(role, role_type)["_id"] for role in roles]
             payload["roles"] = role_ids
+        else:
+            role_dicts = payload.get("roles", [])
+            payload["roles"] = [role_dict["_id"] for role_dict in role_dicts]
 
         if first_name:
             payload["firstName"] = first_name
@@ -284,21 +264,13 @@ class MSUser:
 
         payload["id"] = payload.pop("_id")
 
-        accepted_status = [requests.codes.ok, requests.codes.forbidden]
-        while True:
-            m_enc = MultipartEncoder({"data": (None, json.dumps(payload), "form-data")})
+        m_enc_data = {"data": (None, json.dumps(payload), "form-data")}
 
-            response = self.ms.put(
-                f"/crm/profile/{payload.get('id')}",
-                data=m_enc,
-                content_type=m_enc.content_type,
-                accepted_status=accepted_status,
-            )
-            if response.status_code == requests.codes.forbidden:
-                self.node.login()
-                accepted_status = [requests.codes.ok]
-                continue
-            break
+        response = self.ms.put(
+            f"/crm/profile/{payload.get('id')}",
+            m_enc_data=m_enc_data,
+            accepted_status=[requests.codes.ok],
+        )
         return response.json()
 
     def delete(self, email):
@@ -339,58 +311,14 @@ class MSUser:
             "confirmPassword": confirm_new_password,
         }
 
-        accepted_status = [requests.codes.ok, requests.codes.forbidden]
-        while True:
-            m_enc = MultipartEncoder({"data": (None, json.dumps(payload), "form-data")})
+        m_enc_data = {"data": (None, json.dumps(payload), "form-data")}
 
-            response = self.ms.put(
-                "/crm/personalProfile",
-                data=m_enc,
-                content_type=m_enc.content_type,
-                accepted_status=accepted_status,
-            )
-            if response.status_code == requests.codes.forbidden:
-                self.node.login()
-                accepted_status = [requests.codes.ok]
-                continue
-            break
+        response = self.ms.put(
+            "/crm/personalProfile",
+            m_enc_data=m_enc_data,
+            accepted_status=[requests.codes.ok],
+        )
         return response.json()
-
-    def extract_endpoints(self, openapi_spec, output_json):
-        """Extract endpoints from OpenAPI specification and save to JSON file."""
-        try:
-            with open(openapi_spec, "r", encoding="utf-8") as file:
-                if ".yml" in openapi_spec or ".yaml" in openapi_spec:
-                    data = yaml.safe_load(file)
-                elif ".json" in openapi_spec:
-                    data = json.load(file)
-                else:
-                    self._log.error("API spec file format not supported!")
-
-                # Extract endpoints from paths and save to JSON file
-                if "paths" in data:
-                    paths = data["paths"]
-                    endpoints = []
-
-                    for path, methods in paths.items():
-                        endpoint_data = {"Endpoint": path, "Methods": list(methods.keys())}
-                        endpoints.append(endpoint_data)
-
-                    with open(output_json, "w", encoding="utf-8") as json_file:
-                        json.dump(endpoints, json_file, indent=2)
-                    self._log.info("Endpoints saved to %s", output_json)
-                else:
-                    msg = "No 'paths' field found in the OpenAPI specification."
-                    raise ValueError(msg)
-
-        except FileNotFoundError:
-            self._log.error("File not found: %s", output_json)
-        except yaml.YAMLError:
-            self._log.error("Invalid YAML format in file: %s", openapi_spec)
-        except json.JSONDecodeError:
-            self._log.exception("JSON decoding error")
-        except Exception:
-            self._log.exception("An error occurred")
 
 
 class LocalUser:
@@ -398,13 +326,13 @@ class LocalUser:
 
     Parameters
     ----------
-    ms_handle :
-        management system handle 'nerve_lib.general_utils.MSHandle(...)'.
+    node_handle :
+        node handle 'nerve_lib.general_utils.NodeHandle(...)'.
     """
 
     def __init__(self, node_handle):
         self.node = node_handle
-        self._log = logging.getLogger("User")
+        self._log = node_handle._log.getChild("User")
 
     def delete(self, username: str = ""):
         """Delete all users or a specific user from the node.
@@ -788,7 +716,7 @@ class LDAP:
         self,
         action: str,
         file_name: str,
-        ldap_payload: Optional[dict] = None,
+        ldap_payload: dict | None = None,
         recurring_sync=None,
         relationship=None,
         users=None,
@@ -853,4 +781,3 @@ class LDAP:
 
         err_msg = f"Invalid action for function save_sync_ldap: {action}"
         raise ValueError(err_msg)
-

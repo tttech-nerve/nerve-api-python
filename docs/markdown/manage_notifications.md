@@ -62,7 +62,7 @@ Classes
             Response object for the download request.
 
     `edit(self, notification_id, text_header, text_msg, image_path='', active=True, show_before_login=False)`
-    :   Create a new notification item.
+    :   Edit an existing notification item.
 
     `get(self)`
     :   Read list of all notification items.

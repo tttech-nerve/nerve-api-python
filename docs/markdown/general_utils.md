@@ -80,8 +80,16 @@ Classes
 
     ### Methods
 
-    `login(self, user: str = '', password: str = '') ‑> type`
+    `login(self, user: str = '', password: str = '', **kwargs) ‑> type`
     :   Login on MS.
+        
+        Allows to switch user when providing user/password, otherwise will use existing credentials.
+        In case of a failed login, an error will be raised.
+        
+        Args:
+            user (str, optional): username to login on MS. The default is ENV-var MS_USR.
+            password (str, optional): password to logon on MS. The default is ENV-var MS_PSW.
+            **kwargs: Additional keyword arguments for future extensions
 
     `logout(self)`
     :   Logout from MS.
@@ -102,7 +110,7 @@ Classes
         bool
             True if the MS version is smaller than the provided version.
 
-`ManageSshTunnel(user: str | None = None, password: str | None = None, log: type | None = None)`
+`ManageSshTunnel(user: str | None = None, password: str | None = None, log: logging.Logger | None = None)`
 :   Manage SSH Tunnels required to access e.g. localUI of a node.
     
     Parameters
@@ -111,7 +119,7 @@ Classes
         ssh user to connect to the device. The default is None.
     password : str, optional
         ssh password to connect to the device. The default is None.
-    log : type, optional
+    log : logging.Logger, optional
         handle of logging.getLogger(...). The default is None.
 
     ### Methods
@@ -121,7 +129,7 @@ Classes
         
         Example:
         
-        >>> ssh_tunnel = ManageSshTunnel(usr, password, logging.getLogger("CustomName"))
+        >>> ssh_tunnel = ManageSshTunnel(user, password, logging.getLogger("CustomName"))
         >>> ssh_tunnel.create_tunnel("172.16.0.1", ("172.20.2.1", 3333), 3333)
         <returns tunnel-handle>
         
@@ -155,7 +163,7 @@ Classes
         local_bind : tuple[str, int]
             local bind information (ip-address, port).
 
-`NodeHandle(ip_addr: str, user: str | None = None, password: str | None = None, ssh_user: str | None = None, ssh_password: str | None = None, api_path: str = '/', serial_number: str | None = None, local_ui_port: int = 3333, local_ui_ip_addr: str = '172.20.2.1', local_bind_port: int = 3333)`
+`NodeHandle(ip_addr: str, user: str | None = None, password: str | None = None, ssh_user: str | None = None, ssh_password: str | None = None, api_path: str = '/', serial_number: str | None = None, local_ui_port: int = 3333, local_ui_ip_addr: str = '172.20.2.1', local_bind_port: int = 3333, logger: logging.Logger | None = None)`
 :   Node requests and ssh connection management.
     
     Example:
@@ -202,8 +210,16 @@ Classes
     `create_tunnel_node(self)`
     :   Create a ssh-tunnel to the localUI of a node.
 
-    `login(self, user: str = '', password: str = '')`
+    `login(self, user: str = '', password: str = '', **kwargs)`
     :   Login to Node.
+        
+        Allows to switch user when providing user/password, otherwise will use existing credentials.
+        In case of a login error, e.g. max retry exceeded, the function will wait for 5 seconds and can be retried.
+        
+        Args:
+            user (str, optional): username to login on Node. The default is "".
+            password (str, optional): password to logon on Node. The default is "".
+            **kwargs: Additional keyword arguments for future extensions.
 
     `logout(self)`
     :   Logout from Node.
@@ -221,7 +237,7 @@ Classes
         password : str
             ssh password.
 
-`RequestGeneral(url: str, api_path: str, log: type)`
+`RequestGeneral(url: str, api_path: str, log: logging.Logger)`
 :   Manage Requests to Nodes and MS.
     
     The class can be added as super-class to other instances.
@@ -236,7 +252,7 @@ Classes
         default api-path to be used.
         If requests executed with url "/path" will overwrite the api_path.
         Creating a request with url "path" will create a request on /api_path/path.
-    log : type
+    log : logging.Logger
         logging.getLogger(...) handle to be used.
     
     Returns
@@ -255,7 +271,7 @@ Classes
 
     ### Methods
 
-    `request(self, method: str, url: str, accepted_status: list = [200, 204], content_type: str = 'application/json', **kwargs) ‑> type`
+    `request(self, method: str, url: str, accepted_status: list[int] | None = None, content_type: str = 'application/json', m_enc_data: dict | None = None, **kwargs) ‑> type`
     :   Overwrite default request function.
         
         Function is extended with checking for accepted_status and adds different Headers required for
@@ -272,6 +288,12 @@ Classes
             The default is [requests.codes.ok, requests.codes.no_content].
         content_type : str, optional
             conent type of the request. The default is "application/json".
+        m_enc_data: dict, optional
+            if m_enc_data is provided in the format {"field_name": (filename, file_data, content_type)},
+            the request will be send as multipart/form-data with the provided data.
+            In case of a retry, the m_enc_data handles will be reset to the beginning of the file data,
+            to ensure that the full data is send in the retry.
+            The default is None.
         **kwargs : TYPE
             additional key values as defined in requests.request object.
         
@@ -288,7 +310,7 @@ Classes
     * builtins.Exception
     * builtins.BaseException
 
-`SshGeneral(ip_addr: str, user: str = '', password: str = '')`
+`SshGeneral(ip_addr: str, user: str = '', password: str = '', logger: logging.Logger | None = None)`
 :   Allow to access a device over ssh and execute commands.
     
     Parameters
@@ -299,6 +321,8 @@ Classes
         ssh username to login.
     password : str
         ssh password to login.
+    log : logging.Logger, optional
+        Logger to use for logging. If not provided, a default logger will be created.
 
     ### Methods
 

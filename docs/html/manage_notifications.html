@@ -75,10 +75,10 @@ el.replaceWith(d);
 
     def __init__(self, ms_handle):
         self.ms = ms_handle
-        self._log = logging.getLogger(&#34;Notification&#34;)
+        self._log = ms_handle._log.getChild(&#34;Notification&#34;)
 
     @staticmethod
-    def __prepare_content(text_header, text_msg, image_path, active, show_before_login):
+    def __prepare_content(text_header, text_msg, image_path, active, show_before_login, image_open=None):
         m_enc_data = {
             &#34;headerText&#34;: text_header,
             &#34;textMessage&#34;: text_msg,
@@ -91,30 +91,22 @@ el.replaceWith(d);
                 image_type = &#34;jpeg&#34;
             m_enc_data[&#34;image&#34;] = (
                 os.path.basename(image_path),
-                open(image_path, &#34;rb&#34;),
+                image_open,
                 f&#34;image/{image_type}&#34;,
             )
         return m_enc_data
 
     def create(self, text_header, text_msg, image_path=&#34;&#34;, active=True, show_before_login=False):
         &#34;&#34;&#34;Create a new notification item.&#34;&#34;&#34;
-        m_enc_data = self.__prepare_content(text_header, text_msg, image_path, active, show_before_login)
-
-        accepted_status = [requests.codes.ok, requests.codes.forbidden]
-        while True:
-            m_enc = MultipartEncoder(m_enc_data)
-
+        with open(image_path, &#34;rb&#34;) if image_path else None as image_open:
+            m_enc_data = self.__prepare_content(
+                text_header, text_msg, image_path, active, show_before_login, image_open
+            )
             resp = self.ms.post(
                 &#34;/nerve/notifications&#34;,
-                content_type=m_enc.content_type,
-                data=m_enc,
-                accepted_status=accepted_status,
+                m_enc_data=m_enc_data,
+                accepted_status=[requests.codes.ok],
             )
-            if resp.status_code == requests.codes.forbidden:
-                self.ms.login()
-                accepted_status = [requests.codes.ok]
-                continue
-            break
         self._log.info(&#34;Created Notification %s&#34;, text_header)
         return resp.json()
 
@@ -127,25 +119,18 @@ el.replaceWith(d);
         active=True,
         show_before_login=False,
     ):
-        &#34;&#34;&#34;Create a new notification item.&#34;&#34;&#34;
-        m_enc_data = self.__prepare_content(text_header, text_msg, image_path, active, show_before_login)
-
-        accepted_status = [requests.codes.ok, requests.codes.forbidden]
-        while True:
-            m_enc = MultipartEncoder(m_enc_data)
-
+        &#34;&#34;&#34;Edit an existing notification item.&#34;&#34;&#34;
+        with open(image_path, &#34;rb&#34;) if image_path else None as image_open:
+            m_enc_data = self.__prepare_content(
+                text_header, text_msg, image_path, active, show_before_login, image_open
+            )
             resp = self.ms.put(
                 f&#34;/nerve/notifications/{notification_id}&#34;,
-                content_type=m_enc.content_type,
-                data=m_enc,
-                accepted_status=accepted_status,
+                m_enc_data=m_enc_data,
+                accepted_status=[requests.codes.ok],
             )
-            if resp.status_code == requests.codes.forbidden:
-                self.ms.login()
-                accepted_status = [requests.codes.ok]
-                continue
-            break
-        self._log.info(&#34;Created Notification %s&#34;, text_header)
+
+        self._log.info(&#34;Edited Notification %s&#34;, text_header)
         return resp.json()
 
     def get(self):
@@ -281,23 +266,15 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
 </summary>
 <pre><code class="python">def create(self, text_header, text_msg, image_path=&#34;&#34;, active=True, show_before_login=False):
     &#34;&#34;&#34;Create a new notification item.&#34;&#34;&#34;
-    m_enc_data = self.__prepare_content(text_header, text_msg, image_path, active, show_before_login)
-
-    accepted_status = [requests.codes.ok, requests.codes.forbidden]
-    while True:
-        m_enc = MultipartEncoder(m_enc_data)
-
+    with open(image_path, &#34;rb&#34;) if image_path else None as image_open:
+        m_enc_data = self.__prepare_content(
+            text_header, text_msg, image_path, active, show_before_login, image_open
+        )
         resp = self.ms.post(
             &#34;/nerve/notifications&#34;,
-            content_type=m_enc.content_type,
-            data=m_enc,
-            accepted_status=accepted_status,
+            m_enc_data=m_enc_data,
+            accepted_status=[requests.codes.ok],
         )
-        if resp.status_code == requests.codes.forbidden:
-            self.ms.login()
-            accepted_status = [requests.codes.ok]
-            continue
-        break
     self._log.info(&#34;Created Notification %s&#34;, text_header)
     return resp.json()</code></pre>
 </details>
@@ -385,28 +362,21 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
     active=True,
     show_before_login=False,
 ):
-    &#34;&#34;&#34;Create a new notification item.&#34;&#34;&#34;
-    m_enc_data = self.__prepare_content(text_header, text_msg, image_path, active, show_before_login)
-
-    accepted_status = [requests.codes.ok, requests.codes.forbidden]
-    while True:
-        m_enc = MultipartEncoder(m_enc_data)
-
+    &#34;&#34;&#34;Edit an existing notification item.&#34;&#34;&#34;
+    with open(image_path, &#34;rb&#34;) if image_path else None as image_open:
+        m_enc_data = self.__prepare_content(
+            text_header, text_msg, image_path, active, show_before_login, image_open
+        )
         resp = self.ms.put(
             f&#34;/nerve/notifications/{notification_id}&#34;,
-            content_type=m_enc.content_type,
-            data=m_enc,
-            accepted_status=accepted_status,
+            m_enc_data=m_enc_data,
+            accepted_status=[requests.codes.ok],
         )
-        if resp.status_code == requests.codes.forbidden:
-            self.ms.login()
-            accepted_status = [requests.codes.ok]
-            continue
-        break
-    self._log.info(&#34;Created Notification %s&#34;, text_header)
+
+    self._log.info(&#34;Edited Notification %s&#34;, text_header)
     return resp.json()</code></pre>
 </details>
-<div class="desc"><p>Create a new notification item.</p></div>
+<div class="desc"><p>Edit an existing notification item.</p></div>
 </dd>
 <dt id="nerve_lib.manage_notifications.MSNotifications.get"><code class="name flex">
 <span>def <span class="ident">get</span></span>(<span>self)</span>

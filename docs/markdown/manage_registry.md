@@ -27,13 +27,13 @@ Classes
 
     ### Methods
 
-    `check_image_status(self, images: list[str] = [])`
+    `check_image_status(self, images: list[str])`
     :   Check image status.
         
         Parameters
         ----------
         images : list[str]
-            image name(s).
+            image names.
         
         Returns
         -------

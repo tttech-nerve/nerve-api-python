@@ -40,13 +40,13 @@ Example:
 
 import logging
 import os
+import time
 from io import BytesIO
 from zipfile import BadZipFile
 from zipfile import ZipFile
 
 import requests
 import yaml
-from requests_toolbelt import MultipartEncoder
 
 
 class DNACommon:
@@ -58,11 +58,11 @@ class DNACommon:
         node or ms handle.
     base_url : str
         depending on node or ms handle, the base_url must be defined correct.
-    log : type
+    log : logging.Logger
         used logger to output logging data.
     """
 
-    def __init__(self, handle, base_url: str, log: type):
+    def __init__(self, handle, base_url: str, log: logging.Logger):
         self.handle = handle
         self._log = log
         self.base_url = base_url
@@ -91,12 +91,12 @@ class DNACommon:
                     self._log.info("Reading content of %s", cfile)
                     with zip_file.open(cfile) as file:
                         config_file[cfile] = yaml.safe_load(file.read())
-                return config_file
             except BadZipFile:
                 self._log.warning("Received DNA configuration is not a valid zip file")
-                return {}
-
-        self._log.error("Unexpected content-type received: %s", response.headers.get("Content-Type"))
+            else:
+                return config_file
+        else:
+            self._log.error("Unexpected content-type received: %s", response.headers.get("Content-Type"))
         return {}
 
     def get_current(self) -> dict:
@@ -155,53 +155,45 @@ class DNACommon:
         dict
             Configuration response from the device.
         """
-        allowed_codes = [requests.codes.accepted, requests.codes.unauthorized, requests.codes.forbidden]
-        while True:
-            if type(config_file) is dict:
-                # Expect a dict containing the correct config format
-                file_name = "config.zip"
-                zip_bin = BytesIO()
-                with ZipFile(zip_bin, "w") as zip_object:
-                    # Adding files that need to be zipped
-                    zip_object.writestr("update_configuration.yaml", yaml.dump(config_file))
-            elif type(config_file) is tuple:
-                # Expect a File IO stream which contains the zip file
-                file_name = config_file[0]
-                zip_bin = config_file[1]
-                zip_bin.seek(0, 0)
-            else:
-                msg = (
-                    "Invalid Input, config_file should either by a valid dict or a tuple with"
-                    "filename and FileIO stream"
-                )
-                raise ValueError(
-                    msg,
-                )
-            m_enc = MultipartEncoder({"file": (file_name, zip_bin, "form-data")})
 
-            params = {
-                "continueInCaseOfRestart": str(continue_after_restart).lower(),
-                "restartAllWorkloads": str(restart_all_wl).lower(),
-                "removeDockerImages": str(remove_images).lower(),
-            }
-            # Only add signFile for MSDNA
-            if sign_file is not None and type(self) is MSDNA:
-                params["signFile"] = str(sign_file).lower()
-
-            response = self.handle.put(
-                os.path.join(self.base_url, "target"),
-                params=params,
-                content_type=m_enc.content_type,
-                data=m_enc,
-                accepted_status=allowed_codes,
-                timeout=(7.5, 60),
+        if type(config_file) is dict:
+            # Expect a dict containing the correct config format
+            file_name = "config.zip"
+            zip_bin = BytesIO()
+            with ZipFile(zip_bin, "w") as zip_object:
+                # Adding files that need to be zipped
+                zip_object.writestr("update_configuration.yaml", yaml.dump(config_file))
+        elif type(config_file) is tuple:
+            # Expect a File IO stream which contains the zip file
+            file_name = config_file[0]
+            zip_bin = config_file[1]
+            zip_bin.seek(0, 0)
+        else:
+            msg = (
+                "Invalid Input, config_file should either by a valid dict or a tuple with"
+                "filename and FileIO stream"
             )
-            if response.status_code == requests.codes.accepted:
-                break
+            raise ValueError(
+                msg,
+            )
+        m_enc_data = {"file": (file_name, zip_bin, "form-data")}
 
-            self._log.debug("Not authorized, performing login and retry execution")
-            self.handle.login()
-            allowed_codes = [requests.codes.accepted]
+        params = {
+            "continueInCaseOfRestart": str(continue_after_restart).lower(),
+            "restartAllWorkloads": str(restart_all_wl).lower(),
+            "removeDockerImages": str(remove_images).lower(),
+        }
+        # Only add signFile for MSDNA
+        if sign_file is not None and type(self) is MSDNA:
+            params["signFile"] = str(sign_file).lower()
+
+        response = self.handle.put(
+            os.path.join(self.base_url, "target"),
+            params=params,
+            m_enc_data=m_enc_data,
+            accepted_status=[requests.codes.accepted],
+        )
+
         self._log.info("DNA config applied: %s", response.json().get("message", response.json()))
         return response.json()
 
@@ -246,6 +238,22 @@ class DNACommon:
         """Same as patch_target_cancel."""
         self.patch_target_cancel()
 
+    def wait_for_finish(self, timeout: int = 60) -> dict:
+        """Wait for the configuration process to finish, by checking the status until it is not 'RECONFIGURING' anymore."""
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            dna_status = self.get_status()
+            if dna_status["status"] in {"APPLIED", "MODIFIED"}:
+                self.handle._log.info("DNA configuration status: %s", dna_status["message"])
+                return dna_status
+            if dna_status["status"] != "RECONFIGURING":
+                self.handle._log.error("Unexpected DNA configuration status: %s", dna_status)
+                raise RuntimeError(f"Unexpected status '{dna_status}', apply configuration failed")
+            time.sleep(1)
+        raise RuntimeError(
+            f"Status is still 'RECONFIGURING' after {timeout} seconds, apply configuration failed"
+        )
+
 
 class MSDNA(DNACommon):
     """Management system API commands to handle DNA of a device.
@@ -262,7 +270,7 @@ class MSDNA(DNACommon):
         super().__init__(
             ms_handle,
             f"/nerve/dna/{node_serial_number}/",
-            logging.getLogger(f"MSDNA-{node_serial_number}"),
+            ms_handle._log.getChild(f"MSDNA-{node_serial_number}"),
         )
 
 
@@ -279,9 +287,14 @@ class LocalDNA(DNACommon):
         super().__init__(
             node_handle,
             "/api/dna/",
-            logging.getLogger(f"LocalDNA-{node_handle.serial_number}"),
+            node_handle._log.getChild("DNA"),
         )
-        node_handle.login()
+
+    def put_target(self, config_file, **kwargs) -> dict:
+        if not self.handle._is_logged_in:
+            self._log.debug("Not logged in, performing login and retrying put_target")
+            self.handle.login()
+        return super().put_target(config_file)
 
 
 class ServiceOSDNACommon(DNACommon):
@@ -303,33 +316,14 @@ class ServiceOSDNACommon(DNACommon):
 
         yaml_content = yaml.dump(config_dict, default_flow_style=False, allow_unicode=True)
         file_stream = BytesIO(yaml_content.encode("utf-8"))
-        file_stream.seek(0)
         url = os.path.join(self.base_url, "target")
-        self._log.info("Sending PUT request to URL: %s", url)
-        accepted_status = [requests.codes.accepted, requests.codes.forbidden]
-        while True:
-            file_stream = BytesIO(yaml_content.encode("utf-8"))
-            file_stream.seek(0)
-            m_enc = MultipartEncoder({
-                "file": ("update_configuration.yaml", file_stream, "application/x-yaml")
-            })
-            response = self.handle.put(
-                url,
-                content_type=m_enc.content_type,
-                data=m_enc,
-                accepted_status=accepted_status,
-                timeout=(7.5, 60),
-            )
-            if response.status_code == requests.codes.forbidden:
-                self.handle.login()
-                accepted_status = [requests.codes.accepted]
-                continue
-            break
-        try:
-            return response.json()
-        except Exception as e:
-            self._log.error("Failed to parse response as JSON: %s", e)
-            return {"error": str(e)}
+        m_enc_data = {"file": ("update_configuration.yaml", file_stream, "application/x-yaml")}
+        response = self.handle.put(
+            url,
+            m_enc_data=m_enc_data,
+            accepted_status=[requests.codes.accepted],
+        )
+        return response.json()
 
 
 class ServiceOSDNA(ServiceOSDNACommon):
@@ -347,7 +341,7 @@ class ServiceOSDNA(ServiceOSDNACommon):
         super().__init__(
             ms_handle,
             f"/nerve/service-os-dna/{node_serial_number}/",
-            logging.getLogger(f"ServiceOSDNA-{node_serial_number}"),
+            ms_handle._log.getChild(f"ServiceOSDNA-{node_serial_number}"),
         )
 
 
@@ -364,6 +358,11 @@ class LocalUIDNAServiceOS(ServiceOSDNACommon):
         super().__init__(
             node_handle,
             "/api/service-os-dna/",
-            logging.getLogger(f"LocalUIDNAServiceOS-{node_handle.serial_number}"),
+            node_handle._log.getChild("ServiceOSDNA"),
         )
-        node_handle.login()
+
+    def put_target(self, config_file, **kwargs) -> dict:
+        if not self.handle._is_logged_in:
+            self._log.debug("Not logged in, performing login and executing put_target")
+            self.handle.login()
+        return super().put_target(config_file)

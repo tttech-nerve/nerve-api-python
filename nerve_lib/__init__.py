@@ -70,4 +70,5 @@ from .manage_registry import (
 
 from .manage_volumes import (
     DockerVolumes,
+    LocalDockerVolumes,
 )

@@ -25,18 +25,14 @@ Example:
 """
 
 import json
-import logging
-import os
 import time
 import uuid
 from copy import deepcopy
+from datetime import UTC
 from datetime import datetime
-from datetime import timezone
-from typing import Optional
 
 import requests
 import yaml
-from requests_toolbelt import MultipartEncoder
 
 
 class LocalNode:  # noqa: PLR0904
@@ -44,7 +40,7 @@ class LocalNode:  # noqa: PLR0904
 
     def __init__(self, node_handle: type):
         self.node = node_handle
-        self._log = logging.getLogger("NodeLocalUi")
+        self._log = node_handle._log.getChild("Node")
         self.__node_version = None
 
     @property
@@ -149,6 +145,10 @@ class LocalNode:  # noqa: PLR0904
             payload["nodeName"] = node_name
         self.node.post("/api/setup/configurations", json=payload, accepted_status=[requests.codes.ok])
 
+    def get_configuration(self):
+        """Get onboarding configuration."""
+        return self.node.get("/api/setup/configurations", accepted_status=[requests.codes.ok]).json()
+
     def auth_ms_on_node(self, ms_url: str, username: str, password: str):
         """Authenticate the node with the management system."""
         payload = {
@@ -178,12 +178,14 @@ class LocalNode:  # noqa: PLR0904
         """Read the secure id of a node."""
         if self.version_smaller_than("2.10.0"):
             return (
-                self.node.get("/api/setup/configurations/secureId", accepted_status=[requests.codes.ok])
+                self.node
+                .get("/api/setup/configurations/secureId", accepted_status=[requests.codes.ok])
                 .json()
                 .get("secureId")
             )
         return (
-            self.node.get("/api/setup/configurations/secure-id", accepted_status=[requests.codes.ok])
+            self.node
+            .get("/api/setup/configurations/secure-id", accepted_status=[requests.codes.ok])
             .json()
             .get("secureId")
         )
@@ -193,9 +195,9 @@ class LocalNode:  # noqa: PLR0904
         try:
             response = self.node.get("/api/setup/node/info", accepted_status=[requests.codes.ok])
             info = response.json()
-        except requests.exceptions.JSONDecodeError as err:
+        except requests.exceptions.JSONDecodeError:
             self._log.error("GET /api/setup/node/info: Invalid json: %s", response.text)
-            raise err
+            raise
         return info
 
     def get_workload_list(self):
@@ -226,19 +228,16 @@ class LocalNode:  # noqa: PLR0904
             "configurations": configurations,
             "restartOnConfigurationUpdate": True,
         }
-        m_enc = MultipartEncoder(
-            fields={
-                "file": (zip_file, open(zip_file, "rb"), "application/octet-stream"),
-                "data": json.dumps(payload_data),
-            },
-        )
-        return self.node.post(
-            f"/api/workloads/{device_id}/apply-configuration",
-            data=m_enc,
-            content_type=m_enc.content_type,
-            accepted_status=[requests.codes.ok, requests.codes.no_content],
-            timeout=(7.5, 10),
-        )
+        with open(zip_file, "rb") as zip_open:
+            return self.node.post(
+                f"/api/workloads/{device_id}/apply-configuration",
+                m_enc_data={
+                    "file": (zip_file, zip_open, "application/octet-stream"),
+                    "data": json.dumps(payload_data),
+                },
+                accepted_status=[requests.codes.ok, requests.codes.no_content],
+                timeout=(7.5, 10),
+            )
 
     def create_vm_backup(self, workload_name, backup_name):
         """Create a backup of a VM workload over LocalUI."""
@@ -337,9 +336,8 @@ class LocalNode:  # noqa: PLR0904
         ).json()
 
         for status in response["workloads"]:
-            if status["workloadId"] == backup_id:
-                if "deviceId" in status:
-                    return True
+            if status["workloadId"] == backup_id and "deviceId" in status:
+                return True
         return False
 
     def get_vm_snapshot(self, workload_name):
@@ -580,12 +578,12 @@ class LocalNode:  # noqa: PLR0904
 
     def set_network_configuration(
         self,
-        interface,
-        allocation,
-        ip_address="0.0.0.0",
-        netmask="0.0.0.0",
-        gateway="0.0.0.0",
-        domain_names=[],
+        interface: str,
+        allocation: str,
+        ip_address: str = "0.0.0.0",
+        netmask: str = "0.0.0.0",
+        gateway: str = "0.0.0.0",
+        domain_names: list | None = None,
     ):
         """Set network configuration of an interface.
 
@@ -614,7 +612,7 @@ class LocalNode:  # noqa: PLR0904
                         "ip_address": ip_address,
                         "netmask": netmask,
                         "gateway": gateway,
-                        "domainNames": domain_names,
+                        "domainNames": domain_names if domain_names is not None else [],
                     }
                 ]
             },
@@ -658,7 +656,7 @@ class LocalNode:  # noqa: PLR0904
         """Write content to a file on the device."""
         command = f"echo '{password}' | sudo -S bash -c 'echo \"{content}\" > {file_path}'"
         result = self.node.ssh.execute(command)
-        logging.info("Modified content of the file: %s", result)
+        self._log.info("Modified content of the file: %s", result)
         return result
 
     def set_critical_action(self, file_path, value):
@@ -674,7 +672,7 @@ class LocalNode:  # noqa: PLR0904
             str: The modified content of the YAML file as a string.
         """
         content = self.read_file(file_path)
-        logging.info("Content of the file: %s", content)
+        self._log.info("Content of the file: %s", content)
         data = yaml.safe_load(content)
 
         # Modify the YAML content
@@ -686,7 +684,7 @@ class LocalNode:  # noqa: PLR0904
                     source["value"] = "allow"
 
         modified_content = yaml.safe_dump(data)
-        logging.info("Modified content of the file: %s", modified_content)
+        self._log.info("Modified content of the file: %s", modified_content)
         return modified_content
 
     def get_custom_role_permissions(self):
@@ -722,12 +720,12 @@ class MSNode:
 
     def __init__(self, ms_handle: type):
         self.ms = ms_handle
-        self._log = logging.getLogger("NodeMS")
+        self._log = ms_handle._log.getChild("Node")
 
         self.node_tree = _MSNodeTree(self.ms)
         self.node_update = _MSNodeUpdate(self.ms)
 
-    def get_nodes(self, serial_number: Optional[str] = None) -> dict:
+    def get_nodes(self, serial_number: str | None = None) -> dict:
         """Read node list of MS.
 
         Parameters
@@ -752,7 +750,7 @@ class MSNode:
         # Return the entire node list
         return node_list
 
-    def get_nodes_by_name(self, node_name_filter: Optional[str] = None) -> dict:
+    def get_nodes_by_name(self, node_name_filter: str | None = None) -> dict:
         """Read node list of MS filtered by name of the node.
 
         Parameters
@@ -822,8 +820,8 @@ class MSNode:
         model: str,
         secure_id: str,
         serial_number: str,
-        labels: list = [],
-        remote_connections: list = [],
+        labels: list | None = None,
+        remote_connections: list | None = None,
     ) -> dict:
         """Create new node on MS.
 
@@ -838,9 +836,9 @@ class MSNode:
         serial_number : str
             serial_number of the node.
         labels : list, optional
-            list of labels. The default is [].
+            list of labels. The default is None.
         remote_connections : list, optional
-            remote connections to be added. The default is [].
+            remote connections to be added. The default is None.
 
         Returns
         -------
@@ -852,8 +850,8 @@ class MSNode:
             "model": model,
             "secureId": secure_id,
             "serialNumber": serial_number,
-            "labels": labels,
-            "remoteConnections": remote_connections,
+            "labels": labels if labels is not None else [],
+            "remoteConnections": remote_connections if remote_connections is not None else [],
         }
         return self.ms.post("/nerve/node", json=payload, accepted_status=[requests.codes.ok]).json()
 
@@ -876,7 +874,7 @@ class MSNode:
 
         return active_connections.get("data", [])
 
-    def remove_active_remote_connections(self, remote_ids: Optional[list] = None) -> type:
+    def remove_active_remote_connections(self, remote_ids: list | None = None) -> type:
         """Remove established remote connections from MS.
 
         Parameters
@@ -979,7 +977,7 @@ class _SelectedNode:  # noqa: PLR0904
     def __init__(self, ms_node: type, serial_number: str):
         self.node = ms_node
         self.serial_number = serial_number
-        self._log = logging.getLogger(f"Node-{serial_number}")
+        self._log = ms_node._log.getChild(serial_number)
 
         self.vm_snapshot = _NodeVMSnapshot(self)
         self.vm_backup = _NodeVMBackup(self)
@@ -1027,7 +1025,7 @@ class _SelectedNode:  # noqa: PLR0904
     def get_ip_address(self) -> str:
         """Read WAN IP of the node."""
         return self.node.ms.post(
-            "/nerve/dataExchange/cachedData",
+            "/nerve/data-exchange/cached-data",
             json={
                 "dataId": "wan_ip_address",
                 "serialNumber": self.serial_number,
@@ -1154,9 +1152,7 @@ class _SelectedNode:  # noqa: PLR0904
             remote_connections.append(remote_connection_new)
         return remote_connections
 
-    def get_remote_connections(
-        self, connection_name: Optional[str] = None, connection_id: Optional[str] = None
-    ):
+    def get_remote_connections(self, connection_name: str | None = None, connection_id: str | None = None):
         """Read device specific remote connections.
 
         Parameters
@@ -1189,7 +1185,7 @@ class _SelectedNode:  # noqa: PLR0904
         return connection_list
 
     def get_workloads_remote_connections(
-        self, workload_name: Optional[str] = None, connection_name: Optional[str] = None
+        self, workload_name: str | None = None, connection_name: str | None = None
     ):
         """Read workload specific remote connections.
 
@@ -1218,7 +1214,8 @@ class _SelectedNode:  # noqa: PLR0904
                 ).json()
             else:
                 versions = (
-                    self.node.ms.get(
+                    self.node.ms
+                    .get(
                         f"nerve/v2/workloads/{workload['workloadId']}",
                         accepted_status=[requests.codes.ok],
                     )
@@ -1296,27 +1293,17 @@ class _SelectedNode:  # noqa: PLR0904
             if retry:
                 return self.__get_remote_connection_url(con_dict_copy, retry=False)
             msg = f"Response is unexpected, should contain key 'url'\n{response.text}"
-            raise Exception(msg)
+            raise ValueError(msg)
         return connect_url
 
     def import_remote_connections(self, yaml_file: str):
         """Import remote connections to node from .yaml file."""
-        accepted_status = [requests.codes.ok, requests.codes.forbidden]
-        while True:
-            m_enc = MultipartEncoder(
-                fields={"file": (yaml_file, open(yaml_file, "rb"), "application/octet-stream")},
-            )
+        with open(yaml_file, "rb") as file:
             resp = self.node.ms.put(
                 f"/nerve/v2/node/{self.serial_number}/import-remote-connections",
-                accepted_status=accepted_status,
-                data=m_enc,
-                content_type=m_enc.content_type,
+                m_enc_data={"file": (yaml_file, file, "application/octet-stream")},
+                accepted_status=[requests.codes.ok],
             )
-            if resp.status_code == requests.codes.forbidden:
-                self.node.ms.login()
-                accepted_status = [requests.codes.ok]
-                continue
-            break
         return resp.json()
 
     def export_remote_connections(self, yaml_file=""):
@@ -1410,7 +1397,7 @@ class _SelectedNode:  # noqa: PLR0904
         return self.node.ms.post(f"/nerve/v2/node/logging-monitoring/{self.serial_number}", json=settings)
 
     # %% Workload operations
-    def get_workloads(self, workload_name: Optional[str] = None) -> dict:
+    def get_workloads(self, workload_name: str | None = None) -> dict:
         """Read currently deployed workloads of the node.
 
         Parameters
@@ -1494,7 +1481,7 @@ class _SelectedNode:  # noqa: PLR0904
         return current_state
 
     def undeploy_workloads(
-        self, workload_name: Optional[str] = None, retry: bool = True, remove_images: bool = True
+        self, workload_name: str | None = None, retry: bool = True, remove_images: bool = True
     ) -> None:
         """Undeploy all deployed workloads on DUT.
 
@@ -1520,7 +1507,7 @@ class _SelectedNode:  # noqa: PLR0904
                 time.sleep(5)
                 self.undeploy_workloads(workload_name, retry=False)
             else:
-                raise ex_msg
+                raise
 
     def apply_workload_configuration(self, workload_name: str, zip_file: str, service_name: str = "") -> type:
         """Add a workload configuration.
@@ -1563,17 +1550,15 @@ class _SelectedNode:  # noqa: PLR0904
                 "workloadId": workload_id,
                 "versionId": version_id,
             }
-        m_enc = MultipartEncoder({
-            "data": (None, json.dumps(data), "form-data"),
-            "file": (zip_file, open(zip_file, "rb"), "application/zip"),
-        })
-
-        return self.node.ms.post(
-            f"/nerve/nodes/{self.serial_number}/workloads/{device_id}/configurations",
-            data=m_enc,
-            content_type=m_enc.content_type,
-            accepted_status=[requests.codes.ok, requests.codes.no_content],
-        )
+        with open(zip_file, "rb") as file:
+            return self.node.ms.post(
+                f"/nerve/nodes/{self.serial_number}/workloads/{device_id}/configurations",
+                m_enc_data={
+                    "data": (None, json.dumps(data), "form-data"),
+                    "file": (zip_file, file, "application/zip"),
+                },
+                accepted_status=[requests.codes.ok, requests.codes.no_content],
+            )
 
     def apply_compose_configuration(
         self,
@@ -1608,17 +1593,15 @@ class _SelectedNode:  # noqa: PLR0904
             "workloadId": workload_id,
             "versionId": version_id,
         }
-        m_enc = MultipartEncoder({
-            "data": (None, json.dumps(data), "form-data"),
-            "file": (zip_file, open(zip_file, "rb"), "application/zip"),
-        })
-
-        return self.node.ms.post(
-            f"/nerve/nodes/{self.serial_number}/workloads/{device_id}/configurations",
-            data=m_enc,
-            content_type=m_enc.content_type,
-            accepted_status=[requests.codes.ok, requests.codes.no_content],
-        )
+        with open(zip_file, "rb") as file:
+            return self.node.ms.post(
+                f"/nerve/nodes/{self.serial_number}/workloads/{device_id}/configurations",
+                m_enc_data={
+                    "data": (None, json.dumps(data), "form-data"),
+                    "file": (zip_file, file, "application/zip"),
+                },
+                accepted_status=[requests.codes.ok, requests.codes.no_content],
+            )
 
     def change_resources_allocation(self, workload_name: str, memory: str) -> type:
         """Change resources allocation for vm workload.
@@ -1718,12 +1701,12 @@ class _SelectedNode:  # noqa: PLR0904
 
     def edit_node(
         self,
-        serial_number: Optional[str] = None,
-        name: Optional[str] = None,
-        model: Optional[str] = None,
-        secure_id: Optional[str] = None,
-        labels: Optional[list] = None,
-        remote_connections: Optional[list] = None,
+        serial_number: str | None = None,
+        name: str | None = None,
+        model: str | None = None,
+        secure_id: str | None = None,
+        labels: list | None = None,
+        remote_connections: list | None = None,
     ) -> dict:
         """Edit an existing node on MS.
 
@@ -2013,7 +1996,7 @@ class _MSNodeTree:
 
     def __init__(self, ms_handle: type):
         self.ms = ms_handle
-        self._log = logging.getLogger("NodeTree")
+        self._log = ms_handle._log.getChild("NodeTree")
 
     @staticmethod
     def __short_tree_items(items: list) -> list:
@@ -2078,9 +2061,7 @@ class _MSNodeTree:
         """Read elements of a parten_id."""
         return self.ms.get(f"/nerve/tree-node/parent/{parent_id}", accepted_status=[requests.codes.ok]).json()
 
-    def _get_tree(
-        self, parent_id: Optional[str] = None, short_items: bool = True, flat: bool = False
-    ) -> list:
+    def _get_tree(self, parent_id: str | None = None, short_items: bool = True, flat: bool = False) -> list:
         """Read node tree from MS.
 
         Parameters
@@ -2224,7 +2205,7 @@ class _MSNodeTree:
 class _MSNodeUpdate:
     def __init__(self, ms_handle: type):
         self.ms = ms_handle
-        self._log = logging.getLogger("NodeUpdate")
+        self._log = ms_handle._log.getChild("NodeUpdate")
 
     def get_possible_updates(self, serial_numbers: list):
         """Get dict of versions including node serial numbers that can be updated.
@@ -2325,7 +2306,7 @@ class _MSNodeUpdate:
 
             dep_details = self.get_deployment_details(deployment["_id"])
             deployment_details[deployment["_id"]] = dep_details
-            deployment_active = any([task["isActive"] for task in dep_details["data"]])
+            deployment_active = any(task["isActive"] for task in dep_details["data"])
             active_deployments.append(deployment_active)
 
         if print_log:
@@ -2339,22 +2320,19 @@ class _MSNodeUpdate:
                 "* %s: %s (started %s ago)",
                 deployment["operation_name"],
                 deployment["status"],
-                str(
-                    datetime.now(timezone.utc)
-                    - datetime.fromisoformat(deployment["created"].replace("Z", "+00:00"))
-                ).split(".")[0],
+                str(datetime.now(UTC) - datetime.fromisoformat(deployment["created"])).split(".")[0],
             )
             for task in deployment_details[deployment["_id"]]["data"]:
                 self._log.info(
                     "  - %s (%s): %s %% %s",
-                    task["deviceName"],
+                    task.get("deviceName", "unknown device"),
                     task["device"],
                     task["taskOptions"]["progress"],
                     task["taskOptions"]["status"],
                 )
                 if task["isFailed"]:
                     self._log.error(
-                        "    - Error: %s %s",
+                        "    Error: %s %s",
                         task["errorFeedback"]["defautlMsg"],
                         task["errorFeedback"]["troubleshooting"],
                     )
@@ -2377,7 +2355,7 @@ class _MSNodeUpdate:
                 update_name, print_log=False
             )
             status_new = []
-            for _deployment_id, details in dep_details.items():
+            for details in dep_details.values():
                 status_new = [task["taskOptions"]["status"] for task in details["data"]]
             if time.time() - last_time_status_printed > check_interval or status_old != status_new:
                 last_time_status_printed = time.time()
@@ -2392,8 +2370,8 @@ class _MSNodeUpdate:
             if not active_deployments:
                 self._print_deployment_info(deploy_list, dep_details)
                 # check if any deployment is still active, if active_deployment is False, some update failed
-                deployment_successful = all([deployment["isSuccess"] for deployment in deploy_list["data"]])
-                details_success = all([status == "SUCCESS" for status in status_new])
+                deployment_successful = all(deployment["isSuccess"] for deployment in deploy_list["data"])
+                details_success = all(status == "SUCCESS" for status in status_new)
                 if deployment_successful or details_success:
                     self._log.info("All deployments are successful")
                 else:
@@ -2478,25 +2456,28 @@ class _MSNodeUpdate:
                 history[device].append({"timestamp": node_details["created"], "info": "Node created"})
                 if node_details.get("lastSystemStart"):
                     history[device].append({
-                        "timestamp": datetime.fromtimestamp(node_details["lastSystemStart"] // 1000).strftime(
-                            "%Y-%m-%dT%H:%M:%S"
-                        )
+                        "timestamp": datetime.fromtimestamp(
+                            node_details["lastSystemStart"] // 1000, tz=datetime.timezone.utc
+                        ).strftime("%Y-%m-%dT%H:%M:%S")
                         + f".{node_details['lastSystemStart'] % 1000:03d}Z",
                         "info": "Last system start",
                     })
                 if node_details.get("lastTimeStatusUpdated"):
                     history[device].append({
-                        "timestamp": node_details["lastTimeStatusUpdated"],
+                        "timestamp": datetime.fromtimestamp(
+                            node_details["lastTimeStatusUpdated"] // 1000, tz=datetime.timezone.utc
+                        ).strftime("%Y-%m-%dT%H:%M:%S")
+                        + f".{node_details['lastTimeStatusUpdated'] % 1000:03d}Z",
                         "info": "Last time status updated",
                     })
                 if node_details.get("heartBeatReceived"):
                     history[device].append({
                         "timestamp": datetime.fromtimestamp(
-                            node_details["heartBeatReceived"] // 1000
+                            node_details["heartBeatReceived"] // 1000, tz=datetime.timezone.utc
                         ).strftime("%Y-%m-%dT%H:%M:%S")
                         + f".{node_details['heartBeatReceived'] % 1000:03d}Z",
                         "info": "HeartBeat received",
                     })
-        for _device, history_list in history.items():
+        for history_list in history.values():
             history_list = sorted(history_list, key=lambda x: x["timestamp"])  # noqa PLW2901
         return history

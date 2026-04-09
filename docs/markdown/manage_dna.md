@@ -25,7 +25,7 @@ Example:
 Classes
 -------
 
-`DNACommon(handle, base_url: str, log: type)`
+`DNACommon(handle, base_url: str, log: logging.Logger)`
 :   Common class for localUI and MS based DNA handling.
     
     Parameters
@@ -34,7 +34,7 @@ Classes
         node or ms handle.
     base_url : str
         depending on node or ms handle, the base_url must be defined correct.
-    log : type
+    log : logging.Logger
         used logger to output logging data.
 
     ### Descendants
@@ -109,6 +109,9 @@ Classes
     `reapply_target(self) ‑> dict`
     :   Same as put_target_re_apply.
 
+    `wait_for_finish(self, timeout: int = 60) ‑> dict`
+    :   Wait for the configuration process to finish, by checking the status until it is not 'RECONFIGURING' anymore.
+
 `LocalDNA(node_handle: type)`
 :   Manage the DNA of a device directly using localUI API comamnds.
     
@@ -163,7 +166,7 @@ Classes
     * nerve_lib.manage_dna.ServiceOSDNACommon
     * nerve_lib.manage_dna.DNACommon
 
-`ServiceOSDNACommon(handle, base_url: str, log: type)`
+`ServiceOSDNACommon(handle, base_url: str, log: logging.Logger)`
 :   Common class for localUI and MS based Service OS DNA handling.
 
     ### Ancestors (in MRO)

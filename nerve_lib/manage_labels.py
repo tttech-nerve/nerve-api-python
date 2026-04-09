@@ -181,9 +181,7 @@ class MSLabel:
             accepted_status=[requests.codes.ok],
         ).json()
         labels = node_detailed_info.get("labels", [])
-        label_list = []
-        for label in labels:
-            label_list.append((label["key"], label["value"]))
+        label_list = [(label["key"], label["value"]) for label in labels]
         label_list.append((key, value))
         self.set_dut_labels(node, label_list)
 

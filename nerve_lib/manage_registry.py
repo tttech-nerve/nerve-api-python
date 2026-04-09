@@ -92,13 +92,13 @@ class InternalRegistry:
             json=payload,
         ).json()
 
-    def check_image_status(self, images: list[str] = []):
+    def check_image_status(self, images: list[str]):
         """Check image status.
 
         Parameters
         ----------
         images : list[str]
-            image name(s).
+            image names.
 
         Returns
         -------

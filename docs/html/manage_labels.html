@@ -213,9 +213,7 @@ el.replaceWith(d);
             accepted_status=[requests.codes.ok],
         ).json()
         labels = node_detailed_info.get(&#34;labels&#34;, [])
-        label_list = []
-        for label in labels:
-            label_list.append((label[&#34;key&#34;], label[&#34;value&#34;]))
+        label_list = [(label[&#34;key&#34;], label[&#34;value&#34;]) for label in labels]
         label_list.append((key, value))
         self.set_dut_labels(node, label_list)
 
@@ -310,9 +308,7 @@ el.replaceWith(d);
         accepted_status=[requests.codes.ok],
     ).json()
     labels = node_detailed_info.get(&#34;labels&#34;, [])
-    label_list = []
-    for label in labels:
-        label_list.append((label[&#34;key&#34;], label[&#34;value&#34;]))
+    label_list = [(label[&#34;key&#34;], label[&#34;value&#34;]) for label in labels]
     label_list.append((key, value))
     self.set_dut_labels(node, label_list)</code></pre>
 </details>

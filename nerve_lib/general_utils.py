@@ -1,4 +1,4 @@
-# Copyright (c) 2024 TTTech Industrial Automation AG.
+# Copyright (c) 2026 TTTech Industrial Automation AG.
 #
 # ALL RIGHTS RESERVED.
 # Usage of this software, including source code, netlists, documentation,
@@ -43,23 +43,25 @@ Usable ENV Vars:
     - MS_PSW: password of a management system
 """
 
+import asyncio
 import base64
+import concurrent.futures
 import json
 import logging
 import os
 import socket
+import threading
 import time
 import weakref
 from http.client import responses
-from typing import Optional
 from urllib.parse import urljoin
 
+import asyncssh
 import paramiko
 import requests
-import sshtunnel
 import urllib3
+from requests_toolbelt import MultipartEncoder
 from scp import SCPClient
-from sshtunnel import SSHTunnelForwarder
 
 urllib3.disable_warnings()
 
@@ -75,9 +77,9 @@ def setup_logging(compact=False):
     logging.root.handlers = [handler for handler in logging.root.handlers if handler.level != logging.NOTSET]
 
     # add stream handler
-    stream_handler_configured = any([
+    stream_handler_configured = any(
         isinstance(handler, logging.StreamHandler) for handler in logging.root.handlers
-    ])
+    )
     if not stream_handler_configured:
         logging.basicConfig(
             level=logging.DEBUG,
@@ -91,12 +93,13 @@ def setup_logging(compact=False):
         logging.getLogger("paramiko.transport").setLevel(logging.CRITICAL)  # Suppress paramiko debug messages
         logging.getLogger("pykeepass").setLevel(logging.WARNING)
         logging.getLogger("urllib3").setLevel(logging.WARNING)
+        logging.getLogger("asyncssh").setLevel(logging.WARNING)
 
     # add file handler
     if os.environ.get("DEBUG_LOG_FILE", ""):
-        file_handler_configured = any([
+        file_handler_configured = any(
             isinstance(handler, logging.FileHandler) for handler in logging.root.handlers
-        ])
+        )
         if not file_handler_configured:
             logger = logging.getLogger()
             file_handler = logging.FileHandler(os.environ.get("DEBUG_LOG_FILE"))
@@ -128,6 +131,109 @@ class SSHTunnelError(Exception):
     """Error for SSH Tunnel related issues."""
 
 
+class _AsyncTunnelHandle:
+    """Lightweight wrapper around an AsyncSSH local forward."""
+
+    def __init__(
+        self,
+        ssh_host: str,
+        ssh_port: int,
+        remote_bind: tuple[str, int],
+        local_bind: tuple[str, int],
+        connection: asyncssh.SSHClientConnection,
+        forwarder,
+        loop: asyncio.AbstractEventLoop,
+        log: logging.Logger,
+    ) -> None:
+        self.ssh_host = ssh_host
+        self.ssh_port = ssh_port
+        self.remote_bind_address = remote_bind
+        self.local_bind_address = local_bind
+        self._connection = connection
+        self._forwarder = forwarder
+        self._loop = loop
+        self._log = log
+
+    @property
+    def is_alive(self) -> bool:
+        if not self._connection_state_open():
+            return False
+
+        forwarder_closing = getattr(self._forwarder, "is_closing", None)
+        if callable(forwarder_closing) and forwarder_closing():
+            return False
+
+        return self._probe_remote_endpoint()
+
+    @property
+    def tunnel_is_up(self) -> dict:
+        return {self.local_bind_address: self.is_alive}
+
+    def stop(self) -> None:
+        self.close()
+
+    def close(self) -> None:
+        future = asyncio.run_coroutine_threadsafe(self._close_async(), self._loop)
+        try:
+            future.result(timeout=10)
+        except concurrent.futures.TimeoutError:
+            future.cancel()
+            try:
+                future.result(timeout=5)
+            except Exception as ex_msg:
+                self._log.debug("TimeoutError when waiting for result: %s", ex_msg)
+        except Exception:
+            future.cancel()
+            try:
+                future.result(timeout=5)
+            except Exception as ex_msg:
+                self._log.debug("Exception when waiting for result: %s", ex_msg)
+
+    async def _close_async(self) -> None:
+        try:
+            self._forwarder.close()
+        finally:
+            self._connection.close()
+            try:
+                await self._connection.wait_closed()
+            except Exception as ex_msg:
+                self._log.debug("Exception when waiting for closed: %s", ex_msg)
+
+    def _connection_state_open(self) -> bool:
+        closing_callable = getattr(self._connection, "is_closing", None)
+        if callable(closing_callable):
+            return not closing_callable()
+        closing_attr = getattr(self._connection, "_closing", None)
+        if isinstance(closing_attr, bool):
+            return not closing_attr
+        return True
+
+    def _probe_remote_endpoint(self, timeout: float = 5.0) -> bool:
+        async def _run_probe():
+            await self._connection.run("true", check=True)
+
+        future = asyncio.run_coroutine_threadsafe(_run_probe(), self._loop)
+        try:
+            future.result(timeout=timeout)
+        except Exception as error:
+            future.cancel()
+            try:
+                future.result(timeout=1)
+            except Exception as ex_msg:
+                self._log.debug("Exception when waiting for probe result: %s", ex_msg)
+            self._log.debug(
+                "SSH tunnel health probe failed for %s:%s -> %s:%s: %s",
+                self.ssh_host,
+                self.ssh_port,
+                self.remote_bind_address[0],
+                self.remote_bind_address[1],
+                error,
+            )
+            return False
+
+        return True
+
+
 class SshGeneral:
     """Allow to access a device over ssh and execute commands.
 
@@ -139,14 +245,18 @@ class SshGeneral:
         ssh username to login.
     password : str
         ssh password to login.
+    log : logging.Logger, optional
+        Logger to use for logging. If not provided, a default logger will be created.
     """
 
-    def __init__(self, ip_addr: str, user: str = "", password: str = ""):
+    def __init__(
+        self, ip_addr: str, user: str = "", password: str = "", logger: logging.Logger | None = None
+    ):
         setup_logging()
         self.ip_addr = ip_addr
         self._ssh_usr = user or os.environ.get("SSH_USR")
         self._ssh_psw = password or os.environ.get("SSH_PSW")
-        self._log = logging.getLogger(f"SSH-{ip_addr}")
+        self._log = logger.getChild("SSH") if logger else logging.getLogger(f"SSH-{ip_addr}")
 
     def __enter__(self):
         """Enter function when using with statement."""
@@ -155,7 +265,7 @@ class SshGeneral:
     def __exit__(self, *args):
         """Exit function when using with statement."""
 
-    def connect(self, timeout: float = 30.0, key: Optional[str] = None, compress: bool = False) -> type:
+    def connect(self, timeout: float = 30.0, key: str | None = None, compress: bool = False) -> type:
         """Create an ssh connection to a device.
 
         Parameters
@@ -203,10 +313,10 @@ class SshGeneral:
         self,
         cmd: str,
         timeout: float = 30.0,
-        ssh: Optional[type] = None,
+        ssh: type | None = None,
         as_sudo: bool = False,
         compress: bool = False,
-        sudo_psw: Optional[str] = None,
+        sudo_psw: str | None = None,
     ) -> str:
         """Execute a ssh command on a device.
 
@@ -269,11 +379,11 @@ class SshGeneral:
             ip_addr = self.ip_addr[0] if type(self.ip_addr) is tuple else self.ip_addr
             s.connect((ip_addr, int(port)))
             s.shutdown(socket.SHUT_RDWR)
-            return True
         except Exception:
             return False
         finally:
             s.close()
+        return True
 
     def copy(self, file_name: str, file_path: str = "images/", max_retries: int = 3) -> bool:
         """Copy a file via SCP to a device.
@@ -301,7 +411,6 @@ class SshGeneral:
                     SCPClient(connection.get_transport(), socket_timeout=60.0) as scp,
                 ):
                     scp.put(os.path.join(file_path, file_name), file_name)
-                return True
             except Exception as ex_msg:
                 self._log.error("Failed to copy file to device: %s", ex_msg)
                 if retry_count >= max_retries:
@@ -309,6 +418,8 @@ class SshGeneral:
                 retry_count += 1
                 self._log.info("copy file failed, executing retry in 20 sec...")
                 time.sleep(20)
+            else:
+                return True
 
 
 class ManageSshTunnel:
@@ -320,34 +431,36 @@ class ManageSshTunnel:
         ssh user to connect to the device. The default is None.
     password : str, optional
         ssh password to connect to the device. The default is None.
-    log : type, optional
+    log : logging.Logger, optional
         handle of logging.getLogger(...). The default is None.
     """
 
     def __init__(
-        self, user: Optional[str] = None, password: Optional[str] = None, log: Optional[type] = None
+        self, user: str | None = None, password: str | None = None, log: logging.Logger | None = None
     ):
         setup_logging()
-        if not log:
-            log = logging.getLogger("SSH-Tunnel")
-        self._log = log
-        self.__log_forwarder = logging.getLogger("SSHTunnelForwarder")
-        self.__log_forwarder.setLevel(logging.CRITICAL)
-
-        sshtunnel.SSH_TIMEOUT = 10
-        sshtunnel.TUNNEL_TIMEOUT = 10
-
+        self._log = log.getChild("SSH-Tunnel") if log else logging.getLogger("SSH-Tunnel")
         self._ssh_usr = user or os.environ.get("SSH_USR")
         self._ssh_psw = password or os.environ.get("SSH_PSW")
 
-        # for debugging
-        # sshtunnel.DEFAULT_LOGLEVEL = 1
-
-        # timeout bellow will not work.. so timeout will be ~120 sec.
-        # https://github.com/pahaz/sshtunnel/issues/228
+        # asyncssh uses the LOGNAME environment variable to determine the
+        # default username for authentication if no username is provided.
+        os.environ.setdefault("LOGNAME", self._ssh_usr or "nerve")
 
         self._tunnels = {}
-        self._finalizer = weakref.finalize(self, self._cleanup, self._log, self._tunnels)
+        self._loop = asyncio.new_event_loop()
+        self._loop_thread = threading.Thread(target=self._run_loop, name="ManageSshTunnelLoop", daemon=True)
+        self._loop_thread.start()
+        self._lock = threading.Lock()
+        self._finalizer_handle = weakref.finalize(
+            self,
+            self._cleanup,
+            self._log,
+            self._tunnels,
+            self._loop,
+            self._loop_thread,
+        )
+        self._finalizer = self._manual_cleanup
 
     def __enter__(self):
         """Enter function when using with statement."""
@@ -358,30 +471,119 @@ class ManageSshTunnel:
         self._finalizer()
 
     @staticmethod
-    def _cleanup(log, tunnels):
+    async def _drain_pending_tasks():
+        current_task = asyncio.current_task()
+        pending = [task for task in asyncio.all_tasks() if task is not current_task and not task.done()]
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
+
+    @staticmethod
+    def _cleanup(log, tunnels, loop, loop_thread):
         """Safely cleanup class.
 
         If the class shall be manually cleaned, call this function:
 
         >>> ssh_tunnel._finalizer()
         """
-        for tunnel_key, tunnel in tunnels.items():
+        for tunnel_key, tunnel in list(tunnels.items()):
             log.debug("Closing Tunnel %s", tunnel_key)
-            if tunnel.is_active or tunnel.is_alive:
-                tunnel.stop()
-        tunnels = {}
+            try:
+                tunnel.close()
+            except Exception:
+                log.warning("Could not close tunnel %s cleanly", tunnel_key)
+        tunnels.clear()
+        try:
+            asyncio.run_coroutine_threadsafe(
+                ManageSshTunnel._drain_pending_tasks(),
+                loop,
+            ).result(timeout=10)
+        except Exception as drain_error:
+            log.debug("Could not drain tunnel loop cleanly: %s", drain_error)
+        try:
+            if loop.is_running():
+                loop.call_soon_threadsafe(loop.stop)
+        except Exception:
+            log.debug("Could not stop tunnel loop cleanly")
+        if loop_thread.is_alive():
+            loop_thread.join(timeout=5)
+
+    def _restart_loop(self):
+        self._loop = asyncio.new_event_loop()
+        self._loop_thread = threading.Thread(
+            target=self._run_loop,
+            name="ManageSshTunnelLoop",
+            daemon=True,
+        )
+        self._loop_thread.start()
+        self._finalizer_handle = weakref.finalize(
+            self,
+            self._cleanup,
+            self._log,
+            self._tunnels,
+            self._loop,
+            self._loop_thread,
+        )
+        self._finalizer = self._manual_cleanup
+
+    def _manual_cleanup(self):
+        if self._finalizer_handle.alive:
+            self._finalizer_handle()
+        self._restart_loop()
+
+    def _run_loop(self):
+        asyncio.set_event_loop(self._loop)
+        self._loop.run_forever()
+
+    def _run_coroutine(self, coro, timeout: int = 30):
+        future = asyncio.run_coroutine_threadsafe(coro, self._loop)
+        return future.result(timeout=timeout)
+
+    async def _open_tunnel(
+        self,
+        ssh_host: str,
+        ssh_port: int,
+        remote_bind: tuple[str, int],
+        local_bind: tuple[str, int],
+    ):
+        connection = await asyncssh.connect(
+            ssh_host,
+            port=ssh_port,
+            username=self._ssh_usr,
+            password=self._ssh_psw,
+            known_hosts=None,
+            client_keys=None,
+            connect_timeout=10,
+            login_timeout=10,
+            keepalive_interval=30,
+        )
+        forwarder = await connection.forward_local_port(
+            local_bind[0],
+            local_bind[1],
+            remote_bind[0],
+            remote_bind[1],
+        )
+        return _AsyncTunnelHandle(
+            ssh_host,
+            ssh_port,
+            remote_bind,
+            local_bind,
+            connection,
+            forwarder,
+            self._loop,
+            self._log,
+        )
 
     def create_tunnel(
         self,
         ip_address,
         remote_bind: tuple[str, int],
-        local_port: Optional[int] = None,
+        local_port: int | None = None,
     ) -> type:
         """Create a specific ssh-tunnel to a node.
 
         Example:
 
-        >>> ssh_tunnel = ManageSshTunnel(usr, password, logging.getLogger("CustomName"))
+        >>> ssh_tunnel = ManageSshTunnel(user, password, logging.getLogger("CustomName"))
         >>> ssh_tunnel.create_tunnel("172.16.0.1", ("172.20.2.1", 3333), 3333)
         <returns tunnel-handle>
 
@@ -404,42 +606,40 @@ class ManageSshTunnel:
             local_port = remote_bind[1]
 
         # ensure that IP is a string and port is an integer
-        ip_address = (
-            (str(ip_address[0]), int(ip_address[1])) if type(ip_address) is tuple else str(ip_address)
-        )
+        if isinstance(ip_address, tuple):
+            ssh_host = str(ip_address[0])
+            ssh_port = int(ip_address[1])
+        else:
+            ssh_host = str(ip_address)
+            ssh_port = 22
 
         remote_bind = (str(remote_bind[0]), int(remote_bind[1]))
         local_bind = ("127.0.0.1", int(local_port))
 
-        tunnel_key = f"{ip_address}:: {remote_bind[0]}:{remote_bind[1]} -> {local_bind[1]}"
+        tunnel_key = f"{ssh_host}:{ssh_port}:: {remote_bind[0]}:{remote_bind[1]} -> {local_bind[1]}"
 
-        if tunnel_key in self._tunnels:
-            self._log.debug("Tunnel %s existed, nothing todo", tunnel_key)
-            return self._tunnels[tunnel_key]
+        with self._lock:
+            existing_tunnel = self._tunnels.get(tunnel_key)
+            if existing_tunnel and existing_tunnel.is_alive:
+                self._log.debug("Tunnel %s existed, nothing todo", tunnel_key)
+                return existing_tunnel
         self._log.debug("Creating ssh tunnel for %s", tunnel_key)
 
         try:
-            tunnel = SSHTunnelForwarder(
-                ssh_address_or_host=ip_address,
-                ssh_username=self._ssh_usr,
-                ssh_password=self._ssh_psw,
-                remote_bind_address=remote_bind,
-                local_bind_address=local_bind,
-                logger=self.__log_forwarder,
-            )
-
-            tunnel.start()
-            self._log.debug("- is ssh tunnel active/alive?: %s/%s", tunnel.is_active, tunnel.is_alive)
-            if tunnel.is_active and tunnel.is_alive:
+            tunnel = self._run_coroutine(self._open_tunnel(ssh_host, ssh_port, remote_bind, local_bind))
+            with self._lock:
                 self._tunnels[tunnel_key] = tunnel
+            self._log.debug(
+                "- is ssh tunnel alive?: %s",
+                tunnel.is_alive,
+            )
+            if tunnel.is_alive:
+                return tunnel
 
-                return self._tunnels.get(tunnel_key)
-
-            self._log.error("Could not establish tunnel, tunnel not active")
-            return None
+            self._log.error("Could not establish tunnel, health probe failed")
         except Exception as ex_msg:
             self._log.error("Could not establish tunnel: %s", ex_msg)
-            return None
+        return None
 
     def remove_tunnel(self, local_port: int) -> None:
         """Remove a tunnel and close the connection.
@@ -449,15 +649,17 @@ class ManageSshTunnel:
         local_bind : tuple[str, int]
             local bind information (ip-address, port).
         """
-        for tunnel_key, tunnel in self._tunnels.items():
+        with self._lock:
+            tunnels_snapshot = list(self._tunnels.items())
+        for tunnel_key, tunnel in tunnels_snapshot:
             if tunnel.local_bind_address == ("127.0.0.1", local_port):
                 self._log.info("Removing tunnel %s", tunnel_key)
                 try:
-                    if tunnel.is_active or tunnel.is_alive:
-                        tunnel.stop()
-                except sshtunnel.BaseSSHTunnelForwarderError:
+                    tunnel.close()
+                except Exception:
                     self._log.warning("Could not stop tunnel before removing")
-                del self._tunnels[tunnel_key]
+                with self._lock:
+                    self._tunnels.pop(tunnel_key, None)
                 return
         self._log.warning("Tunnel with local port %s does not exist", local_port)
 
@@ -471,16 +673,26 @@ class ManageSshTunnel:
 
         """
         ret_val = True
-        for tunnel_key, tunnel in self._tunnels.items():
-            if tunnel.is_active and tunnel.tunnel_is_up[tunnel.local_bind_address] and tunnel.is_alive:
+        with self._lock:
+            tunnels_snapshot = list(self._tunnels.items())
+
+        for tunnel_key, tunnel in tunnels_snapshot:
+            if tunnel.is_alive:
                 continue
 
             self._log.info("Refreshing tunnel %s", tunnel_key)
             try:
-                tunnel.stop()
-                tunnel.start()
-            except sshtunnel.BaseSSHTunnelForwarderError:
-                self._log.warning("Could not refresh tunnel, device is probably not reachable")
+                tunnel.close()
+            except Exception:
+                self._log.warning("Could not stop tunnel before refresh")
+            # keep tunnel metadata so subsequent refresh attempts can try again
+            recreated = self.create_tunnel(
+                (tunnel.ssh_host, tunnel.ssh_port),
+                tunnel.remote_bind_address,
+                tunnel.local_bind_address[1],
+            )
+            if recreated is None:
+                self._log.warning("Could not refresh tunnel %s, device may be unreachable", tunnel_key)
                 ret_val = False
         return ret_val
 
@@ -500,7 +712,7 @@ class RequestGeneral(requests.Session):
         default api-path to be used.
         If requests executed with url "/path" will overwrite the api_path.
         Creating a request with url "path" will create a request on /api_path/path.
-    log : type
+    log : logging.Logger
         logging.getLogger(...) handle to be used.
 
     Returns
@@ -509,7 +721,7 @@ class RequestGeneral(requests.Session):
 
     """
 
-    def __init__(self, url: str, api_path: str, log: type):
+    def __init__(self, url: str, api_path: str, log: logging.Logger):
         setup_logging()
         super().__init__()
 
@@ -528,8 +740,9 @@ class RequestGeneral(requests.Session):
         self,
         method: str,
         url: str,
-        accepted_status: list = [requests.codes.ok, requests.codes.no_content],
+        accepted_status: list[int] | None = None,
         content_type: str = "application/json",
+        m_enc_data: dict | None = None,
         **kwargs,
     ) -> type:
         """Overwrite default request function.
@@ -548,6 +761,12 @@ class RequestGeneral(requests.Session):
             The default is [requests.codes.ok, requests.codes.no_content].
         content_type : str, optional
             conent type of the request. The default is "application/json".
+        m_enc_data: dict, optional
+            if m_enc_data is provided in the format {"field_name": (filename, file_data, content_type)},
+            the request will be send as multipart/form-data with the provided data.
+            In case of a retry, the m_enc_data handles will be reset to the beginning of the file data,
+            to ensure that the full data is send in the retry.
+            The default is None.
         **kwargs : TYPE
             additional key values as defined in requests.request object.
 
@@ -557,8 +776,24 @@ class RequestGeneral(requests.Session):
             requests.Response object.
 
         """
+        if accepted_status is None:
+            accepted_status = [requests.codes.ok, requests.codes.no_content]
+
         if "http" not in url:
             url = urljoin(self.api_url, url)
+        if m_enc_data:
+            for field_name, file_tuple in m_enc_data.items():
+                if isinstance(file_tuple, tuple) and len(file_tuple) == 3:  # noqa: PLR2004
+                    filename, file_data, file_content_type = file_tuple
+                    if hasattr(file_data, "seekable") and file_data.seekable():
+                        file_data.seek(0, os.SEEK_SET)
+                        self._log.debug(
+                            "Reset file data for field '%s' (%s) to the beginning", field_name, filename
+                        )
+                    m_enc_data[field_name] = (filename, file_data, file_content_type)
+            m_enc = MultipartEncoder(fields=m_enc_data)
+            kwargs["data"] = m_enc
+            content_type = m_enc.content_type
         self._add_header["Content-Type"] = content_type
         if "timeout" not in kwargs:
             kwargs["timeout"] = (7.5, 5) if method.upper() == "GET" else (7.5, 30)
@@ -687,45 +922,60 @@ class NodeHandle(RequestGeneral):
     def __init__(
         self,
         ip_addr: str,
-        user: Optional[str] = None,
-        password: Optional[str] = None,
-        ssh_user: Optional[str] = None,
-        ssh_password: Optional[str] = None,
+        user: str | None = None,
+        password: str | None = None,
+        ssh_user: str | None = None,
+        ssh_password: str | None = None,
         api_path: str = "/",
-        serial_number: Optional[str] = None,
+        serial_number: str | None = None,
         local_ui_port: int = 3333,
         local_ui_ip_addr: str = "172.20.2.1",
         local_bind_port: int = 3333,
+        logger: logging.Logger | None = None,
     ):
-        self.ssh_tunnel = ManageSshTunnel(
-            user=ssh_user,
-            password=ssh_password,
-            log=logging.getLogger(f"SSH-Tunnel-{serial_number}"),
-        )
-        self.ssh = SshGeneral(ip_addr, user=ssh_user, password=ssh_password)
-
-        self.ip_addr = ip_addr
-        self.usr = user or os.environ.get("NODE_USR")
-        self.psw = password or os.environ.get("NODE_PSW")
-        try:
-            self.serial_number = serial_number or json.loads(
-                self.ssh.execute("cat /etc/node_config.json"),
-            ).get("serialId", "unknown-sid")
-        except json.decoder.JSONDecodeError:
-            self.serial_number = "unknown-sid"
-
-        self.local_ui_port = local_ui_port
-        self.local_ui_ip_addr = local_ui_ip_addr
-        self.local_bind_port = local_bind_port
-        self.tunnel_node_created = False
+        if local_ui_ip_addr == ip_addr:
+            assert local_bind_port == local_ui_port, (
+                "local_bind_port must be the same as local_ui_port if local_ui_ip_addr is the same as ip_addr"
+            )
 
         super().__init__(
-            url=f"http://127.0.0.1:{local_bind_port}",
+            url=f"http://{ip_addr}:{local_ui_port}"
+            if ip_addr == local_ui_ip_addr
+            else f"http://127.0.0.1:{local_bind_port}",
             api_path=api_path,
-            log=logging.getLogger(f"Node-{serial_number}"),
+            log=logger if logger else logging.getLogger("Node"),
         )
 
         self._is_logged_in = False
+        self.tunnel_node_created = False
+        self.local_ui_port = local_ui_port
+        self.local_ui_ip_addr = local_ui_ip_addr
+        self.local_bind_port = local_bind_port
+        self.ip_addr = ip_addr
+        self.usr = user or os.environ.get("NODE_USR")
+        self.psw = password or os.environ.get("NODE_PSW")
+        self.serial_number = "unknown-sid"
+
+        self.ssh = SshGeneral(ip_addr, user=ssh_user, password=ssh_password, logger=self._log)
+
+        if ip_addr not in {"127.0.0.1", local_ui_ip_addr}:
+            self.ssh_tunnel = ManageSshTunnel(
+                user=ssh_user,
+                password=ssh_password,
+                log=self._log,
+            )
+
+            try:
+                self.serial_number = serial_number or json.loads(
+                    self.ssh.execute("cat /etc/node_config.json"),
+                ).get("serialId", "unknown-sid")
+            except json.decoder.JSONDecodeError:
+                pass
+
+        else:
+            self.tunnel_node_created = (
+                True  # if node is local, no tunnel needs to be created, so we set this to true directly
+            )
 
         self._finalizer = weakref.finalize(self, self._cleanup, weakref.ref(self))
 
@@ -757,8 +1007,8 @@ class NodeHandle(RequestGeneral):
         if node:
             if node._is_logged_in:
                 node.logout()  # close session before closing tunnels
-            node._log.debug("Removing ssh-tunnels")
-            node.ssh_tunnel._finalizer()
+            if hasattr(node, "ssh_tunnel") and node.ssh_tunnel:
+                node.ssh_tunnel._finalizer()
 
     def create_tunnel_node(self):
         """Create a ssh-tunnel to the localUI of a node."""
@@ -815,7 +1065,7 @@ class NodeHandle(RequestGeneral):
                         retry_count += 1
                 else:
                     break
-            except requests.exceptions.ConnectionError as ex_msg:
+            except requests.exceptions.ConnectionError:
                 if (
                     connection_error_count < 1
                     and kwargs.get("content_type", "application/json") == "application/json"
@@ -827,7 +1077,8 @@ class NodeHandle(RequestGeneral):
                         url,
                     )
                     if (time.time() - time_start) < (timeout - 10):
-                        self.ssh_tunnel.refresh_tunnels()
+                        if hasattr(self, "ssh_tunnel") and self.ssh_tunnel:
+                            self.ssh_tunnel.refresh_tunnels()
                         time.sleep(1)
                         continue
 
@@ -837,7 +1088,7 @@ class NodeHandle(RequestGeneral):
                     method,
                     url,
                 )
-                raise ex_msg
+                raise
 
         if not time.time() - time_start < timeout or retry_count > 0:  # If login did not work (timed out)
             for error_code in adding_error_handling:
@@ -860,13 +1111,23 @@ class NodeHandle(RequestGeneral):
         self.ssh._ssh_usr = user
         self.ssh._ssh_psw = password
 
-    def login(self, user: str = "", password: str = ""):
-        """Login to Node."""
-        self._log.debug("login with URL %s", self.url)
-        self.ssh_tunnel.refresh_tunnels()
+    def login(self, user: str = "", password: str = "", **kwargs):
+        """Login to Node.
 
+        Allows to switch user when providing user/password, otherwise will use existing credentials.
+        In case of a login error, e.g. max retry exceeded, the function will wait for 5 seconds and can be retried.
+
+        Args:
+            user (str, optional): username to login on Node. The default is "".
+            password (str, optional): password to logon on Node. The default is "".
+            **kwargs: Additional keyword arguments for future extensions.
+        """
         self.usr = user or self.usr
         self.psw = password or self.psw
+
+        self._log.debug("login with URL %s", self.url)
+        if hasattr(self, "ssh_tunnel") and self.ssh_tunnel:
+            self.ssh_tunnel.refresh_tunnels()
 
         basic_auth_text = f"{self.usr}:{self.psw}"
         headers = {
@@ -887,8 +1148,6 @@ class NodeHandle(RequestGeneral):
             if response.status_code == requests.codes.unauthorized:
                 self._is_logged_in = False
                 super()._check_status_code("POST", response, [requests.codes.ok])  # will raise error
-            self._is_logged_in = True
-            return response
 
         except urllib3.exceptions.MaxRetryError:
             self._log.error("Login failed, max retry exceeded")
@@ -899,6 +1158,9 @@ class NodeHandle(RequestGeneral):
         except requests.exceptions.ConnectionError:
             self._log.error("Login failed, request ConnectionError is raised!")
             time.sleep(5)
+        else:
+            self._is_logged_in = True
+            return response
 
     def logout(self):
         """Logout from Node."""
@@ -932,14 +1194,14 @@ class MSHandle(RequestGeneral):
             super().__init__(url=f"https://{ms_url}", api_path="/", log=logging.getLogger(f"MS-{ms_url}"))
             self._log.debug("no http/https in URL, adding https://")
 
+        self._finalizer = weakref.finalize(self, self._cleanup, weakref.ref(self))
+
         self.verify = False
 
         self.usr = user or os.environ.get("MS_USR", "")
         self.psw = password or os.environ.get("MS_PSW", "")
 
         self._is_logged_in = False
-
-        self._finalizer = weakref.finalize(self, self._cleanup, weakref.ref(self))
 
         self.__ms_version = None
 
@@ -1032,7 +1294,20 @@ class MSHandle(RequestGeneral):
         timeout = 60
         retry_count = 0
         while (time.time() - time_start) < timeout:
-            response = super().request(method, url, *args, **kwargs)
+            try:
+                response = super().request(method, url, *args, **kwargs)
+            except requests.exceptions.SSLError as ex_msg:
+                if retry_count > 0:
+                    raise
+                self._log.warning(
+                    "SSL error when accessing %s '%s', execute command again. Error message: %s",
+                    method.upper(),
+                    url,
+                    ex_msg,
+                )
+                self.login()
+                retry_count += 1
+                continue
             if response.status_code in adding_error_handling:
                 if retry_count > 0:
                     break
@@ -1059,12 +1334,22 @@ class MSHandle(RequestGeneral):
             super()._check_response(method, response, accepted_status)
         return response
 
-    def login(self, user: str = "", password: str = "") -> type:
-        """Login on MS."""
-        self._log.debug("login on MS")
+    def login(self, user: str = "", password: str = "", **kwargs) -> type:
+        """Login on MS.
+
+        Allows to switch user when providing user/password, otherwise will use existing credentials.
+        In case of a failed login, an error will be raised.
+
+        Args:
+            user (str, optional): username to login on MS. The default is ENV-var MS_USR.
+            password (str, optional): password to logon on MS. The default is ENV-var MS_PSW.
+            **kwargs: Additional keyword arguments for future extensions
+        """
+
         if self._is_logged_in:
             self.logout()  # close old session before logging in again
 
+        self._log.debug("login on MS")
         self.usr = user or self.usr
         self.psw = password or self.psw
 

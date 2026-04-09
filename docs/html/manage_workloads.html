@@ -78,7 +78,7 @@ el.replaceWith(d);
 
     def __init__(self, node_handle: type):
         self.node = node_handle
-        self._log = logging.getLogger(f&#34;Workloads-{self.node.serial_number}&#34;)
+        self._log = node_handle._log.getChild(&#34;Workloads&#34;)
 
     def deploy_workload(self, file_paths: list[str], deploy_timeout: int = 300) -&gt; type:
         &#34;&#34;&#34;Deploy workload on node directly.
@@ -95,53 +95,33 @@ el.replaceWith(d);
         type
             response object of the post command.
         &#34;&#34;&#34;
-        open_files = []
-        connect_error_count = 0
         accepted_status = [
             requests.codes.ok,
-            requests.codes.unauthorized,
             requests.codes.no_content,
             requests.codes.conflict,
         ]
         if not self.node._is_logged_in:
             self.node.login()
-        while True:
-            m_enc_files = {}
 
-            if type(file_paths) is str:
-                file_paths = [file_paths]
+        m_enc_data = {}
 
+        if type(file_paths) is str:
+            file_paths = [file_paths]
+
+        with contextlib.ExitStack() as stack:
             for idx, file_path in enumerate(file_paths):
-                bin_file = open(file_path, &#34;rb&#34;)
-                open_files.append(bin_file)
-                m_enc_files[f&#34;file{int(idx) + 1}&#34; if len(file_paths) &gt; 1 else &#34;file&#34;] = (
+                m_enc_data[f&#34;file{int(idx) + 1}&#34; if len(file_paths) &gt; 1 else &#34;file&#34;] = (
                     os.path.basename(file_path),
-                    bin_file,
+                    stack.enter_context(open(file_path, &#34;rb&#34;)),
                     &#34;form-data&#34;,
                 )
 
-            m_enc = MultipartEncoder(m_enc_files)
-
-            try:
-                response = self.node.post(
-                    url=&#34;/api/workloads/deploy&#34;,
-                    content_type=m_enc.content_type,
-                    data=m_enc,
-                    timeout=(7.5, deploy_timeout),
-                    accepted_status=accepted_status,
-                )
-            except requests.exceptions.ConnectionError:
-                if connect_error_count &lt; 1:
-                    connect_error_count += 1
-                    self._log.warning(&#34;Received a connection error, try to login and execute command again&#34;)
-                    self.node.login()
-                    continue
-                raise
-
-            if response.status_code == requests.codes.unauthorized:
-                self.node.login()
-                accepted_status = [requests.codes.ok]
-                continue
+            response = self.node.post(
+                url=&#34;/api/workloads/deploy&#34;,
+                m_enc_data=m_enc_data,
+                timeout=(7.5, deploy_timeout),
+                accepted_status=accepted_status,
+            )
 
             if response.status_code == requests.codes.conflict:
                 self._log.info(&#34;Workload deployment conflict - attempting deployment again.&#34;)
@@ -149,23 +129,18 @@ el.replaceWith(d);
                 try:
                     response = self.node.post(
                         url=&#34;/api/workloads/deploy&#34;,
-                        content_type=m_enc.content_type,
-                        data=m_enc,
+                        m_enc_data=m_enc_data,
                         timeout=(7.5, deploy_timeout),
-                        accepted_status=accepted_status,
+                        accepted_status=[requests.codes.ok, requests.codes.no_content],
                     )
-                except Exception as e:
+                except CheckStatusCodeError as ex_msg:
                     if response.status_code == requests.codes.conflict:
                         self._log.error(&#34;Workload deployment failed again due to conflict.&#34;)
                         msg = &#34;Deployment failed due to a conflict (HTTP 409) after retry.&#34;
-                        raise RuntimeError(msg) from e
-                    raise  # Re-raise the original exception if it&#39;s not a conflict
-            break
+                        raise RuntimeError(msg) from ex_msg
 
-        for bin_file in open_files:
-            bin_file.close()
-        self._log.info(&#34;Local Workload %s deployed&#34;, file_paths)
-        return response
+            self._log.info(&#34;Local Workload %s deployed&#34;, file_paths)
+            return response.json()
 
     def get_workload_list(self):
         &#34;&#34;&#34;Get list of deployed workloads.&#34;&#34;&#34;
@@ -214,40 +189,35 @@ el.replaceWith(d);
             for wrkld in workloads_data[&#34;workloads&#34;]:
                 self.control(wrkld[&#34;name&#34;], &#34;UNDEPLOY&#34;, remove_images)
 
-    def import_volume_data(self, volume_name, file, import_timeout=30):
-        &#34;&#34;&#34;Import data to a volume.
+    def get_compose_workload_details(self, workload_name):
+        &#34;&#34;&#34;Get detailed information about docker-compose workload services.
 
-        Parameters
-        ----------
-        volume_name : str
-            Name of the volume.
-        file : str
-            Path to the file to be imported.
+        Get detailed information about services of a docker-compose workload,
+        including service names, container names, image names, environment
+        variables, networks, ports, , restart policies and statuses of all
+        services
         &#34;&#34;&#34;
-        m_enc = MultipartEncoder({&#34;file&#34;: (os.path.basename(file), open(file, &#34;rb&#34;), &#34;form-data&#34;)})
-
-        return self.node.post(
-            url=f&#34;/api/docker-resources/volumes/{volume_name}/import&#34;,
-            content_type=m_enc.content_type,
-            data=m_enc,
-            accepted_status=[requests.codes.ok],
-            timeout=(7.5, import_timeout),
-        )
-
-    def export_volume_data(self, volume_name, export_timeout=30):
-        &#34;&#34;&#34;Import data to a volume.
-
-        Parameters
-        ----------
-        volume_name : str
-            Name of the volume.
-        &#34;&#34;&#34;
+        workloads_data = self.get_workload_list()
+        workload = next(wrkld for wrkld in workloads_data[&#34;workloads&#34;] if workload_name == wrkld.get(&#34;name&#34;))
+        device_id = workload[&#34;deviceId&#34;]
         return self.node.get(
-            url=f&#34;/api/docker-resources/volumes/{volume_name}/export&#34;,
-            stream=True,
+            f&#34;/api/workloads/{device_id}/compose-services-details&#34;,
             accepted_status=[requests.codes.ok],
-            timeout=(7.5, export_timeout),
-        )</code></pre>
+        ).json()
+
+    def get_compose_workload_docker_inspect(self, workload_name, service_name):
+        &#34;&#34;&#34;Get docker inspect output for specified compose service Docker container.
+
+        Gets all data returned by running the docker inspect command for the
+        specified Docker container.
+        &#34;&#34;&#34;
+        workloads_data = self.get_workload_list()
+        workload = next(wrkld for wrkld in workloads_data[&#34;workloads&#34;] if workload_name == wrkld.get(&#34;name&#34;))
+        device_id = workload[&#34;deviceId&#34;]
+        return self.node.get(
+            f&#34;/api/workloads/{device_id}/compose-service-docker-inspect/{service_name}&#34;,
+            accepted_status=[requests.codes.ok],
+        ).json()</code></pre>
 </details>
 <div class="desc"><p>Manage workloads using localUI of a node.</p>
 <h2 id="parameters">Parameters</h2>
@@ -318,53 +288,33 @@ el.replaceWith(d);
     type
         response object of the post command.
     &#34;&#34;&#34;
-    open_files = []
-    connect_error_count = 0
     accepted_status = [
         requests.codes.ok,
-        requests.codes.unauthorized,
         requests.codes.no_content,
         requests.codes.conflict,
     ]
     if not self.node._is_logged_in:
         self.node.login()
-    while True:
-        m_enc_files = {}
 
-        if type(file_paths) is str:
-            file_paths = [file_paths]
+    m_enc_data = {}
 
+    if type(file_paths) is str:
+        file_paths = [file_paths]
+
+    with contextlib.ExitStack() as stack:
         for idx, file_path in enumerate(file_paths):
-            bin_file = open(file_path, &#34;rb&#34;)
-            open_files.append(bin_file)
-            m_enc_files[f&#34;file{int(idx) + 1}&#34; if len(file_paths) &gt; 1 else &#34;file&#34;] = (
+            m_enc_data[f&#34;file{int(idx) + 1}&#34; if len(file_paths) &gt; 1 else &#34;file&#34;] = (
                 os.path.basename(file_path),
-                bin_file,
+                stack.enter_context(open(file_path, &#34;rb&#34;)),
                 &#34;form-data&#34;,
             )
 
-        m_enc = MultipartEncoder(m_enc_files)
-
-        try:
-            response = self.node.post(
-                url=&#34;/api/workloads/deploy&#34;,
-                content_type=m_enc.content_type,
-                data=m_enc,
-                timeout=(7.5, deploy_timeout),
-                accepted_status=accepted_status,
-            )
-        except requests.exceptions.ConnectionError:
-            if connect_error_count &lt; 1:
-                connect_error_count += 1
-                self._log.warning(&#34;Received a connection error, try to login and execute command again&#34;)
-                self.node.login()
-                continue
-            raise
-
-        if response.status_code == requests.codes.unauthorized:
-            self.node.login()
-            accepted_status = [requests.codes.ok]
-            continue
+        response = self.node.post(
+            url=&#34;/api/workloads/deploy&#34;,
+            m_enc_data=m_enc_data,
+            timeout=(7.5, deploy_timeout),
+            accepted_status=accepted_status,
+        )
 
         if response.status_code == requests.codes.conflict:
             self._log.info(&#34;Workload deployment conflict - attempting deployment again.&#34;)
@@ -372,23 +322,18 @@ el.replaceWith(d);
             try:
                 response = self.node.post(
                     url=&#34;/api/workloads/deploy&#34;,
-                    content_type=m_enc.content_type,
-                    data=m_enc,
+                    m_enc_data=m_enc_data,
                     timeout=(7.5, deploy_timeout),
-                    accepted_status=accepted_status,
+                    accepted_status=[requests.codes.ok, requests.codes.no_content],
                 )
-            except Exception as e:
+            except CheckStatusCodeError as ex_msg:
                 if response.status_code == requests.codes.conflict:
                     self._log.error(&#34;Workload deployment failed again due to conflict.&#34;)
                     msg = &#34;Deployment failed due to a conflict (HTTP 409) after retry.&#34;
-                    raise RuntimeError(msg) from e
-                raise  # Re-raise the original exception if it&#39;s not a conflict
-        break
+                    raise RuntimeError(msg) from ex_msg
 
-    for bin_file in open_files:
-        bin_file.close()
-    self._log.info(&#34;Local Workload %s deployed&#34;, file_paths)
-    return response</code></pre>
+        self._log.info(&#34;Local Workload %s deployed&#34;, file_paths)
+        return response.json()</code></pre>
 </details>
 <div class="desc"><p>Deploy workload on node directly.</p>
 <h2 id="parameters">Parameters</h2>
@@ -404,35 +349,61 @@ el.replaceWith(d);
 <dd>response object of the post command.</dd>
 </dl></div>
 </dd>
-<dt id="nerve_lib.manage_workloads.LocalWorkloads.export_volume_data"><code class="name flex">
-<span>def <span class="ident">export_volume_data</span></span>(<span>self, volume_name, export_timeout=30)</span>
+<dt id="nerve_lib.manage_workloads.LocalWorkloads.get_compose_workload_details"><code class="name flex">
+<span>def <span class="ident">get_compose_workload_details</span></span>(<span>self, workload_name)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def export_volume_data(self, volume_name, export_timeout=30):
-    &#34;&#34;&#34;Import data to a volume.
+<pre><code class="python">def get_compose_workload_details(self, workload_name):
+    &#34;&#34;&#34;Get detailed information about docker-compose workload services.
 
-    Parameters
-    ----------
-    volume_name : str
-        Name of the volume.
+    Get detailed information about services of a docker-compose workload,
+    including service names, container names, image names, environment
+    variables, networks, ports, , restart policies and statuses of all
+    services
     &#34;&#34;&#34;
+    workloads_data = self.get_workload_list()
+    workload = next(wrkld for wrkld in workloads_data[&#34;workloads&#34;] if workload_name == wrkld.get(&#34;name&#34;))
+    device_id = workload[&#34;deviceId&#34;]
     return self.node.get(
-        url=f&#34;/api/docker-resources/volumes/{volume_name}/export&#34;,
-        stream=True,
+        f&#34;/api/workloads/{device_id}/compose-services-details&#34;,
         accepted_status=[requests.codes.ok],
-        timeout=(7.5, export_timeout),
-    )</code></pre>
+    ).json()</code></pre>
 </details>
-<div class="desc"><p>Import data to a volume.</p>
-<h2 id="parameters">Parameters</h2>
-<dl>
-<dt><strong><code>volume_name</code></strong> :&ensp;<code>str</code></dt>
-<dd>Name of the volume.</dd>
-</dl></div>
+<div class="desc"><p>Get detailed information about docker-compose workload services.</p>
+<p>Get detailed information about services of a docker-compose workload,
+including service names, container names, image names, environment
+variables, networks, ports, , restart policies and statuses of all
+services</p></div>
+</dd>
+<dt id="nerve_lib.manage_workloads.LocalWorkloads.get_compose_workload_docker_inspect"><code class="name flex">
+<span>def <span class="ident">get_compose_workload_docker_inspect</span></span>(<span>self, workload_name, service_name)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_compose_workload_docker_inspect(self, workload_name, service_name):
+    &#34;&#34;&#34;Get docker inspect output for specified compose service Docker container.
+
+    Gets all data returned by running the docker inspect command for the
+    specified Docker container.
+    &#34;&#34;&#34;
+    workloads_data = self.get_workload_list()
+    workload = next(wrkld for wrkld in workloads_data[&#34;workloads&#34;] if workload_name == wrkld.get(&#34;name&#34;))
+    device_id = workload[&#34;deviceId&#34;]
+    return self.node.get(
+        f&#34;/api/workloads/{device_id}/compose-service-docker-inspect/{service_name}&#34;,
+        accepted_status=[requests.codes.ok],
+    ).json()</code></pre>
+</details>
+<div class="desc"><p>Get docker inspect output for specified compose service Docker container.</p>
+<p>Gets all data returned by running the docker inspect command for the
+specified Docker container.</p></div>
 </dd>
 <dt id="nerve_lib.manage_workloads.LocalWorkloads.get_workload_details"><code class="name flex">
 <span>def <span class="ident">get_workload_details</span></span>(<span>self, workload_name)</span>
@@ -467,43 +438,6 @@ el.replaceWith(d);
     return self.node.get(&#34;/api/workloads&#34;, timeout=(7.5, 10)).json()</code></pre>
 </details>
 <div class="desc"><p>Get list of deployed workloads.</p></div>
-</dd>
-<dt id="nerve_lib.manage_workloads.LocalWorkloads.import_volume_data"><code class="name flex">
-<span>def <span class="ident">import_volume_data</span></span>(<span>self, volume_name, file, import_timeout=30)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def import_volume_data(self, volume_name, file, import_timeout=30):
-    &#34;&#34;&#34;Import data to a volume.
-
-    Parameters
-    ----------
-    volume_name : str
-        Name of the volume.
-    file : str
-        Path to the file to be imported.
-    &#34;&#34;&#34;
-    m_enc = MultipartEncoder({&#34;file&#34;: (os.path.basename(file), open(file, &#34;rb&#34;), &#34;form-data&#34;)})
-
-    return self.node.post(
-        url=f&#34;/api/docker-resources/volumes/{volume_name}/import&#34;,
-        content_type=m_enc.content_type,
-        data=m_enc,
-        accepted_status=[requests.codes.ok],
-        timeout=(7.5, import_timeout),
-    )</code></pre>
-</details>
-<div class="desc"><p>Import data to a volume.</p>
-<h2 id="parameters">Parameters</h2>
-<dl>
-<dt><strong><code>volume_name</code></strong> :&ensp;<code>str</code></dt>
-<dd>Name of the volume.</dd>
-<dt><strong><code>file</code></strong> :&ensp;<code>str</code></dt>
-<dd>Path to the file to be imported.</dd>
-</dl></div>
 </dd>
 <dt id="nerve_lib.manage_workloads.LocalWorkloads.undeploy"><code class="name flex">
 <span>def <span class="ident">undeploy</span></span>(<span>self, workload_name: str = '', remove_images: bool = True)</span>
@@ -554,12 +488,15 @@ el.replaceWith(d);
 
     def __init__(self, ms_handle: type):
         self.ms = ms_handle
-        self._log = logging.getLogger(&#34;Workloads&#34;)
+        self._log = ms_handle._log.getChild(&#34;Workloads&#34;) if ms_handle else logging.getLogger(&#34;Workloads&#34;)
+
+        # when executing .get_workloads_dict, and a listing failed, this variable shows the number of failed reads
+        self.failed_get_workloads = 0
 
     def provision_workload(
         self,
         payload: dict,
-        file_paths: list[str] = [],
+        file_paths: list[str] | None = None,
         api_version: int = 2,
         patch_version: bool = True,
         registry_download_timeout: int = 400,
@@ -574,12 +511,23 @@ el.replaceWith(d);
             pathes to the workload related files. The default is [].
         api_version : int, optional
             API version to be used, one of 1, 2, 3. The default is 2.
+            API version 3 is required for internalDockerRegistry or docker-compose workloads
         patch_version : bool, optional
             If set, existing workload with same name/version will be patched. The default is True.
         registry_download_timeout : int, optional
             Maximal download time of a registry workload. The default is 400.
         &#34;&#34;&#34;
-        if api_version == self.API_V1:
+        if file_paths is None:
+            file_paths = []
+
+        for version_item in payload.get(&#34;versions&#34;, []):
+            if isinstance(version_item.get(&#34;files&#34;, None), list):
+                version_item[&#34;files&#34;] = {
+                    str(idx): file_info for idx, file_info in enumerate(version_item[&#34;files&#34;])
+                }
+                self._log.debug(&#34;Reformatted &#39;files&#39; from list to dict with keys &#39;0&#39;, &#39;1&#39;, ...&#34;)
+
+        if api_version == self.API_V1:  # noqa: PLR1702
             self.__send_provision_workload(&#34;/nerve/workload&#34;, file_paths, payload, False)
         elif api_version in {self.API_V2, self.API_V3}:
             update_workload = False
@@ -620,12 +568,26 @@ el.replaceWith(d);
                     registry_download_timeout,
                 )
             elif payload[&#34;type&#34;] == &#34;docker&#34; and api_version == self.API_V3:
+                self._log.debug(&#34;Provisioning docker workload with API v3&#34;)
                 # Step 1: Create Workload
                 self.provision_compose_workload(payload, update_workload)
                 # Step2: Create Version
                 wl_version.create_compose_version(payload[&#34;versions&#34;][0], patch_version)
                 # Step3: Upload files
-                wl_version.set_compose_repo(file_paths, type=&#34;docker&#34;)
+                if payload.get(&#34;internalDockerRegistry&#34;) == True:
+                    workload_json_files = [file for file in file_paths if file.endswith(&#34;workload.json&#34;)]
+                    for file in workload_json_files:
+                        with open(file, &#34;r&#34;, encoding=&#34;utf-8&#34;) as f:
+                            content = json.load(f)
+                            for file_info in content[&#34;version&#34;].get(&#34;files&#34;, []):
+                                if file_info[&#34;sourceInfo&#34;][&#34;type&#34;] == &#34;docker-image&#34;:
+                                    repo = file_info[&#34;sourceInfo&#34;][&#34;source&#34;]
+                                    repo = self.ms.ms_url + &#34;/&#34; + repo
+
+                                    wl_version.set_compose_repo(
+                                        repo=repo,
+                                        type=&#34;docker&#34;,
+                                    )
 
             elif api_version == self.API_V3 and payload[&#34;type&#34;] == &#34;docker-compose&#34;:
                 # docker compose workload only
@@ -637,21 +599,29 @@ el.replaceWith(d);
                 wl_version.create_compose_version(payload[&#34;versions&#34;][0], patch_version)
 
                 # Step3: Upload files
-                for file_path in file_paths:
-                    if type(file_path) is str and os.path.splitext(file_path)[-1] in {&#34;.yaml&#34;, &#34;.yml&#34;}:
-                        with open(file_path, &#34;r&#34;, encoding=&#34;utf-8&#34;) as file:
-                            compose_content = yaml.safe_load(file)
-                        wl_version.set_compose_content(
-                            compose_content,
-                            os.path.split(file_path)[-1],
-                            patch_version,
-                        )
+                compose_file = next(
+                    (
+                        file_path
+                        for file_path in file_paths
+                        if isinstance(file_path, str) and file_path.endswith((&#34;.yaml&#34;, &#34;.yml&#34;))
+                    ),
+                    None,
+                )
+                with open(compose_file, &#34;r&#34;, encoding=&#34;utf-8&#34;) as file:
+                    compose_content = yaml.safe_load(file)
+                wl_version.set_compose_content(
+                    compose_content,
+                    os.path.split(compose_file)[-1],
+                    patch_version,
+                )
+                image_names = [
+                    service.get(&#34;image&#34;, &#34;&#34;) for service in compose_content.get(&#34;services&#34;, {}).values()
+                ]
 
                 # Step4: Upload image file(s)
                 for file_path in file_paths:
-                    if type(file_path) is str:
-                        if os.path.splitext(file_path)[-1] == &#34;.tar&#34;:
-                            wl_version.set_compose_image(file_path, patch_version)
+                    if type(file_path) is str and os.path.splitext(file_path)[-1] == &#34;.tar&#34;:
+                        wl_version.set_compose_image(file_path, patch_version, image_names)
                     elif type(file_path) is dict:
                         wl_version.set_compose_repo(
                             file_path.get(&#34;repo&#34;),
@@ -693,17 +663,16 @@ el.replaceWith(d);
             &#34;url&#34;: endpoint_url,
             &#34;json&#34;: deepcopy(payload),
             &#34;timeout&#34;: (7.5, 30000),
-            &#34;accepted_status&#34;: [requests.codes.ok, requests.codes.forbidden],
+            &#34;accepted_status&#34;: [requests.codes.ok],
         }
 
-        open_files = []
-        connect_error_count = 0
-        while True:  # noqa: PLR1702
-            if type(file_paths) is str:
-                file_paths = [file_paths]
+        if type(file_paths) is str:
+            file_paths = [file_paths]
 
-            m_enc_files = {}
+        with contextlib.ExitStack() as stack:
             if &#34;versions&#34; in payload:
+                self._log.debug(&#34;Adding payload data to request&#34;)
+                m_enc_data = {&#34;data&#34;: (None, json.dumps(payload), &#34;form-data&#34;)}
                 if &#34;files&#34; in payload[&#34;versions&#34;][0]:
                     if isinstance(payload[&#34;versions&#34;][0][&#34;files&#34;], dict):
                         files = payload[&#34;versions&#34;][0][&#34;files&#34;]
@@ -713,71 +682,39 @@ el.replaceWith(d);
                             for idx, file_info in enumerate(payload[&#34;versions&#34;][0][&#34;files&#34;])
                         }
                     for str_idx, content in files.items():
-                        file_path = &#34;&#34;
-                        for fpath in file_paths:
-                            if fpath.endswith(content[&#34;originalName&#34;]):
-                                file_path = fpath
-
-                        if file_path:
-                            self._log.debug(&#34;Opening File %s&#34;, file_path)
-                            bin_file = open(file_path, &#34;rb&#34;)
-                            open_files.append(bin_file)
-
-                            m_enc_files[
-                                f&#34;file{int(str_idx) + 1}&#34;
-                                if len(payload[&#34;versions&#34;][0][&#34;files&#34;]) &gt; 1
-                                else &#34;file&#34;
-                            ] = (
-                                content[&#34;originalName&#34;],
-                                bin_file,
-                                &#34;form-data&#34;,
-                            )
-
-                data = {&#34;data&#34;: (None, json.dumps(payload), &#34;form-data&#34;)}
-                data |= m_enc_files
-                m_enc = MultipartEncoder(data)
-                kwargs_provision |= {
-                    &#34;content_type&#34;: m_enc.content_type,
-                    &#34;data&#34;: m_enc,
-                }
-
-            try:
-                if update_workload:
-                    if &#34;internalDockerRegistry&#34; in kwargs_provision[&#34;json&#34;]:
-                        # InternalDockerRegistry cant be changed, so we need to remove it from the payload for updating the workload
-                        del kwargs_provision[&#34;json&#34;][&#34;internalDockerRegistry&#34;]
-                    response = self.ms.patch(**kwargs_provision)
-                else:
-                    if requests.codes.conflict not in kwargs_provision[&#34;accepted_status&#34;]:
-                        kwargs_provision[&#34;accepted_status&#34;].append(requests.codes.conflict)
-                    if self.ms.version_smaller_than(&#34;2.10.0&#34;):
-                        if &#34;internalDockerRegistry&#34; in kwargs_provision[&#34;json&#34;]:
-                            # InternalDockerRegistry is not supported with MS version &lt; 2.10.0
-                            del kwargs_provision[&#34;json&#34;][&#34;internalDockerRegistry&#34;]
-                    response = self.ms.post(**kwargs_provision)
-                    if response.status_code == requests.codes.conflict:
-                        self.ms._log.warning(
-                            &#34;Workload with same name already exists. Assuming the workload was already deployed&#34;
-                            &#34; before&#34;,
+                        file_path = next(
+                            (fpath for fpath in file_paths if fpath.endswith(content[&#34;originalName&#34;])), None
                         )
-                if response.status_code == requests.codes.forbidden:
-                    self.ms.login()
-                    if requests.codes.forbidden in kwargs_provision[&#34;accepted_status&#34;]:
-                        kwargs_provision[&#34;accepted_status&#34;].pop(
-                            kwargs_provision[&#34;accepted_status&#34;].index(requests.codes.forbidden),
-                        )
-                    continue
-                break
-            except requests.exceptions.ConnectionError:
-                if connect_error_count &lt; 1:
-                    connect_error_count += 1
-                    self._log.warning(&#34;Received a connection error, try to login and execute command again&#34;)
-                    self.ms.login()
-                    continue
-                raise
 
-        for bin_file in open_files:
-            bin_file.close()
+                        if not file_path:
+                            continue
+
+                        self._log.debug(&#34;Adding file &#39;%s&#39; to request&#34;, file_path)
+
+                        m_enc_data[
+                            f&#34;file{int(str_idx) + 1}&#34; if len(payload[&#34;versions&#34;][0][&#34;files&#34;]) &gt; 1 else &#34;file&#34;
+                        ] = (
+                            content[&#34;originalName&#34;],
+                            stack.enter_context(open(file_path, &#34;rb&#34;)),
+                            &#34;form-data&#34;,
+                        )
+
+                kwargs_provision[&#34;m_enc_data&#34;] = m_enc_data
+            if self.ms.version_smaller_than(&#34;2.10.0&#34;) or update_workload:
+                # InternalDockerRegistry is not supported with MS version &lt; 2.10.0
+                # InternalDockerRegistry not needed for patching workload
+                kwargs_provision[&#34;json&#34;].pop(&#34;internalDockerRegistry&#34;, None)
+            if update_workload:
+                response = self.ms.patch(**kwargs_provision)
+            else:
+                if requests.codes.conflict not in kwargs_provision[&#34;accepted_status&#34;]:
+                    kwargs_provision[&#34;accepted_status&#34;].append(requests.codes.conflict)
+                response = self.ms.post(**kwargs_provision)
+                if response.status_code == requests.codes.conflict:
+                    self.ms._log.warning(
+                        &#34;Workload with same name already exists. Assuming the workload was already deployed&#34;
+                        &#34; before&#34;,
+                    )
 
         if &#34;versions&#34; in payload:
             version_name = payload[&#34;versions&#34;][0][&#34;name&#34;]
@@ -809,7 +746,6 @@ el.replaceWith(d);
             self.ms._log.info(&#34;Provisioned workload &#39;%s&#39;&#34;, payload[&#34;name&#34;])
         else:
             self.ms._log.info(&#34;Workload provision response: %s&#34;, response.json())
-        time.sleep(5)  # Allow the MS to finish provisioning steps
 
     def __fix_workload_config_v1_networks(self, networks):
         &#34;&#34;&#34;Validate and fix &#39;networks&#39; input.&#34;&#34;&#34;
@@ -832,11 +768,10 @@ el.replaceWith(d);
         if type(ports) is list:
             self._log.warning(&#34;API V1 requires ports definition as a string, reformatting...&#34;)
 
-            ports_str_list = []
-            for port_cfg in ports:
-                ports_str_list.append(
-                    f&#34;{port_cfg[&#39;host_port&#39;]}={port_cfg[&#39;container_port&#39;]}/{port_cfg.get(&#39;protocol&#39;, &#39;UDP&#39;)}&#34;,
-                )
+            ports_str_list = [
+                f&#34;{port_cfg[&#39;host_port&#39;]}={port_cfg[&#39;container_port&#39;]}/{port_cfg.get(&#39;protocol&#39;, &#39;UDP&#39;)}&#34;
+                for port_cfg in ports
+            ]
 
             return &#34;\n&#34;.join(ports_str_list)
 
@@ -872,9 +807,9 @@ el.replaceWith(d);
         &#34;&#34;&#34;Validate and fix &#39;docker_volumes&#39; input.&#34;&#34;&#34;
         if type(docker_volumes) is list:
             self._log.warning(&#34;API V1 requires docker_volumes definition as a string, reformatting...&#34;)
-            docker_vols_new = []
-            for docker_vol in docker_volumes:
-                docker_vols_new.append(f&#34;{docker_vol[&#39;volumeName&#39;]}:{docker_vol[&#39;containerPath&#39;]}&#34;)
+            docker_vols_new = [
+                f&#34;{docker_vol[&#39;volumeName&#39;]}:{docker_vol[&#39;containerPath&#39;]}&#34; for docker_vol in docker_volumes
+            ]
             return &#34;\n&#34;.join(docker_vols_new)
         return docker_volumes
 
@@ -888,13 +823,14 @@ el.replaceWith(d);
                     &#34;Provide docker_volumes as a list of [{&#39;volumeName&#39;: str, &#39;containerPath&#39;: str, &#39;configurationStorage&#39;: bool}, ...]. Trying to reformat from&#34;
                     &#34; string... &#34;,
                 )
-                docker_vols_new = []
-                for docker_vol in docker_volumes.split(&#34;\n&#34;):
-                    docker_vols_new.append({
+                docker_vols_new = [
+                    {
                         &#34;volumeName&#34;: docker_vol.split(&#34;:&#34;)[0],
                         &#34;containerPath&#34;: docker_vol.split(&#34;:&#34;)[1],
                         &#34;configurationStorage&#34;: False,
-                    })
+                    }
+                    for docker_vol in docker_volumes.split(&#34;\n&#34;)
+                ]
                 docker_volumes = docker_vols_new
         return docker_volumes
 
@@ -902,9 +838,7 @@ el.replaceWith(d);
         &#34;&#34;&#34;Validate and fix &#39;env_var&#39; input.&#34;&#34;&#34;
         if type(env_var) is list:
             self._log.warning(&#34;API V1 requires env_var definition as a string, reformatting...&#34;)
-            env_var_new = []
-            for env in env_var:
-                env_var_new.append(f&#34;{env[&#39;env_variable&#39;]}={env[&#39;container_value&#39;]}&#34;)
+            env_var_new = [f&#34;{env[&#39;env_variable&#39;]}={env[&#39;container_value&#39;]}&#34; for env in env_var]
             return &#34;\n&#34;.join(env_var_new)
         return env_var
 
@@ -917,12 +851,10 @@ el.replaceWith(d);
                 self._log.warning(
                     &#34;Provide env_var as a list of [{&#39;env_variable&#39;: str, &#39;container_value&#39;: str}, ...]. Trying to reformat from string... &#34;,
                 )
-                env_var_new = []
-                for env in env_var.split(&#34;\n&#34;):
-                    env_var_new.append({
-                        &#34;env_variable&#34;: env.split(&#34;=&#34;)[0],
-                        &#34;container_value&#34;: env.split(&#34;=&#34;)[1],
-                    })
+                env_var_new = [
+                    {&#34;env_variable&#34;: env.split(&#34;=&#34;)[0], &#34;container_value&#34;: env.split(&#34;=&#34;)[1]}
+                    for env in env_var.split(&#34;\n&#34;)
+                ]
                 env_var = env_var_new
         return env_var
 
@@ -936,33 +868,33 @@ el.replaceWith(d);
             vm_memory = {&#34;unit&#34;: memory[0][1], &#34;value&#34;: int(memory[0][0])}
         return vm_memory
 
-    def gen_workload_configuration(  # noqa: PLR0913, PLR0917
+    def gen_workload_configuration(  # noqa: PLR0913, PLR0915, PLR0917
         self,
         provision_type: str,
-        file_paths: list[str] = &#34;&#34;,
+        file_paths: str | list[str] = &#34;&#34;,
         wrkld_name: str = &#34;test_workload&#34;,
         wrkld_version_name: str = &#34;test_version&#34;,
         container_name: str = &#34;test_container&#34;,
         release_name: str = &#34;&#34;,
         description: str = &#34;&#34;,
-        label: list = [],
-        networks: list = [&#34;bridge&#34;],
-        ports: list[dict] = [],
-        docker_volumes: list[dict] = [],
+        label: list[str] | None = None,
+        networks: list[str] | None = None,
+        ports: list[dict] | None = None,
+        docker_volumes: list[dict] | None = None,
         restart_on_config_update: bool = False,
-        env_var: list[dict] = &#34;&#34;,
-        remote_connections: list[dict] = [],
+        env_var: list[dict] | None = None,
+        remote_connections: list[dict] | None = None,
         restart_policy: str = &#34;no&#34;,
-        limit_cpus: Optional[str] = None,
-        limit_memory: Optional[dict] = None,
+        limit_cpus: str | None = None,
+        limit_memory: dict | None = None,
         released: bool = False,
         auth_usr: str = &#34;&#34;,
         auth_psw: str = &#34;&#34;,
         vm_num_cpus: int = 1,
-        vm_memory: dict = {&#34;unit&#34;: &#34;MB&#34;, &#34;value&#34;: 700},
-        vm_snapshot: dict = {&#34;enabled&#34;: False},
-        compose_dict: dict = {},
-        docker_config_volumes: list = [],
+        vm_memory: dict | None = None,
+        vm_snapshot: dict | None = None,
+        compose_dict: dict | None = None,
+        docker_config_volumes: list[dict] | None = None,
         api_version: int = 2,
         internal_docker_registry: bool = False,
     ) -&gt; dict:
@@ -972,7 +904,7 @@ el.replaceWith(d);
         ----------
         provision_type : str
             One of &#34;docker&#34;, &#34;registry&#34;, &#34;vm&#34;, &#34;codesys&#34;, &#34;docker-compose&#34;
-        file_paths : str/list
+        file_paths : str | list[str]
             Files to be added to option &#34;file: {}&#34;
             &#39;vm&#39; workload requires img and xml file to be defined
         wrkld_name : str, optional
@@ -985,44 +917,49 @@ el.replaceWith(d);
             Name of the release version. The default is wrkld_version_name.
         description : str, optional
             Description of Workload
-        label : str, optional
+        label : list[str], optional
             Labels to be defined for a workload
-        networks : str, optional
+        networks : list[str], optional
             Docker workload networks. The default is [&#34;bridge&#34;].
             for vm type set network similar to this example:
                 [{&#34;type&#34;:&#34;NAT&#34;,&#34;interface&#34;:&#34;default&#34;},
                 {&#34;type&#34;:&#34;Bridged&#34;,&#34;interface&#34;:&#34;isolated1&#34;}]
-        ports : str, optional
-            Port binding for docker workload. The default is &#34;&#34;.
+        ports : list[dict], optional
+            Port binding for docker workload. The default is [].
             api1: str (e.g. &#34;80:8080/tcp&#34;)
             api2: List of dict [{&#39;protocol&#39;:&#39;TCP&#39;,&#39;host_port&#39;: 80, &#39;container_port&#39;: 8080}]
-        docker_volumes : str/list, optional
-            mapped volumes in docker workload. The default is &#34;&#34;.
+        docker_volumes : list[dict], optional
+            mapped volumes in docker workload. The default is [].
             api1: volumes defined as string(e.g. &#34;NGINX_1:/var/www/nginx&#34;)
-            api2: list of dict {&#34;volumeName&#34;: str, &#34;containerPath&#34;: str,  &#34;configurationStorage&#34;: bool}
+            api2: list of dict [{&#34;volumeName&#34;: str, &#34;containerPath&#34;: str,  &#34;configurationStorage&#34;: bool}]
         restart_on_config_update : bool, optional
             Restart container on confuration update (of docker-volume with &#34;configurationStorage: True&#34;)
-        env_var : string/list, optional
-            environment variables in docker workload. The default is &#34;&#34;.
+        env_var : list[dict], optional
+            environment variables in docker workload. The default is [].
             api1: string (e.g. LOG_LEVEL=Info)
-            api2: list of dict {&#34;env_variable&#34;: str, &#34;container_value&#34;: str}
-        remote_connections : list, optional
+            api2: list of dict [{&#34;env_variable&#34;: str, &#34;container_value&#34;: str}]
+        remote_connections : list[dict], optional
             List of remote connections. The default is [].
-            List is a dict {&#34;type&#34;: &#34;TUNNEL or SCREEN&#34;,
-                            &#34;name&#34;: str,
-                            &#34;acknowledgment&#34;: &#34;No or Yes&#34;,.
-                            &#34;serviceName&#34;: Required for compose workload only, name of the service
-                            &#34;hostname&#34;: ip-address
-                            &#34;port&#34;: int,
-                            &#34;localPort&#34;: int}
+            List of dict [{&#34;type&#34;: &#34;TUNNEL or SCREEN&#34;,
+                           &#34;name&#34;: str,
+                           &#34;acknowledgment&#34;: &#34;No or Yes&#34;,.
+                           &#34;serviceName&#34;: Required for compose workload only, name of the service
+                           &#34;hostname&#34;: ip-address
+                           &#34;port&#34;: int,
+                           &#34;localPort&#34;: int}]
         restart_policy : str, optional
             Container restart policy (no, on-failure, always, unless-stopped). The default is &#34;no&#34;
         limit_cpus : str, optional
             Set CPU limit for workload
         limit_memory : dict, optional
             Set Memory limit for workload (e.g. {&#34;unit&#34;: &#34;MB&#34;, &#34;value&#34;: 256})
+        vm_memory: dict, optional
+            Set memory configuration for VM workload (user-permission &#39;VM workload memory&#39; required)
+                e.g. {&#34;unit&#34;: &#34;MB&#34;, &#34;value&#34;: 700}
         vm_snapshot : dict, optional
             Set snapshot configuration for VM workload (user-permission &#39;VM workload snapshot&#39; required)
+                e.g. {&#34;enabled&#34;: True, &#34;value&#34;: 1, &#34;unit&#34;: &#34;GB&#34;}
+                default is disabled: {&#34;enabled&#34;: False}
         released : bool, optional
             Mark workload as released version
         aut_usr, aut_psw : str, optional
@@ -1036,6 +973,19 @@ el.replaceWith(d);
 
         &#34;&#34;&#34;
         &#34;&#34;&#34;Common payload elements for v1 and v2 workload endpoint payloads&#34;&#34;&#34;
+
+        if ports is None:
+            ports = []
+        if docker_volumes is None:
+            docker_volumes = []
+        if env_var is None:
+            env_var = []
+        if compose_dict is None:
+            compose_dict = {}
+        if vm_memory is None:
+            vm_memory = {&#34;unit&#34;: &#34;MB&#34;, &#34;value&#34;: 700}
+        if networks is None:
+            networks = [&#34;bridge&#34;]
 
         if type(file_paths) is str:
             file_paths = [file_paths]
@@ -1055,7 +1005,7 @@ el.replaceWith(d);
                 {
                     &#34;name&#34;: wrkld_version_name[:40],
                     &#34;releaseName&#34;: release_name[:40],
-                    &#34;selectors&#34;: label,
+                    &#34;selectors&#34;: label if label is not None else [],
                 },
             ],
         }
@@ -1086,7 +1036,7 @@ el.replaceWith(d);
         payload[&#34;versions&#34;][0] |= {
             &#34;released&#34;: released,
             &#34;deleted&#34;: False,
-            &#34;remoteConnections&#34;: remote_connections,
+            &#34;remoteConnections&#34;: remote_connections if remote_connections is not None else [],
         }
 
         if provision_type not in {&#34;docker-compose&#34;, &#34;registry&#34;}:
@@ -1133,13 +1083,13 @@ el.replaceWith(d);
             if api_version == self.API_V2:
                 payload[&#34;versions&#34;][0] |= {&#34;capabilities&#34;: []}
                 payload[&#34;versions&#34;][0][properties_name] |= {
-                    &#34;snapshot&#34;: vm_snapshot,
+                    &#34;snapshot&#34;: vm_snapshot if vm_snapshot is not None else {&#34;enabled&#34;: False},
                     &#34;PCI_passthrough&#34;: [],
                 }
         if provision_type == &#34;docker-compose&#34;:
             config_storage = None
             payload[&#34;versions&#34;][0][&#34;workloadSpecificProperties&#34;] = {&#34;dockerConfigurationStorage&#34;: []}
-            for docker_config in docker_config_volumes:
+            for docker_config in docker_config_volumes if docker_config_volumes is not None else []:
                 try:
                     docker_config_volume = compose_dict[&#34;services&#34;][docker_config[&#34;service&#34;]][&#34;volumes&#34;][
                         int(docker_config.get(&#34;volume_id&#34;, 0))
@@ -1168,8 +1118,10 @@ el.replaceWith(d);
             payload[&#34;versions&#34;][0] = {}
             payload[&#34;versions&#34;][0][&#34;name&#34;] = wrkld_version_name
             payload[&#34;versions&#34;][0][&#34;released&#34;] = released
-            payload[&#34;versions&#34;][0][&#34;selectors&#34;] = label
-            payload[&#34;versions&#34;][0][&#34;remoteConnections&#34;] = remote_connections
+            payload[&#34;versions&#34;][0][&#34;selectors&#34;] = label if label is not None else []
+            payload[&#34;versions&#34;][0][&#34;remoteConnections&#34;] = (
+                remote_connections if remote_connections is not None else []
+            )
             payload[&#34;versions&#34;][0][&#34;workloadSpecificProperties&#34;] = {
                 &#34;port_mappings_protocol&#34;: ports,
                 &#34;environment_variables&#34;: env_var,
@@ -1186,16 +1138,21 @@ el.replaceWith(d);
             }
         return payload
 
-    def get_workloads_dict(self, read_versions=True, read_compose_details=True, compact_dict=True) -&gt; dict:
+    def get_workloads_dict(
+        self, read_versions=True, read_compose_details=True, compact_dict=True, ignore_read_error=False
+    ) -&gt; dict:
         &#34;&#34;&#34;Read workloads list of MS.
 
         Returns
         -------
         dict
             dict of {workload-name: [version, release_version]}.
+
+        Note: variable .failed_get_workloads is set to the number of failed reads after executing this function
         &#34;&#34;&#34;
         workload_list = {}
         workloads = []
+        self.failed_get_workloads = 0
         page_number = 1
         while True:
             workloads_single_read = self.ms.get(
@@ -1211,13 +1168,14 @@ el.replaceWith(d);
             if compact_dict:
                 return [wrkld[&#34;name&#34;] for wrkld in workloads]
             return workloads
-        for workload in workloads:
+        for workload in workloads:  # noqa: PLR1702
             workload_id = workload.get(&#34;_id&#34;)
             if workload.get(&#34;type&#34;) == &#34;docker-compose&#34; or (
                 workload.get(&#34;type&#34;) == &#34;docker&#34; and workload.get(&#34;internalDockerRegistry&#34;)
             ):
                 versions = (
-                    self.ms.get(
+                    self.ms
+                    .get(
                         f&#34;/nerve/v3/workloads/{workload_id}/versions&#34;,
                         accepted_status=[requests.codes.ok],
                     )
@@ -1233,19 +1191,35 @@ el.replaceWith(d);
                                 accepted_status=[requests.codes.ok],
                             ).json()
                         except CheckStatusCodeError as ex_msg:
-                            msg = f&#34;Workload {workload.get(&#39;name&#39;)}-{version.get(&#39;name&#39;)}: {ex_msg.value}&#34;
-                            raise CheckStatusCodeError(
-                                msg,
-                                ex_msg.status_code,
-                                ex_msg.response_text,
-                            )
+                            msg = f&#34;Workload &#39;{workload.get(&#39;name&#39;)}-{version.get(&#39;name&#39;)}&#39;: {ex_msg.value}&#34;
+                            self._log.error(msg)
+                            self.failed_get_workloads += 1
+                            if not ignore_read_error:
+                                raise CheckStatusCodeError(
+                                    msg,
+                                    ex_msg.status_code,
+                                    ex_msg.response_text,
+                                )
 
             else:
-                versions = (
-                    self.ms.get(f&#34;/nerve/v2/workloads/{workload_id}&#34;, accepted_status=[requests.codes.ok])
-                    .json()
-                    .get(&#34;versions&#34;)
-                )
+                try:
+                    versions = (
+                        self.ms
+                        .get(f&#34;/nerve/v2/workloads/{workload_id}&#34;, accepted_status=[requests.codes.ok])
+                        .json()
+                        .get(&#34;versions&#34;)
+                    )
+                except CheckStatusCodeError as ex_msg:
+                    msg = f&#34;Cannot read workload version list for workload &#39;{workload.get(&#39;name&#39;)}&#39;: {ex_msg.value}&#34;
+                    self._log.error(msg)
+                    versions = []
+                    self.failed_get_workloads += 1
+                    if not ignore_read_error:
+                        raise CheckStatusCodeError(
+                            msg,
+                            ex_msg.status_code,
+                            ex_msg.response_text,
+                        )
             if compact_dict:
                 workload_list[workload.get(&#34;name&#34;)] = []
                 for version in versions:
@@ -1281,7 +1255,7 @@ el.replaceWith(d);
     def check_for_deployment_state(
         self,
         deploy_name: str,
-        state: Optional[str] = None,
+        state: str | None = None,
         timeout: int = 400,
         check_interval: int = 60,
     ) -&gt; dict:
@@ -1311,22 +1285,25 @@ el.replaceWith(d);
         time_last_log_print = time_start
         status_old = []
         dep_log = None
+        # API response key changed from &#34;data&#34; to &#34;list&#34; in version 3.2.0
+        list_key = &#34;data&#34; if self.ms.version_smaller_than(&#34;3.2.0&#34;) else &#34;list&#34;
+
         while (time.time() - time_start) &lt; timeout:
             parameters = {&#34;limit&#34;: 50, &#34;page&#34;: 1, &#34;contentType&#34;: &#34;workload&#34;}
-            dep_logs = {&#34;count&#34;: 0, &#34;data&#34;: []}
+            dep_logs = {&#34;count&#34;: 0, list_key: []}
             while True:
                 deploy_list_single_read = self.ms.get(
                     &#34;/bom/deployment/list&#34;, params=parameters, accepted_status=[requests.codes.ok]
                 ).json()
                 parameters[&#34;page&#34;] += 1
-                dep_logs[&#34;data&#34;] += deploy_list_single_read.get(&#34;data&#34;, [])
+                dep_logs[list_key] += deploy_list_single_read.get(list_key, [])
                 dep_logs[&#34;count&#34;] = deploy_list_single_read[&#34;count&#34;]
 
                 # Check if required log is already in the read logs to avoid unnecessary API calls
                 dep_log = next(
                     (
                         dep_log
-                        for dep_log in dep_logs.get(&#34;data&#34;, [])
+                        for dep_log in dep_logs.get(list_key, [])
                         if dep_log.get(&#34;operation_name&#34;) == deploy_name
                     ),
                     None,
@@ -1335,7 +1312,7 @@ el.replaceWith(d);
                 if dep_log:
                     break
 
-                if len(dep_logs[&#34;data&#34;]) == deploy_list_single_read[&#34;count&#34;]:
+                if len(dep_logs[list_key]) == deploy_list_single_read[&#34;count&#34;]:
                     break
 
             if not dep_log:
@@ -1355,7 +1332,7 @@ el.replaceWith(d);
                     accepted_status=[requests.codes.ok],
                 ).json()
 
-                for feedback in detail_status.get(&#34;data&#34;, []):
+                for feedback in detail_status.get(list_key, []):
                     task_options = feedback.get(&#34;taskOptions&#34;)
                     status_new.append(task_options.get(&#34;status&#34;))
                     if task_options.get(&#34;status&#34;).upper() == &#34;ERROR&#34;:
@@ -1375,7 +1352,7 @@ el.replaceWith(d);
                         dep_log.get(&#34;campaignOptions&#34;, {}).get(&#34;progress&#34;),
                     )
 
-                    for feedback in detail_status.get(&#34;data&#34;, []):
+                    for feedback in detail_status.get(list_key, []):
                         task_options = feedback.get(&#34;taskOptions&#34;)
                         self._log.info(
                             &#34; - Node %s: [ Status: %s, Progress: %s%% ]&#34;,
@@ -1391,7 +1368,7 @@ el.replaceWith(d);
                                 json.dumps(feedback[&#34;errorFeedback&#34;], indent=4),
                             )
 
-                if num_failed_tasks == len(detail_status.get(&#34;data&#34;)):
+                if num_failed_tasks == len(detail_status.get(list_key, [])):
                     self._log.error(
                         &#34;Overall Status is in progress, but all workload deployments have failed&#34;,
                     )
@@ -1403,12 +1380,21 @@ el.replaceWith(d);
                     accepted_status=[requests.codes.ok],
                 ).json()
                 self.ms._log.error(&#34;Deployment of %s failed&#34;, deploy_name)
-                for feedback in detail_status.get(&#34;data&#34;, []):
-                    self.ms._log.error(
-                        &#34; - Node %s Error-details: %s&#34;,
+                for feedback in detail_status.get(list_key, []):
+                    task_options = feedback.get(&#34;taskOptions&#34;)
+                    self._log.info(
+                        &#34; - Node %s: [ Status: %s, Progress: %s%% ]&#34;,
                         feedback.get(&#34;device&#34;),
-                        json.dumps(feedback[&#34;errorFeedback&#34;], indent=4),
+                        task_options.get(&#34;status&#34;),
+                        task_options.get(&#34;progress&#34;),
                     )
+
+                    if task_options.get(&#34;status&#34;).upper() == &#34;ERROR&#34;:
+                        self.ms._log.error(
+                            &#34; - Node %s Error-details: %s&#34;,
+                            feedback.get(&#34;device&#34;),
+                            json.dumps(feedback[&#34;errorFeedback&#34;], indent=4),
+                        )
 
                 return status
             if dep_log.get(&#34;isFinished&#34;):
@@ -1429,26 +1415,18 @@ el.replaceWith(d);
     def validate_compose_content(self, content: dict, file_name: str = &#34;compose-file.yaml&#34;) -&gt; dict:
         &#34;&#34;&#34;Validate if the content of a compose-file is valid.&#34;&#34;&#34;
         yml_file = yaml.dump(content, indent=4, default_flow_style=False, sort_keys=False)
-        accepted_status = [requests.codes.ok, requests.codes.forbidden]
-        while True:
-            m_enc = MultipartEncoder({
+        resp = self.ms.post(
+            &#34;/nerve/v3/workloads/compose&#34;,
+            m_enc_data={
                 &#34;type&#34;: &#34;compose&#34;,
                 &#34;origin&#34;: &#34;upload&#34;,
                 &#34;source&#34;: &#34;file&#34;,
                 &#34;file&#34;: (file_name, yml_file, &#34;form-data&#34;),
-            })
-            resp = self.ms.post(
-                &#34;/nerve/v3/workloads/compose&#34;,
-                accepted_status=accepted_status,
-                data=m_enc,
-                content_type=m_enc.content_type,
-            )
+            },
+            accepted_status=[requests.codes.ok],
+        )
 
-            if resp.status_code == requests.codes.forbidden:
-                self.ms.login()
-                accepted_status = [requests.codes.ok]
-                continue
-            return resp.json()
+        return resp.json()
 
     def WorkloadVersion(self, workload_name: str, version: str = &#34;&#34;, release_version: str = &#34;&#34;):
         &#34;&#34;&#34;Handle to specific workload of a MS.
@@ -1546,7 +1524,7 @@ el.replaceWith(d);
 <pre><code class="python">def check_for_deployment_state(
     self,
     deploy_name: str,
-    state: Optional[str] = None,
+    state: str | None = None,
     timeout: int = 400,
     check_interval: int = 60,
 ) -&gt; dict:
@@ -1576,22 +1554,25 @@ el.replaceWith(d);
     time_last_log_print = time_start
     status_old = []
     dep_log = None
+    # API response key changed from &#34;data&#34; to &#34;list&#34; in version 3.2.0
+    list_key = &#34;data&#34; if self.ms.version_smaller_than(&#34;3.2.0&#34;) else &#34;list&#34;
+
     while (time.time() - time_start) &lt; timeout:
         parameters = {&#34;limit&#34;: 50, &#34;page&#34;: 1, &#34;contentType&#34;: &#34;workload&#34;}
-        dep_logs = {&#34;count&#34;: 0, &#34;data&#34;: []}
+        dep_logs = {&#34;count&#34;: 0, list_key: []}
         while True:
             deploy_list_single_read = self.ms.get(
                 &#34;/bom/deployment/list&#34;, params=parameters, accepted_status=[requests.codes.ok]
             ).json()
             parameters[&#34;page&#34;] += 1
-            dep_logs[&#34;data&#34;] += deploy_list_single_read.get(&#34;data&#34;, [])
+            dep_logs[list_key] += deploy_list_single_read.get(list_key, [])
             dep_logs[&#34;count&#34;] = deploy_list_single_read[&#34;count&#34;]
 
             # Check if required log is already in the read logs to avoid unnecessary API calls
             dep_log = next(
                 (
                     dep_log
-                    for dep_log in dep_logs.get(&#34;data&#34;, [])
+                    for dep_log in dep_logs.get(list_key, [])
                     if dep_log.get(&#34;operation_name&#34;) == deploy_name
                 ),
                 None,
@@ -1600,7 +1581,7 @@ el.replaceWith(d);
             if dep_log:
                 break
 
-            if len(dep_logs[&#34;data&#34;]) == deploy_list_single_read[&#34;count&#34;]:
+            if len(dep_logs[list_key]) == deploy_list_single_read[&#34;count&#34;]:
                 break
 
         if not dep_log:
@@ -1620,7 +1601,7 @@ el.replaceWith(d);
                 accepted_status=[requests.codes.ok],
             ).json()
 
-            for feedback in detail_status.get(&#34;data&#34;, []):
+            for feedback in detail_status.get(list_key, []):
                 task_options = feedback.get(&#34;taskOptions&#34;)
                 status_new.append(task_options.get(&#34;status&#34;))
                 if task_options.get(&#34;status&#34;).upper() == &#34;ERROR&#34;:
@@ -1640,7 +1621,7 @@ el.replaceWith(d);
                     dep_log.get(&#34;campaignOptions&#34;, {}).get(&#34;progress&#34;),
                 )
 
-                for feedback in detail_status.get(&#34;data&#34;, []):
+                for feedback in detail_status.get(list_key, []):
                     task_options = feedback.get(&#34;taskOptions&#34;)
                     self._log.info(
                         &#34; - Node %s: [ Status: %s, Progress: %s%% ]&#34;,
@@ -1656,7 +1637,7 @@ el.replaceWith(d);
                             json.dumps(feedback[&#34;errorFeedback&#34;], indent=4),
                         )
 
-            if num_failed_tasks == len(detail_status.get(&#34;data&#34;)):
+            if num_failed_tasks == len(detail_status.get(list_key, [])):
                 self._log.error(
                     &#34;Overall Status is in progress, but all workload deployments have failed&#34;,
                 )
@@ -1668,12 +1649,21 @@ el.replaceWith(d);
                 accepted_status=[requests.codes.ok],
             ).json()
             self.ms._log.error(&#34;Deployment of %s failed&#34;, deploy_name)
-            for feedback in detail_status.get(&#34;data&#34;, []):
-                self.ms._log.error(
-                    &#34; - Node %s Error-details: %s&#34;,
+            for feedback in detail_status.get(list_key, []):
+                task_options = feedback.get(&#34;taskOptions&#34;)
+                self._log.info(
+                    &#34; - Node %s: [ Status: %s, Progress: %s%% ]&#34;,
                     feedback.get(&#34;device&#34;),
-                    json.dumps(feedback[&#34;errorFeedback&#34;], indent=4),
+                    task_options.get(&#34;status&#34;),
+                    task_options.get(&#34;progress&#34;),
                 )
+
+                if task_options.get(&#34;status&#34;).upper() == &#34;ERROR&#34;:
+                    self.ms._log.error(
+                        &#34; - Node %s Error-details: %s&#34;,
+                        feedback.get(&#34;device&#34;),
+                        json.dumps(feedback[&#34;errorFeedback&#34;], indent=4),
+                    )
 
             return status
         if dep_log.get(&#34;isFinished&#34;):
@@ -1712,40 +1702,40 @@ if state = None, the current state will just be printed.</p>
 </dl></div>
 </dd>
 <dt id="nerve_lib.manage_workloads.MSWorkloads.gen_workload_configuration"><code class="name flex">
-<span>def <span class="ident">gen_workload_configuration</span></span>(<span>self,<br>provision_type: str,<br>file_paths: list[str] = '',<br>wrkld_name: str = 'test_workload',<br>wrkld_version_name: str = 'test_version',<br>container_name: str = 'test_container',<br>release_name: str = '',<br>description: str = '',<br>label: list = [],<br>networks: list = ['bridge'],<br>ports: list[dict] = [],<br>docker_volumes: list[dict] = [],<br>restart_on_config_update: bool = False,<br>env_var: list[dict] = '',<br>remote_connections: list[dict] = [],<br>restart_policy: str = 'no',<br>limit_cpus: str | None = None,<br>limit_memory: dict | None = None,<br>released: bool = False,<br>auth_usr: str = '',<br>auth_psw: str = '',<br>vm_num_cpus: int = 1,<br>vm_memory: dict = {'unit': 'MB', 'value': 700},<br>vm_snapshot: dict = {'enabled': False},<br>compose_dict: dict = {},<br>docker_config_volumes: list = [],<br>api_version: int = 2,<br>internal_docker_registry: bool = False) ‑> dict</span>
+<span>def <span class="ident">gen_workload_configuration</span></span>(<span>self,<br>provision_type: str,<br>file_paths: str | list[str] = '',<br>wrkld_name: str = 'test_workload',<br>wrkld_version_name: str = 'test_version',<br>container_name: str = 'test_container',<br>release_name: str = '',<br>description: str = '',<br>label: list[str] | None = None,<br>networks: list[str] | None = None,<br>ports: list[dict] | None = None,<br>docker_volumes: list[dict] | None = None,<br>restart_on_config_update: bool = False,<br>env_var: list[dict] | None = None,<br>remote_connections: list[dict] | None = None,<br>restart_policy: str = 'no',<br>limit_cpus: str | None = None,<br>limit_memory: dict | None = None,<br>released: bool = False,<br>auth_usr: str = '',<br>auth_psw: str = '',<br>vm_num_cpus: int = 1,<br>vm_memory: dict | None = None,<br>vm_snapshot: dict | None = None,<br>compose_dict: dict | None = None,<br>docker_config_volumes: list[dict] | None = None,<br>api_version: int = 2,<br>internal_docker_registry: bool = False) ‑> dict</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def gen_workload_configuration(  # noqa: PLR0913, PLR0917
+<pre><code class="python">def gen_workload_configuration(  # noqa: PLR0913, PLR0915, PLR0917
     self,
     provision_type: str,
-    file_paths: list[str] = &#34;&#34;,
+    file_paths: str | list[str] = &#34;&#34;,
     wrkld_name: str = &#34;test_workload&#34;,
     wrkld_version_name: str = &#34;test_version&#34;,
     container_name: str = &#34;test_container&#34;,
     release_name: str = &#34;&#34;,
     description: str = &#34;&#34;,
-    label: list = [],
-    networks: list = [&#34;bridge&#34;],
-    ports: list[dict] = [],
-    docker_volumes: list[dict] = [],
+    label: list[str] | None = None,
+    networks: list[str] | None = None,
+    ports: list[dict] | None = None,
+    docker_volumes: list[dict] | None = None,
     restart_on_config_update: bool = False,
-    env_var: list[dict] = &#34;&#34;,
-    remote_connections: list[dict] = [],
+    env_var: list[dict] | None = None,
+    remote_connections: list[dict] | None = None,
     restart_policy: str = &#34;no&#34;,
-    limit_cpus: Optional[str] = None,
-    limit_memory: Optional[dict] = None,
+    limit_cpus: str | None = None,
+    limit_memory: dict | None = None,
     released: bool = False,
     auth_usr: str = &#34;&#34;,
     auth_psw: str = &#34;&#34;,
     vm_num_cpus: int = 1,
-    vm_memory: dict = {&#34;unit&#34;: &#34;MB&#34;, &#34;value&#34;: 700},
-    vm_snapshot: dict = {&#34;enabled&#34;: False},
-    compose_dict: dict = {},
-    docker_config_volumes: list = [],
+    vm_memory: dict | None = None,
+    vm_snapshot: dict | None = None,
+    compose_dict: dict | None = None,
+    docker_config_volumes: list[dict] | None = None,
     api_version: int = 2,
     internal_docker_registry: bool = False,
 ) -&gt; dict:
@@ -1755,7 +1745,7 @@ if state = None, the current state will just be printed.</p>
     ----------
     provision_type : str
         One of &#34;docker&#34;, &#34;registry&#34;, &#34;vm&#34;, &#34;codesys&#34;, &#34;docker-compose&#34;
-    file_paths : str/list
+    file_paths : str | list[str]
         Files to be added to option &#34;file: {}&#34;
         &#39;vm&#39; workload requires img and xml file to be defined
     wrkld_name : str, optional
@@ -1768,44 +1758,49 @@ if state = None, the current state will just be printed.</p>
         Name of the release version. The default is wrkld_version_name.
     description : str, optional
         Description of Workload
-    label : str, optional
+    label : list[str], optional
         Labels to be defined for a workload
-    networks : str, optional
+    networks : list[str], optional
         Docker workload networks. The default is [&#34;bridge&#34;].
         for vm type set network similar to this example:
             [{&#34;type&#34;:&#34;NAT&#34;,&#34;interface&#34;:&#34;default&#34;},
             {&#34;type&#34;:&#34;Bridged&#34;,&#34;interface&#34;:&#34;isolated1&#34;}]
-    ports : str, optional
-        Port binding for docker workload. The default is &#34;&#34;.
+    ports : list[dict], optional
+        Port binding for docker workload. The default is [].
         api1: str (e.g. &#34;80:8080/tcp&#34;)
         api2: List of dict [{&#39;protocol&#39;:&#39;TCP&#39;,&#39;host_port&#39;: 80, &#39;container_port&#39;: 8080}]
-    docker_volumes : str/list, optional
-        mapped volumes in docker workload. The default is &#34;&#34;.
+    docker_volumes : list[dict], optional
+        mapped volumes in docker workload. The default is [].
         api1: volumes defined as string(e.g. &#34;NGINX_1:/var/www/nginx&#34;)
-        api2: list of dict {&#34;volumeName&#34;: str, &#34;containerPath&#34;: str,  &#34;configurationStorage&#34;: bool}
+        api2: list of dict [{&#34;volumeName&#34;: str, &#34;containerPath&#34;: str,  &#34;configurationStorage&#34;: bool}]
     restart_on_config_update : bool, optional
         Restart container on confuration update (of docker-volume with &#34;configurationStorage: True&#34;)
-    env_var : string/list, optional
-        environment variables in docker workload. The default is &#34;&#34;.
+    env_var : list[dict], optional
+        environment variables in docker workload. The default is [].
         api1: string (e.g. LOG_LEVEL=Info)
-        api2: list of dict {&#34;env_variable&#34;: str, &#34;container_value&#34;: str}
-    remote_connections : list, optional
+        api2: list of dict [{&#34;env_variable&#34;: str, &#34;container_value&#34;: str}]
+    remote_connections : list[dict], optional
         List of remote connections. The default is [].
-        List is a dict {&#34;type&#34;: &#34;TUNNEL or SCREEN&#34;,
-                        &#34;name&#34;: str,
-                        &#34;acknowledgment&#34;: &#34;No or Yes&#34;,.
-                        &#34;serviceName&#34;: Required for compose workload only, name of the service
-                        &#34;hostname&#34;: ip-address
-                        &#34;port&#34;: int,
-                        &#34;localPort&#34;: int}
+        List of dict [{&#34;type&#34;: &#34;TUNNEL or SCREEN&#34;,
+                       &#34;name&#34;: str,
+                       &#34;acknowledgment&#34;: &#34;No or Yes&#34;,.
+                       &#34;serviceName&#34;: Required for compose workload only, name of the service
+                       &#34;hostname&#34;: ip-address
+                       &#34;port&#34;: int,
+                       &#34;localPort&#34;: int}]
     restart_policy : str, optional
         Container restart policy (no, on-failure, always, unless-stopped). The default is &#34;no&#34;
     limit_cpus : str, optional
         Set CPU limit for workload
     limit_memory : dict, optional
         Set Memory limit for workload (e.g. {&#34;unit&#34;: &#34;MB&#34;, &#34;value&#34;: 256})
+    vm_memory: dict, optional
+        Set memory configuration for VM workload (user-permission &#39;VM workload memory&#39; required)
+            e.g. {&#34;unit&#34;: &#34;MB&#34;, &#34;value&#34;: 700}
     vm_snapshot : dict, optional
         Set snapshot configuration for VM workload (user-permission &#39;VM workload snapshot&#39; required)
+            e.g. {&#34;enabled&#34;: True, &#34;value&#34;: 1, &#34;unit&#34;: &#34;GB&#34;}
+            default is disabled: {&#34;enabled&#34;: False}
     released : bool, optional
         Mark workload as released version
     aut_usr, aut_psw : str, optional
@@ -1819,6 +1814,19 @@ if state = None, the current state will just be printed.</p>
 
     &#34;&#34;&#34;
     &#34;&#34;&#34;Common payload elements for v1 and v2 workload endpoint payloads&#34;&#34;&#34;
+
+    if ports is None:
+        ports = []
+    if docker_volumes is None:
+        docker_volumes = []
+    if env_var is None:
+        env_var = []
+    if compose_dict is None:
+        compose_dict = {}
+    if vm_memory is None:
+        vm_memory = {&#34;unit&#34;: &#34;MB&#34;, &#34;value&#34;: 700}
+    if networks is None:
+        networks = [&#34;bridge&#34;]
 
     if type(file_paths) is str:
         file_paths = [file_paths]
@@ -1838,7 +1846,7 @@ if state = None, the current state will just be printed.</p>
             {
                 &#34;name&#34;: wrkld_version_name[:40],
                 &#34;releaseName&#34;: release_name[:40],
-                &#34;selectors&#34;: label,
+                &#34;selectors&#34;: label if label is not None else [],
             },
         ],
     }
@@ -1869,7 +1877,7 @@ if state = None, the current state will just be printed.</p>
     payload[&#34;versions&#34;][0] |= {
         &#34;released&#34;: released,
         &#34;deleted&#34;: False,
-        &#34;remoteConnections&#34;: remote_connections,
+        &#34;remoteConnections&#34;: remote_connections if remote_connections is not None else [],
     }
 
     if provision_type not in {&#34;docker-compose&#34;, &#34;registry&#34;}:
@@ -1916,13 +1924,13 @@ if state = None, the current state will just be printed.</p>
         if api_version == self.API_V2:
             payload[&#34;versions&#34;][0] |= {&#34;capabilities&#34;: []}
             payload[&#34;versions&#34;][0][properties_name] |= {
-                &#34;snapshot&#34;: vm_snapshot,
+                &#34;snapshot&#34;: vm_snapshot if vm_snapshot is not None else {&#34;enabled&#34;: False},
                 &#34;PCI_passthrough&#34;: [],
             }
     if provision_type == &#34;docker-compose&#34;:
         config_storage = None
         payload[&#34;versions&#34;][0][&#34;workloadSpecificProperties&#34;] = {&#34;dockerConfigurationStorage&#34;: []}
-        for docker_config in docker_config_volumes:
+        for docker_config in docker_config_volumes if docker_config_volumes is not None else []:
             try:
                 docker_config_volume = compose_dict[&#34;services&#34;][docker_config[&#34;service&#34;]][&#34;volumes&#34;][
                     int(docker_config.get(&#34;volume_id&#34;, 0))
@@ -1951,8 +1959,10 @@ if state = None, the current state will just be printed.</p>
         payload[&#34;versions&#34;][0] = {}
         payload[&#34;versions&#34;][0][&#34;name&#34;] = wrkld_version_name
         payload[&#34;versions&#34;][0][&#34;released&#34;] = released
-        payload[&#34;versions&#34;][0][&#34;selectors&#34;] = label
-        payload[&#34;versions&#34;][0][&#34;remoteConnections&#34;] = remote_connections
+        payload[&#34;versions&#34;][0][&#34;selectors&#34;] = label if label is not None else []
+        payload[&#34;versions&#34;][0][&#34;remoteConnections&#34;] = (
+            remote_connections if remote_connections is not None else []
+        )
         payload[&#34;versions&#34;][0][&#34;workloadSpecificProperties&#34;] = {
             &#34;port_mappings_protocol&#34;: ports,
             &#34;environment_variables&#34;: env_var,
@@ -1974,7 +1984,7 @@ if state = None, the current state will just be printed.</p>
 <dl>
 <dt><strong><code>provision_type</code></strong> :&ensp;<code>str</code></dt>
 <dd>One of "docker", "registry", "vm", "codesys", "docker-compose"</dd>
-<dt><strong><code>file_paths</code></strong> :&ensp;<code>str/list</code></dt>
+<dt><strong><code>file_paths</code></strong> :&ensp;<code>str | list[str]</code></dt>
 <dd>Files to be added to option "file: {}"
 'vm' workload requires img and xml file to be defined</dd>
 <dt><strong><code>wrkld_name</code></strong> :&ensp;<code>str</code>, optional</dt>
@@ -1987,45 +1997,50 @@ if state = None, the current state will just be printed.</p>
 <dd>Name of the release version. The default is wrkld_version_name.</dd>
 <dt><strong><code>description</code></strong> :&ensp;<code>str</code>, optional</dt>
 <dd>Description of Workload</dd>
-<dt><strong><code>label</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dt><strong><code>label</code></strong> :&ensp;<code>list[str]</code>, optional</dt>
 <dd>Labels to be defined for a workload</dd>
-<dt><strong><code>networks</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dt><strong><code>networks</code></strong> :&ensp;<code>list[str]</code>, optional</dt>
 <dd>Docker workload networks. The default is ["bridge"].
 for vm type set network similar to this example:
 [{"type":"NAT","interface":"default"},
 {"type":"Bridged","interface":"isolated1"}]</dd>
-<dt><strong><code>ports</code></strong> :&ensp;<code>str</code>, optional</dt>
-<dd>Port binding for docker workload. The default is "".
+<dt><strong><code>ports</code></strong> :&ensp;<code>list[dict]</code>, optional</dt>
+<dd>Port binding for docker workload. The default is [].
 api1: str (e.g. "80:8080/tcp")
 api2: List of dict [{'protocol':'TCP','host_port': 80, 'container_port': 8080}]</dd>
-<dt><strong><code>docker_volumes</code></strong> :&ensp;<code>str/list</code>, optional</dt>
-<dd>mapped volumes in docker workload. The default is "".
+<dt><strong><code>docker_volumes</code></strong> :&ensp;<code>list[dict]</code>, optional</dt>
+<dd>mapped volumes in docker workload. The default is [].
 api1: volumes defined as string(e.g. "NGINX_1:/var/www/nginx")
-api2: list of dict {"volumeName": str, "containerPath": str,
-"configurationStorage": bool}</dd>
+api2: list of dict [{"volumeName": str, "containerPath": str,
+"configurationStorage": bool}]</dd>
 <dt><strong><code>restart_on_config_update</code></strong> :&ensp;<code>bool</code>, optional</dt>
 <dd>Restart container on confuration update (of docker-volume with "configurationStorage: True")</dd>
-<dt><strong><code>env_var</code></strong> :&ensp;<code>string/list</code>, optional</dt>
-<dd>environment variables in docker workload. The default is "".
+<dt><strong><code>env_var</code></strong> :&ensp;<code>list[dict]</code>, optional</dt>
+<dd>environment variables in docker workload. The default is [].
 api1: string (e.g. LOG_LEVEL=Info)
-api2: list of dict {"env_variable": str, "container_value": str}</dd>
-<dt><strong><code>remote_connections</code></strong> :&ensp;<code>list</code>, optional</dt>
+api2: list of dict [{"env_variable": str, "container_value": str}]</dd>
+<dt><strong><code>remote_connections</code></strong> :&ensp;<code>list[dict]</code>, optional</dt>
 <dd>List of remote connections. The default is [].
-List is a dict {"type": "TUNNEL or SCREEN",
+List of dict [{"type": "TUNNEL or SCREEN",
 "name": str,
 "acknowledgment": "No or Yes",.
 "serviceName": Required for compose workload only, name of the service
 "hostname": ip-address
 "port": int,
-"localPort": int}</dd>
+"localPort": int}]</dd>
 <dt><strong><code>restart_policy</code></strong> :&ensp;<code>str</code>, optional</dt>
 <dd>Container restart policy (no, on-failure, always, unless-stopped). The default is "no"</dd>
 <dt><strong><code>limit_cpus</code></strong> :&ensp;<code>str</code>, optional</dt>
 <dd>Set CPU limit for workload</dd>
 <dt><strong><code>limit_memory</code></strong> :&ensp;<code>dict</code>, optional</dt>
 <dd>Set Memory limit for workload (e.g. {"unit": "MB", "value": 256})</dd>
+<dt><strong><code>vm_memory</code></strong> :&ensp;<code>dict</code>, optional</dt>
+<dd>Set memory configuration for VM workload (user-permission 'VM workload memory' required)
+e.g. {"unit": "MB", "value": 700}</dd>
 <dt><strong><code>vm_snapshot</code></strong> :&ensp;<code>dict</code>, optional</dt>
-<dd>Set snapshot configuration for VM workload (user-permission 'VM workload snapshot' required)</dd>
+<dd>Set snapshot configuration for VM workload (user-permission 'VM workload snapshot' required)
+e.g. {"enabled": True, "value": 1, "unit": "GB"}
+default is disabled: {"enabled": False}</dd>
 <dt><strong><code>released</code></strong> :&ensp;<code>bool</code>, optional</dt>
 <dd>Mark workload as released version</dd>
 <dt><strong><code>aut_usr</code></strong>, <strong><code>aut_psw</code></strong> :&ensp;<code>str</code>, optional</dt>
@@ -2039,23 +2054,28 @@ List is a dict {"type": "TUNNEL or SCREEN",
 </dl></div>
 </dd>
 <dt id="nerve_lib.manage_workloads.MSWorkloads.get_workloads_dict"><code class="name flex">
-<span>def <span class="ident">get_workloads_dict</span></span>(<span>self, read_versions=True, read_compose_details=True, compact_dict=True) ‑> dict</span>
+<span>def <span class="ident">get_workloads_dict</span></span>(<span>self,<br>read_versions=True,<br>read_compose_details=True,<br>compact_dict=True,<br>ignore_read_error=False) ‑> dict</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get_workloads_dict(self, read_versions=True, read_compose_details=True, compact_dict=True) -&gt; dict:
+<pre><code class="python">def get_workloads_dict(
+    self, read_versions=True, read_compose_details=True, compact_dict=True, ignore_read_error=False
+) -&gt; dict:
     &#34;&#34;&#34;Read workloads list of MS.
 
     Returns
     -------
     dict
         dict of {workload-name: [version, release_version]}.
+
+    Note: variable .failed_get_workloads is set to the number of failed reads after executing this function
     &#34;&#34;&#34;
     workload_list = {}
     workloads = []
+    self.failed_get_workloads = 0
     page_number = 1
     while True:
         workloads_single_read = self.ms.get(
@@ -2071,13 +2091,14 @@ List is a dict {"type": "TUNNEL or SCREEN",
         if compact_dict:
             return [wrkld[&#34;name&#34;] for wrkld in workloads]
         return workloads
-    for workload in workloads:
+    for workload in workloads:  # noqa: PLR1702
         workload_id = workload.get(&#34;_id&#34;)
         if workload.get(&#34;type&#34;) == &#34;docker-compose&#34; or (
             workload.get(&#34;type&#34;) == &#34;docker&#34; and workload.get(&#34;internalDockerRegistry&#34;)
         ):
             versions = (
-                self.ms.get(
+                self.ms
+                .get(
                     f&#34;/nerve/v3/workloads/{workload_id}/versions&#34;,
                     accepted_status=[requests.codes.ok],
                 )
@@ -2093,19 +2114,35 @@ List is a dict {"type": "TUNNEL or SCREEN",
                             accepted_status=[requests.codes.ok],
                         ).json()
                     except CheckStatusCodeError as ex_msg:
-                        msg = f&#34;Workload {workload.get(&#39;name&#39;)}-{version.get(&#39;name&#39;)}: {ex_msg.value}&#34;
-                        raise CheckStatusCodeError(
-                            msg,
-                            ex_msg.status_code,
-                            ex_msg.response_text,
-                        )
+                        msg = f&#34;Workload &#39;{workload.get(&#39;name&#39;)}-{version.get(&#39;name&#39;)}&#39;: {ex_msg.value}&#34;
+                        self._log.error(msg)
+                        self.failed_get_workloads += 1
+                        if not ignore_read_error:
+                            raise CheckStatusCodeError(
+                                msg,
+                                ex_msg.status_code,
+                                ex_msg.response_text,
+                            )
 
         else:
-            versions = (
-                self.ms.get(f&#34;/nerve/v2/workloads/{workload_id}&#34;, accepted_status=[requests.codes.ok])
-                .json()
-                .get(&#34;versions&#34;)
-            )
+            try:
+                versions = (
+                    self.ms
+                    .get(f&#34;/nerve/v2/workloads/{workload_id}&#34;, accepted_status=[requests.codes.ok])
+                    .json()
+                    .get(&#34;versions&#34;)
+                )
+            except CheckStatusCodeError as ex_msg:
+                msg = f&#34;Cannot read workload version list for workload &#39;{workload.get(&#39;name&#39;)}&#39;: {ex_msg.value}&#34;
+                self._log.error(msg)
+                versions = []
+                self.failed_get_workloads += 1
+                if not ignore_read_error:
+                    raise CheckStatusCodeError(
+                        msg,
+                        ex_msg.status_code,
+                        ex_msg.response_text,
+                    )
         if compact_dict:
             workload_list[workload.get(&#34;name&#34;)] = []
             for version in versions:
@@ -2124,6 +2161,8 @@ List is a dict {"type": "TUNNEL or SCREEN",
 <dl>
 <dt><code>dict</code></dt>
 <dd>dict of {workload-name: [version, release_version]}.</dd>
+<dt><strong><code>Note</code></strong> :&ensp;<code>variable .failed_get_workloads is set to the number</code> of <code>failed reads after executing this function</code></dt>
+<dd>&nbsp;</dd>
 </dl></div>
 </dd>
 <dt id="nerve_lib.manage_workloads.MSWorkloads.provision_compose_workload"><code class="name flex">
@@ -2163,7 +2202,7 @@ List is a dict {"type": "TUNNEL or SCREEN",
 </dl></div>
 </dd>
 <dt id="nerve_lib.manage_workloads.MSWorkloads.provision_workload"><code class="name flex">
-<span>def <span class="ident">provision_workload</span></span>(<span>self,<br>payload: dict,<br>file_paths: list[str] = [],<br>api_version: int = 2,<br>patch_version: bool = True,<br>registry_download_timeout: int = 400) ‑> None</span>
+<span>def <span class="ident">provision_workload</span></span>(<span>self,<br>payload: dict,<br>file_paths: list[str] | None = None,<br>api_version: int = 2,<br>patch_version: bool = True,<br>registry_download_timeout: int = 400) ‑> None</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -2173,7 +2212,7 @@ List is a dict {"type": "TUNNEL or SCREEN",
 <pre><code class="python">def provision_workload(
     self,
     payload: dict,
-    file_paths: list[str] = [],
+    file_paths: list[str] | None = None,
     api_version: int = 2,
     patch_version: bool = True,
     registry_download_timeout: int = 400,
@@ -2188,12 +2227,23 @@ List is a dict {"type": "TUNNEL or SCREEN",
         pathes to the workload related files. The default is [].
     api_version : int, optional
         API version to be used, one of 1, 2, 3. The default is 2.
+        API version 3 is required for internalDockerRegistry or docker-compose workloads
     patch_version : bool, optional
         If set, existing workload with same name/version will be patched. The default is True.
     registry_download_timeout : int, optional
         Maximal download time of a registry workload. The default is 400.
     &#34;&#34;&#34;
-    if api_version == self.API_V1:
+    if file_paths is None:
+        file_paths = []
+
+    for version_item in payload.get(&#34;versions&#34;, []):
+        if isinstance(version_item.get(&#34;files&#34;, None), list):
+            version_item[&#34;files&#34;] = {
+                str(idx): file_info for idx, file_info in enumerate(version_item[&#34;files&#34;])
+            }
+            self._log.debug(&#34;Reformatted &#39;files&#39; from list to dict with keys &#39;0&#39;, &#39;1&#39;, ...&#34;)
+
+    if api_version == self.API_V1:  # noqa: PLR1702
         self.__send_provision_workload(&#34;/nerve/workload&#34;, file_paths, payload, False)
     elif api_version in {self.API_V2, self.API_V3}:
         update_workload = False
@@ -2234,12 +2284,26 @@ List is a dict {"type": "TUNNEL or SCREEN",
                 registry_download_timeout,
             )
         elif payload[&#34;type&#34;] == &#34;docker&#34; and api_version == self.API_V3:
+            self._log.debug(&#34;Provisioning docker workload with API v3&#34;)
             # Step 1: Create Workload
             self.provision_compose_workload(payload, update_workload)
             # Step2: Create Version
             wl_version.create_compose_version(payload[&#34;versions&#34;][0], patch_version)
             # Step3: Upload files
-            wl_version.set_compose_repo(file_paths, type=&#34;docker&#34;)
+            if payload.get(&#34;internalDockerRegistry&#34;) == True:
+                workload_json_files = [file for file in file_paths if file.endswith(&#34;workload.json&#34;)]
+                for file in workload_json_files:
+                    with open(file, &#34;r&#34;, encoding=&#34;utf-8&#34;) as f:
+                        content = json.load(f)
+                        for file_info in content[&#34;version&#34;].get(&#34;files&#34;, []):
+                            if file_info[&#34;sourceInfo&#34;][&#34;type&#34;] == &#34;docker-image&#34;:
+                                repo = file_info[&#34;sourceInfo&#34;][&#34;source&#34;]
+                                repo = self.ms.ms_url + &#34;/&#34; + repo
+
+                                wl_version.set_compose_repo(
+                                    repo=repo,
+                                    type=&#34;docker&#34;,
+                                )
 
         elif api_version == self.API_V3 and payload[&#34;type&#34;] == &#34;docker-compose&#34;:
             # docker compose workload only
@@ -2251,21 +2315,29 @@ List is a dict {"type": "TUNNEL or SCREEN",
             wl_version.create_compose_version(payload[&#34;versions&#34;][0], patch_version)
 
             # Step3: Upload files
-            for file_path in file_paths:
-                if type(file_path) is str and os.path.splitext(file_path)[-1] in {&#34;.yaml&#34;, &#34;.yml&#34;}:
-                    with open(file_path, &#34;r&#34;, encoding=&#34;utf-8&#34;) as file:
-                        compose_content = yaml.safe_load(file)
-                    wl_version.set_compose_content(
-                        compose_content,
-                        os.path.split(file_path)[-1],
-                        patch_version,
-                    )
+            compose_file = next(
+                (
+                    file_path
+                    for file_path in file_paths
+                    if isinstance(file_path, str) and file_path.endswith((&#34;.yaml&#34;, &#34;.yml&#34;))
+                ),
+                None,
+            )
+            with open(compose_file, &#34;r&#34;, encoding=&#34;utf-8&#34;) as file:
+                compose_content = yaml.safe_load(file)
+            wl_version.set_compose_content(
+                compose_content,
+                os.path.split(compose_file)[-1],
+                patch_version,
+            )
+            image_names = [
+                service.get(&#34;image&#34;, &#34;&#34;) for service in compose_content.get(&#34;services&#34;, {}).values()
+            ]
 
             # Step4: Upload image file(s)
             for file_path in file_paths:
-                if type(file_path) is str:
-                    if os.path.splitext(file_path)[-1] == &#34;.tar&#34;:
-                        wl_version.set_compose_image(file_path, patch_version)
+                if type(file_path) is str and os.path.splitext(file_path)[-1] == &#34;.tar&#34;:
+                    wl_version.set_compose_image(file_path, patch_version, image_names)
                 elif type(file_path) is dict:
                     wl_version.set_compose_repo(
                         file_path.get(&#34;repo&#34;),
@@ -2288,7 +2360,8 @@ List is a dict {"type": "TUNNEL or SCREEN",
 <dt><strong><code>file_paths</code></strong> :&ensp;<code>list[str]</code>, optional</dt>
 <dd>pathes to the workload related files. The default is [].</dd>
 <dt><strong><code>api_version</code></strong> :&ensp;<code>int</code>, optional</dt>
-<dd>API version to be used, one of 1, 2, 3. The default is 2.</dd>
+<dd>API version to be used, one of 1, 2, 3. The default is 2.
+API version 3 is required for internalDockerRegistry or docker-compose workloads</dd>
 <dt><strong><code>patch_version</code></strong> :&ensp;<code>bool</code>, optional</dt>
 <dd>If set, existing workload with same name/version will be patched. The default is True.</dd>
 <dt><strong><code>registry_download_timeout</code></strong> :&ensp;<code>int</code>, optional</dt>
@@ -2306,26 +2379,18 @@ List is a dict {"type": "TUNNEL or SCREEN",
 <pre><code class="python">def validate_compose_content(self, content: dict, file_name: str = &#34;compose-file.yaml&#34;) -&gt; dict:
     &#34;&#34;&#34;Validate if the content of a compose-file is valid.&#34;&#34;&#34;
     yml_file = yaml.dump(content, indent=4, default_flow_style=False, sort_keys=False)
-    accepted_status = [requests.codes.ok, requests.codes.forbidden]
-    while True:
-        m_enc = MultipartEncoder({
+    resp = self.ms.post(
+        &#34;/nerve/v3/workloads/compose&#34;,
+        m_enc_data={
             &#34;type&#34;: &#34;compose&#34;,
             &#34;origin&#34;: &#34;upload&#34;,
             &#34;source&#34;: &#34;file&#34;,
             &#34;file&#34;: (file_name, yml_file, &#34;form-data&#34;),
-        })
-        resp = self.ms.post(
-            &#34;/nerve/v3/workloads/compose&#34;,
-            accepted_status=accepted_status,
-            data=m_enc,
-            content_type=m_enc.content_type,
-        )
+        },
+        accepted_status=[requests.codes.ok],
+    )
 
-        if resp.status_code == requests.codes.forbidden:
-            self.ms.login()
-            accepted_status = [requests.codes.ok]
-            continue
-        return resp.json()</code></pre>
+    return resp.json()</code></pre>
 </details>
 <div class="desc"><p>Validate if the content of a compose-file is valid.</p></div>
 </dd>
@@ -2381,10 +2446,10 @@ List is a dict {"type": "TUNNEL or SCREEN",
 <ul class="">
 <li><code><a title="nerve_lib.manage_workloads.LocalWorkloads.control" href="#nerve_lib.manage_workloads.LocalWorkloads.control">control</a></code></li>
 <li><code><a title="nerve_lib.manage_workloads.LocalWorkloads.deploy_workload" href="#nerve_lib.manage_workloads.LocalWorkloads.deploy_workload">deploy_workload</a></code></li>
-<li><code><a title="nerve_lib.manage_workloads.LocalWorkloads.export_volume_data" href="#nerve_lib.manage_workloads.LocalWorkloads.export_volume_data">export_volume_data</a></code></li>
+<li><code><a title="nerve_lib.manage_workloads.LocalWorkloads.get_compose_workload_details" href="#nerve_lib.manage_workloads.LocalWorkloads.get_compose_workload_details">get_compose_workload_details</a></code></li>
+<li><code><a title="nerve_lib.manage_workloads.LocalWorkloads.get_compose_workload_docker_inspect" href="#nerve_lib.manage_workloads.LocalWorkloads.get_compose_workload_docker_inspect">get_compose_workload_docker_inspect</a></code></li>
 <li><code><a title="nerve_lib.manage_workloads.LocalWorkloads.get_workload_details" href="#nerve_lib.manage_workloads.LocalWorkloads.get_workload_details">get_workload_details</a></code></li>
 <li><code><a title="nerve_lib.manage_workloads.LocalWorkloads.get_workload_list" href="#nerve_lib.manage_workloads.LocalWorkloads.get_workload_list">get_workload_list</a></code></li>
-<li><code><a title="nerve_lib.manage_workloads.LocalWorkloads.import_volume_data" href="#nerve_lib.manage_workloads.LocalWorkloads.import_volume_data">import_volume_data</a></code></li>
 <li><code><a title="nerve_lib.manage_workloads.LocalWorkloads.undeploy" href="#nerve_lib.manage_workloads.LocalWorkloads.undeploy">undeploy</a></code></li>
 </ul>
 </li>
