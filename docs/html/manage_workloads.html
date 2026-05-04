@@ -140,7 +140,12 @@ el.replaceWith(d);
                         raise RuntimeError(msg) from ex_msg
 
             self._log.info(&#34;Local Workload %s deployed&#34;, file_paths)
-            return response.json()
+            try:
+                return response.json()
+            except ValueError:
+                raise AssertionError(
+                    f&#34;Expected JSON but got: {response.status_code} {response.text}&#34;
+                )
 
     def get_workload_list(self):
         &#34;&#34;&#34;Get list of deployed workloads.&#34;&#34;&#34;
@@ -333,7 +338,12 @@ el.replaceWith(d);
                     raise RuntimeError(msg) from ex_msg
 
         self._log.info(&#34;Local Workload %s deployed&#34;, file_paths)
-        return response.json()</code></pre>
+        try:
+            return response.json()
+        except ValueError:
+            raise AssertionError(
+                f&#34;Expected JSON but got: {response.status_code} {response.text}&#34;
+            )</code></pre>
 </details>
 <div class="desc"><p>Deploy workload on node directly.</p>
 <h2 id="parameters">Parameters</h2>
@@ -489,9 +499,6 @@ specified Docker container.</p></div>
     def __init__(self, ms_handle: type):
         self.ms = ms_handle
         self._log = ms_handle._log.getChild(&#34;Workloads&#34;) if ms_handle else logging.getLogger(&#34;Workloads&#34;)
-
-        # when executing .get_workloads_dict, and a listing failed, this variable shows the number of failed reads
-        self.failed_get_workloads = 0
 
     def provision_workload(
         self,
@@ -1139,7 +1146,7 @@ specified Docker container.</p></div>
         return payload
 
     def get_workloads_dict(
-        self, read_versions=True, read_compose_details=True, compact_dict=True, ignore_read_error=False
+        self, read_versions=True, compact_dict=True, filter_name: str = &#34;&#34;, filter_type: str = &#34;&#34;
     ) -&gt; dict:
         &#34;&#34;&#34;Read workloads list of MS.
 
@@ -1147,17 +1154,19 @@ specified Docker container.</p></div>
         -------
         dict
             dict of {workload-name: [version, release_version]}.
-
-        Note: variable .failed_get_workloads is set to the number of failed reads after executing this function
         &#34;&#34;&#34;
         workload_list = {}
         workloads = []
-        self.failed_get_workloads = 0
         page_number = 1
         while True:
+            parameters = {&#34;limit&#34;: 50, &#34;page&#34;: page_number}
+            if filter_name:
+                parameters[&#34;filterBy[name]&#34;] = filter_name
+            if filter_type:
+                parameters[&#34;filterBy[type]&#34;] = filter_type
             workloads_single_read = self.ms.get(
                 &#34;/nerve/v2/workloads&#34;,
-                params={&#34;limit&#34;: 50, &#34;page&#34;: page_number},
+                params=parameters,
                 accepted_status=[requests.codes.ok],
             ).json()
             page_number += 1
@@ -1168,7 +1177,7 @@ specified Docker container.</p></div>
             if compact_dict:
                 return [wrkld[&#34;name&#34;] for wrkld in workloads]
             return workloads
-        for workload in workloads:  # noqa: PLR1702
+        for workload in workloads:
             workload_id = workload.get(&#34;_id&#34;)
             if workload.get(&#34;type&#34;) == &#34;docker-compose&#34; or (
                 workload.get(&#34;type&#34;) == &#34;docker&#34; and workload.get(&#34;internalDockerRegistry&#34;)
@@ -1182,25 +1191,6 @@ specified Docker container.</p></div>
                     .json()
                     .get(&#34;data&#34;)
                 )
-                if read_compose_details:
-                    # Validate if details can be read from workload
-                    for version in versions:
-                        try:
-                            self.ms.get(
-                                f&#34;/nerve/v3/workloads/{workload_id}/versions/{version[&#39;_id&#39;]}&#34;,
-                                accepted_status=[requests.codes.ok],
-                            ).json()
-                        except CheckStatusCodeError as ex_msg:
-                            msg = f&#34;Workload &#39;{workload.get(&#39;name&#39;)}-{version.get(&#39;name&#39;)}&#39;: {ex_msg.value}&#34;
-                            self._log.error(msg)
-                            self.failed_get_workloads += 1
-                            if not ignore_read_error:
-                                raise CheckStatusCodeError(
-                                    msg,
-                                    ex_msg.status_code,
-                                    ex_msg.response_text,
-                                )
-
             else:
                 try:
                     versions = (
@@ -1212,14 +1202,11 @@ specified Docker container.</p></div>
                 except CheckStatusCodeError as ex_msg:
                     msg = f&#34;Cannot read workload version list for workload &#39;{workload.get(&#39;name&#39;)}&#39;: {ex_msg.value}&#34;
                     self._log.error(msg)
-                    versions = []
-                    self.failed_get_workloads += 1
-                    if not ignore_read_error:
-                        raise CheckStatusCodeError(
-                            msg,
-                            ex_msg.status_code,
-                            ex_msg.response_text,
-                        )
+                    raise CheckStatusCodeError(
+                        msg,
+                        ex_msg.status_code,
+                        ex_msg.response_text,
+                    )
             if compact_dict:
                 workload_list[workload.get(&#34;name&#34;)] = []
                 for version in versions:
@@ -1288,6 +1275,12 @@ specified Docker container.</p></div>
         # API response key changed from &#34;data&#34; to &#34;list&#34; in version 3.2.0
         list_key = &#34;data&#34; if self.ms.version_smaller_than(&#34;3.2.0&#34;) else &#34;list&#34;
 
+        detail_status_url = (
+            &#34;/bom/task/getDeployTasksInDeployment&#34;
+            if self.ms.version_smaller_than(&#34;3.2.0&#34;)
+            else &#34;/bom/task/all-tasks-in-campaign&#34;
+        )
+
         while (time.time() - time_start) &lt; timeout:
             parameters = {&#34;limit&#34;: 50, &#34;page&#34;: 1, &#34;contentType&#34;: &#34;workload&#34;}
             dep_logs = {&#34;count&#34;: 0, list_key: []}
@@ -1302,9 +1295,9 @@ specified Docker container.</p></div>
                 # Check if required log is already in the read logs to avoid unnecessary API calls
                 dep_log = next(
                     (
-                        dep_log
-                        for dep_log in dep_logs.get(list_key, [])
-                        if dep_log.get(&#34;operation_name&#34;) == deploy_name
+                        entry
+                        for entry in dep_logs.get(list_key, [])
+                        if entry.get(&#34;operation_name&#34;) == deploy_name
                     ),
                     None,
                 )
@@ -1320,19 +1313,28 @@ specified Docker container.</p></div>
                 time.sleep(5)
                 continue
 
-            for value in [&#34;inProgress&#34;, &#34;isFinished&#34;, &#34;isSuccess&#34;, &#34;isFailed&#34;]:
-                status[value] = dep_log.get(value)
+            if self.ms.version_smaller_than(&#34;3.2.0&#34;):
+                for value in [&#34;inProgress&#34;, &#34;isFinished&#34;, &#34;isSuccess&#34;, &#34;isFailed&#34;]:
+                    status[value] = dep_log.get(value)
+            else:
+                status = {
+                    &#34;status&#34;: dep_log.get(&#34;status&#34;),
+                    &#34;inProgress&#34;: dep_log.get(&#34;status&#34;) == &#34;In progress&#34;,
+                    &#34;isFinished&#34;: dep_log.get(&#34;status&#34;) in {&#34;Completed&#34;, &#34;Error&#34;},
+                    &#34;isSuccess&#34;: dep_log.get(&#34;status&#34;) == &#34;Completed&#34;,
+                    &#34;isFailed&#34;: dep_log.get(&#34;status&#34;) == &#34;Error&#34;,
+                }
 
-            if dep_log.get(&#34;inProgress&#34;):
+            if status.get(&#34;inProgress&#34;):
                 num_failed_tasks = 0
 
                 status_new = []
                 detail_status = self.ms.get(
-                    f&#34;/bom/task/getDeployTasksInDeployment/{dep_log.get(&#39;_id&#39;)}&#34;,
+                    f&#34;{detail_status_url}/{dep_log.get(&#39;_id&#39;)}&#34;,
                     accepted_status=[requests.codes.ok],
                 ).json()
 
-                for feedback in detail_status.get(list_key, []):
+                for feedback in detail_status.get(&#34;data&#34;, []):
                     task_options = feedback.get(&#34;taskOptions&#34;)
                     status_new.append(task_options.get(&#34;status&#34;))
                     if task_options.get(&#34;status&#34;).upper() == &#34;ERROR&#34;:
@@ -1352,7 +1354,7 @@ specified Docker container.</p></div>
                         dep_log.get(&#34;campaignOptions&#34;, {}).get(&#34;progress&#34;),
                     )
 
-                    for feedback in detail_status.get(list_key, []):
+                    for feedback in detail_status.get(&#34;data&#34;, []):
                         task_options = feedback.get(&#34;taskOptions&#34;)
                         self._log.info(
                             &#34; - Node %s: [ Status: %s, Progress: %s%% ]&#34;,
@@ -1368,19 +1370,19 @@ specified Docker container.</p></div>
                                 json.dumps(feedback[&#34;errorFeedback&#34;], indent=4),
                             )
 
-                if num_failed_tasks == len(detail_status.get(list_key, [])):
+                if num_failed_tasks == len(detail_status.get(&#34;data&#34;, [])):
                     self._log.error(
                         &#34;Overall Status is in progress, but all workload deployments have failed&#34;,
                     )
                     return status
 
-            if dep_log.get(&#34;isFailed&#34;):
+            if status.get(&#34;isFailed&#34;):
                 detail_status = self.ms.get(
-                    f&#34;/bom/task/getDeployTasksInDeployment/{dep_log.get(&#39;_id&#39;)}&#34;,
+                    f&#34;{detail_status_url}/{dep_log.get(&#39;_id&#39;)}&#34;,
                     accepted_status=[requests.codes.ok],
                 ).json()
                 self.ms._log.error(&#34;Deployment of %s failed&#34;, deploy_name)
-                for feedback in detail_status.get(list_key, []):
+                for feedback in detail_status.get(&#34;data&#34;, []):
                     task_options = feedback.get(&#34;taskOptions&#34;)
                     self._log.info(
                         &#34; - Node %s: [ Status: %s, Progress: %s%% ]&#34;,
@@ -1397,12 +1399,12 @@ specified Docker container.</p></div>
                         )
 
                 return status
-            if dep_log.get(&#34;isFinished&#34;):
+            if status.get(&#34;isFinished&#34;):
                 return status
 
             if state is None:
                 return status
-            if dep_log.get(state):
+            if status.get(state):
                 self.ms._log.info(
                     &#34;Deployment is in expected state (%s) after %.1f seconds&#34;, state, time.time() - time_start
                 )
@@ -1557,6 +1559,12 @@ specified Docker container.</p></div>
     # API response key changed from &#34;data&#34; to &#34;list&#34; in version 3.2.0
     list_key = &#34;data&#34; if self.ms.version_smaller_than(&#34;3.2.0&#34;) else &#34;list&#34;
 
+    detail_status_url = (
+        &#34;/bom/task/getDeployTasksInDeployment&#34;
+        if self.ms.version_smaller_than(&#34;3.2.0&#34;)
+        else &#34;/bom/task/all-tasks-in-campaign&#34;
+    )
+
     while (time.time() - time_start) &lt; timeout:
         parameters = {&#34;limit&#34;: 50, &#34;page&#34;: 1, &#34;contentType&#34;: &#34;workload&#34;}
         dep_logs = {&#34;count&#34;: 0, list_key: []}
@@ -1571,9 +1579,9 @@ specified Docker container.</p></div>
             # Check if required log is already in the read logs to avoid unnecessary API calls
             dep_log = next(
                 (
-                    dep_log
-                    for dep_log in dep_logs.get(list_key, [])
-                    if dep_log.get(&#34;operation_name&#34;) == deploy_name
+                    entry
+                    for entry in dep_logs.get(list_key, [])
+                    if entry.get(&#34;operation_name&#34;) == deploy_name
                 ),
                 None,
             )
@@ -1589,19 +1597,28 @@ specified Docker container.</p></div>
             time.sleep(5)
             continue
 
-        for value in [&#34;inProgress&#34;, &#34;isFinished&#34;, &#34;isSuccess&#34;, &#34;isFailed&#34;]:
-            status[value] = dep_log.get(value)
+        if self.ms.version_smaller_than(&#34;3.2.0&#34;):
+            for value in [&#34;inProgress&#34;, &#34;isFinished&#34;, &#34;isSuccess&#34;, &#34;isFailed&#34;]:
+                status[value] = dep_log.get(value)
+        else:
+            status = {
+                &#34;status&#34;: dep_log.get(&#34;status&#34;),
+                &#34;inProgress&#34;: dep_log.get(&#34;status&#34;) == &#34;In progress&#34;,
+                &#34;isFinished&#34;: dep_log.get(&#34;status&#34;) in {&#34;Completed&#34;, &#34;Error&#34;},
+                &#34;isSuccess&#34;: dep_log.get(&#34;status&#34;) == &#34;Completed&#34;,
+                &#34;isFailed&#34;: dep_log.get(&#34;status&#34;) == &#34;Error&#34;,
+            }
 
-        if dep_log.get(&#34;inProgress&#34;):
+        if status.get(&#34;inProgress&#34;):
             num_failed_tasks = 0
 
             status_new = []
             detail_status = self.ms.get(
-                f&#34;/bom/task/getDeployTasksInDeployment/{dep_log.get(&#39;_id&#39;)}&#34;,
+                f&#34;{detail_status_url}/{dep_log.get(&#39;_id&#39;)}&#34;,
                 accepted_status=[requests.codes.ok],
             ).json()
 
-            for feedback in detail_status.get(list_key, []):
+            for feedback in detail_status.get(&#34;data&#34;, []):
                 task_options = feedback.get(&#34;taskOptions&#34;)
                 status_new.append(task_options.get(&#34;status&#34;))
                 if task_options.get(&#34;status&#34;).upper() == &#34;ERROR&#34;:
@@ -1621,7 +1638,7 @@ specified Docker container.</p></div>
                     dep_log.get(&#34;campaignOptions&#34;, {}).get(&#34;progress&#34;),
                 )
 
-                for feedback in detail_status.get(list_key, []):
+                for feedback in detail_status.get(&#34;data&#34;, []):
                     task_options = feedback.get(&#34;taskOptions&#34;)
                     self._log.info(
                         &#34; - Node %s: [ Status: %s, Progress: %s%% ]&#34;,
@@ -1637,19 +1654,19 @@ specified Docker container.</p></div>
                             json.dumps(feedback[&#34;errorFeedback&#34;], indent=4),
                         )
 
-            if num_failed_tasks == len(detail_status.get(list_key, [])):
+            if num_failed_tasks == len(detail_status.get(&#34;data&#34;, [])):
                 self._log.error(
                     &#34;Overall Status is in progress, but all workload deployments have failed&#34;,
                 )
                 return status
 
-        if dep_log.get(&#34;isFailed&#34;):
+        if status.get(&#34;isFailed&#34;):
             detail_status = self.ms.get(
-                f&#34;/bom/task/getDeployTasksInDeployment/{dep_log.get(&#39;_id&#39;)}&#34;,
+                f&#34;{detail_status_url}/{dep_log.get(&#39;_id&#39;)}&#34;,
                 accepted_status=[requests.codes.ok],
             ).json()
             self.ms._log.error(&#34;Deployment of %s failed&#34;, deploy_name)
-            for feedback in detail_status.get(list_key, []):
+            for feedback in detail_status.get(&#34;data&#34;, []):
                 task_options = feedback.get(&#34;taskOptions&#34;)
                 self._log.info(
                     &#34; - Node %s: [ Status: %s, Progress: %s%% ]&#34;,
@@ -1666,12 +1683,12 @@ specified Docker container.</p></div>
                     )
 
             return status
-        if dep_log.get(&#34;isFinished&#34;):
+        if status.get(&#34;isFinished&#34;):
             return status
 
         if state is None:
             return status
-        if dep_log.get(state):
+        if status.get(state):
             self.ms._log.info(
                 &#34;Deployment is in expected state (%s) after %.1f seconds&#34;, state, time.time() - time_start
             )
@@ -2054,7 +2071,7 @@ default is disabled: {"enabled": False}</dd>
 </dl></div>
 </dd>
 <dt id="nerve_lib.manage_workloads.MSWorkloads.get_workloads_dict"><code class="name flex">
-<span>def <span class="ident">get_workloads_dict</span></span>(<span>self,<br>read_versions=True,<br>read_compose_details=True,<br>compact_dict=True,<br>ignore_read_error=False) ‑> dict</span>
+<span>def <span class="ident">get_workloads_dict</span></span>(<span>self,<br>read_versions=True,<br>compact_dict=True,<br>filter_name: str = '',<br>filter_type: str = '') ‑> dict</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -2062,7 +2079,7 @@ default is disabled: {"enabled": False}</dd>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def get_workloads_dict(
-    self, read_versions=True, read_compose_details=True, compact_dict=True, ignore_read_error=False
+    self, read_versions=True, compact_dict=True, filter_name: str = &#34;&#34;, filter_type: str = &#34;&#34;
 ) -&gt; dict:
     &#34;&#34;&#34;Read workloads list of MS.
 
@@ -2070,17 +2087,19 @@ default is disabled: {"enabled": False}</dd>
     -------
     dict
         dict of {workload-name: [version, release_version]}.
-
-    Note: variable .failed_get_workloads is set to the number of failed reads after executing this function
     &#34;&#34;&#34;
     workload_list = {}
     workloads = []
-    self.failed_get_workloads = 0
     page_number = 1
     while True:
+        parameters = {&#34;limit&#34;: 50, &#34;page&#34;: page_number}
+        if filter_name:
+            parameters[&#34;filterBy[name]&#34;] = filter_name
+        if filter_type:
+            parameters[&#34;filterBy[type]&#34;] = filter_type
         workloads_single_read = self.ms.get(
             &#34;/nerve/v2/workloads&#34;,
-            params={&#34;limit&#34;: 50, &#34;page&#34;: page_number},
+            params=parameters,
             accepted_status=[requests.codes.ok],
         ).json()
         page_number += 1
@@ -2091,7 +2110,7 @@ default is disabled: {"enabled": False}</dd>
         if compact_dict:
             return [wrkld[&#34;name&#34;] for wrkld in workloads]
         return workloads
-    for workload in workloads:  # noqa: PLR1702
+    for workload in workloads:
         workload_id = workload.get(&#34;_id&#34;)
         if workload.get(&#34;type&#34;) == &#34;docker-compose&#34; or (
             workload.get(&#34;type&#34;) == &#34;docker&#34; and workload.get(&#34;internalDockerRegistry&#34;)
@@ -2105,25 +2124,6 @@ default is disabled: {"enabled": False}</dd>
                 .json()
                 .get(&#34;data&#34;)
             )
-            if read_compose_details:
-                # Validate if details can be read from workload
-                for version in versions:
-                    try:
-                        self.ms.get(
-                            f&#34;/nerve/v3/workloads/{workload_id}/versions/{version[&#39;_id&#39;]}&#34;,
-                            accepted_status=[requests.codes.ok],
-                        ).json()
-                    except CheckStatusCodeError as ex_msg:
-                        msg = f&#34;Workload &#39;{workload.get(&#39;name&#39;)}-{version.get(&#39;name&#39;)}&#39;: {ex_msg.value}&#34;
-                        self._log.error(msg)
-                        self.failed_get_workloads += 1
-                        if not ignore_read_error:
-                            raise CheckStatusCodeError(
-                                msg,
-                                ex_msg.status_code,
-                                ex_msg.response_text,
-                            )
-
         else:
             try:
                 versions = (
@@ -2135,14 +2135,11 @@ default is disabled: {"enabled": False}</dd>
             except CheckStatusCodeError as ex_msg:
                 msg = f&#34;Cannot read workload version list for workload &#39;{workload.get(&#39;name&#39;)}&#39;: {ex_msg.value}&#34;
                 self._log.error(msg)
-                versions = []
-                self.failed_get_workloads += 1
-                if not ignore_read_error:
-                    raise CheckStatusCodeError(
-                        msg,
-                        ex_msg.status_code,
-                        ex_msg.response_text,
-                    )
+                raise CheckStatusCodeError(
+                    msg,
+                    ex_msg.status_code,
+                    ex_msg.response_text,
+                )
         if compact_dict:
             workload_list[workload.get(&#34;name&#34;)] = []
             for version in versions:
@@ -2161,8 +2158,6 @@ default is disabled: {"enabled": False}</dd>
 <dl>
 <dt><code>dict</code></dt>
 <dd>dict of {workload-name: [version, release_version]}.</dd>
-<dt><strong><code>Note</code></strong> :&ensp;<code>variable .failed_get_workloads is set to the number</code> of <code>failed reads after executing this function</code></dt>
-<dd>&nbsp;</dd>
 </dl></div>
 </dd>
 <dt id="nerve_lib.manage_workloads.MSWorkloads.provision_compose_workload"><code class="name flex">

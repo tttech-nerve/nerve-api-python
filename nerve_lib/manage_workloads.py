@@ -133,7 +133,12 @@ class LocalWorkloads:
                         raise RuntimeError(msg) from ex_msg
 
             self._log.info("Local Workload %s deployed", file_paths)
-            return response.json()
+            try:
+                return response.json()
+            except ValueError:
+                raise AssertionError(
+                    f"Expected JSON but got: {response.status_code} {response.text}"
+                )
 
     def get_workload_list(self):
         """Get list of deployed workloads."""
@@ -229,9 +234,6 @@ class MSWorkloads:
     def __init__(self, ms_handle: type):
         self.ms = ms_handle
         self._log = ms_handle._log.getChild("Workloads") if ms_handle else logging.getLogger("Workloads")
-
-        # when executing .get_workloads_dict, and a listing failed, this variable shows the number of failed reads
-        self.failed_get_workloads = 0
 
     def provision_workload(
         self,
@@ -879,7 +881,7 @@ class MSWorkloads:
         return payload
 
     def get_workloads_dict(
-        self, read_versions=True, read_compose_details=True, compact_dict=True, ignore_read_error=False
+        self, read_versions=True, compact_dict=True, filter_name: str = "", filter_type: str = ""
     ) -> dict:
         """Read workloads list of MS.
 
@@ -887,17 +889,19 @@ class MSWorkloads:
         -------
         dict
             dict of {workload-name: [version, release_version]}.
-
-        Note: variable .failed_get_workloads is set to the number of failed reads after executing this function
         """
         workload_list = {}
         workloads = []
-        self.failed_get_workloads = 0
         page_number = 1
         while True:
+            parameters = {"limit": 50, "page": page_number}
+            if filter_name:
+                parameters["filterBy[name]"] = filter_name
+            if filter_type:
+                parameters["filterBy[type]"] = filter_type
             workloads_single_read = self.ms.get(
                 "/nerve/v2/workloads",
-                params={"limit": 50, "page": page_number},
+                params=parameters,
                 accepted_status=[requests.codes.ok],
             ).json()
             page_number += 1
@@ -908,7 +912,7 @@ class MSWorkloads:
             if compact_dict:
                 return [wrkld["name"] for wrkld in workloads]
             return workloads
-        for workload in workloads:  # noqa: PLR1702
+        for workload in workloads:
             workload_id = workload.get("_id")
             if workload.get("type") == "docker-compose" or (
                 workload.get("type") == "docker" and workload.get("internalDockerRegistry")
@@ -922,25 +926,6 @@ class MSWorkloads:
                     .json()
                     .get("data")
                 )
-                if read_compose_details:
-                    # Validate if details can be read from workload
-                    for version in versions:
-                        try:
-                            self.ms.get(
-                                f"/nerve/v3/workloads/{workload_id}/versions/{version['_id']}",
-                                accepted_status=[requests.codes.ok],
-                            ).json()
-                        except CheckStatusCodeError as ex_msg:
-                            msg = f"Workload '{workload.get('name')}-{version.get('name')}': {ex_msg.value}"
-                            self._log.error(msg)
-                            self.failed_get_workloads += 1
-                            if not ignore_read_error:
-                                raise CheckStatusCodeError(
-                                    msg,
-                                    ex_msg.status_code,
-                                    ex_msg.response_text,
-                                )
-
             else:
                 try:
                     versions = (
@@ -952,14 +937,11 @@ class MSWorkloads:
                 except CheckStatusCodeError as ex_msg:
                     msg = f"Cannot read workload version list for workload '{workload.get('name')}': {ex_msg.value}"
                     self._log.error(msg)
-                    versions = []
-                    self.failed_get_workloads += 1
-                    if not ignore_read_error:
-                        raise CheckStatusCodeError(
-                            msg,
-                            ex_msg.status_code,
-                            ex_msg.response_text,
-                        )
+                    raise CheckStatusCodeError(
+                        msg,
+                        ex_msg.status_code,
+                        ex_msg.response_text,
+                    )
             if compact_dict:
                 workload_list[workload.get("name")] = []
                 for version in versions:
@@ -1028,6 +1010,12 @@ class MSWorkloads:
         # API response key changed from "data" to "list" in version 3.2.0
         list_key = "data" if self.ms.version_smaller_than("3.2.0") else "list"
 
+        detail_status_url = (
+            "/bom/task/getDeployTasksInDeployment"
+            if self.ms.version_smaller_than("3.2.0")
+            else "/bom/task/all-tasks-in-campaign"
+        )
+
         while (time.time() - time_start) < timeout:
             parameters = {"limit": 50, "page": 1, "contentType": "workload"}
             dep_logs = {"count": 0, list_key: []}
@@ -1042,9 +1030,9 @@ class MSWorkloads:
                 # Check if required log is already in the read logs to avoid unnecessary API calls
                 dep_log = next(
                     (
-                        dep_log
-                        for dep_log in dep_logs.get(list_key, [])
-                        if dep_log.get("operation_name") == deploy_name
+                        entry
+                        for entry in dep_logs.get(list_key, [])
+                        if entry.get("operation_name") == deploy_name
                     ),
                     None,
                 )
@@ -1060,19 +1048,28 @@ class MSWorkloads:
                 time.sleep(5)
                 continue
 
-            for value in ["inProgress", "isFinished", "isSuccess", "isFailed"]:
-                status[value] = dep_log.get(value)
+            if self.ms.version_smaller_than("3.2.0"):
+                for value in ["inProgress", "isFinished", "isSuccess", "isFailed"]:
+                    status[value] = dep_log.get(value)
+            else:
+                status = {
+                    "status": dep_log.get("status"),
+                    "inProgress": dep_log.get("status") == "In progress",
+                    "isFinished": dep_log.get("status") in {"Completed", "Error"},
+                    "isSuccess": dep_log.get("status") == "Completed",
+                    "isFailed": dep_log.get("status") == "Error",
+                }
 
-            if dep_log.get("inProgress"):
+            if status.get("inProgress"):
                 num_failed_tasks = 0
 
                 status_new = []
                 detail_status = self.ms.get(
-                    f"/bom/task/getDeployTasksInDeployment/{dep_log.get('_id')}",
+                    f"{detail_status_url}/{dep_log.get('_id')}",
                     accepted_status=[requests.codes.ok],
                 ).json()
 
-                for feedback in detail_status.get(list_key, []):
+                for feedback in detail_status.get("data", []):
                     task_options = feedback.get("taskOptions")
                     status_new.append(task_options.get("status"))
                     if task_options.get("status").upper() == "ERROR":
@@ -1092,7 +1089,7 @@ class MSWorkloads:
                         dep_log.get("campaignOptions", {}).get("progress"),
                     )
 
-                    for feedback in detail_status.get(list_key, []):
+                    for feedback in detail_status.get("data", []):
                         task_options = feedback.get("taskOptions")
                         self._log.info(
                             " - Node %s: [ Status: %s, Progress: %s%% ]",
@@ -1108,19 +1105,19 @@ class MSWorkloads:
                                 json.dumps(feedback["errorFeedback"], indent=4),
                             )
 
-                if num_failed_tasks == len(detail_status.get(list_key, [])):
+                if num_failed_tasks == len(detail_status.get("data", [])):
                     self._log.error(
                         "Overall Status is in progress, but all workload deployments have failed",
                     )
                     return status
 
-            if dep_log.get("isFailed"):
+            if status.get("isFailed"):
                 detail_status = self.ms.get(
-                    f"/bom/task/getDeployTasksInDeployment/{dep_log.get('_id')}",
+                    f"{detail_status_url}/{dep_log.get('_id')}",
                     accepted_status=[requests.codes.ok],
                 ).json()
                 self.ms._log.error("Deployment of %s failed", deploy_name)
-                for feedback in detail_status.get(list_key, []):
+                for feedback in detail_status.get("data", []):
                     task_options = feedback.get("taskOptions")
                     self._log.info(
                         " - Node %s: [ Status: %s, Progress: %s%% ]",
@@ -1137,12 +1134,12 @@ class MSWorkloads:
                         )
 
                 return status
-            if dep_log.get("isFinished"):
+            if status.get("isFinished"):
                 return status
 
             if state is None:
                 return status
-            if dep_log.get(state):
+            if status.get(state):
                 self.ms._log.info(
                     "Deployment is in expected state (%s) after %.1f seconds", state, time.time() - time_start
                 )
@@ -1233,12 +1230,12 @@ class _WorkloadVersion:  # noqa: PLR0904
         return self.__workload_type
 
     def _get_workload(self) -> dict:
-        """Read workkoad information.
+        """Read workload information.
 
         Returns
         -------
         dict
-            MS API response containing worklaad information.
+            MS API response containing workload information.
         """
 
         encoded_name = quote(self.workload_name, safe="")
@@ -1329,7 +1326,7 @@ class _WorkloadVersion:  # noqa: PLR0904
 
         return workload_id, self.__version_id
 
-    def _get_additional_version_details(self, api_version=2) -> dict:
+    def get_additional_version_details(self, api_version=3) -> dict:
         """Read additional version details only available in APIv3.
 
         Returns
@@ -1362,7 +1359,7 @@ class _WorkloadVersion:  # noqa: PLR0904
         if include_version:
             version = self._get_versions(selected_version=True, api_version=api_version)
             if api_version == self.owner.API_V3:
-                version_info = self._get_additional_version_details(api_version=api_version)
+                version_info = self.get_additional_version_details(api_version=api_version)
                 remote_connections = version_info.get("remoteConnections", [])
                 for idx, remote_connection in enumerate(remote_connections):
                     remote_connections[idx] = {
@@ -1767,13 +1764,14 @@ class _WorkloadVersion:  # noqa: PLR0904
                 deploy_name = f"{self.workload_name}-latest"
         payload = {
             "deployName": deploy_name[:35],
-            "dryRun": False,
             "nodes": [dut.serial_number for dut in duts_deploy],
             "versionId": version_id,
             "workloadId": workload_id,
         }
         if self.owner.ms.version_smaller_than("3.2.0"):
             payload["retryTimes"] = 3
+            payload["dryRun"] = False
+
         if duts_deploy != []:
             response = self.owner.ms.post(
                 url="/bom/nerve/workload/deploy",

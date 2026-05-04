@@ -213,15 +213,13 @@ Classes
         api_version : int, 1,2 or 3
             Default is 2- APIv1 does not support PATCH'ing workloads with new versions.
 
-    `get_workloads_dict(self, read_versions=True, read_compose_details=True, compact_dict=True, ignore_read_error=False) ‑> dict`
+    `get_workloads_dict(self, read_versions=True, compact_dict=True, filter_name: str = '', filter_type: str = '') ‑> dict`
     :   Read workloads list of MS.
         
         Returns
         -------
         dict
             dict of {workload-name: [version, release_version]}.
-        
-        Note: variable .failed_get_workloads is set to the number of failed reads after executing this function
 
     `provision_compose_workload(self, payload: dict, update_workload: bool)`
     :   Create new docker-compose workload.

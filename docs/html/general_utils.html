@@ -226,7 +226,7 @@ msg.value: string error message</p></div>
 
         try:
             ms_handle = handle_ref()
-        except Exception:  # pragma: no cover - defensive
+        except (TypeError, ReferenceError):  # pragma: no cover - defensive
             ms_handle = None
 
         if ms_handle:
@@ -697,20 +697,27 @@ In case of a failed login, an error will be raised.</p>
             log.debug(&#34;Closing Tunnel %s&#34;, tunnel_key)
             try:
                 tunnel.close()
-            except Exception:
+            except (SSHTunnelError, RuntimeError, OSError, asyncssh.Error):
                 log.warning(&#34;Could not close tunnel %s cleanly&#34;, tunnel_key)
         tunnels.clear()
-        try:
-            asyncio.run_coroutine_threadsafe(
-                ManageSshTunnel._drain_pending_tasks(),
-                loop,
-            ).result(timeout=10)
-        except Exception as drain_error:
-            log.debug(&#34;Could not drain tunnel loop cleanly: %s&#34;, drain_error)
+        if loop.is_running() and not loop.is_closed():
+            drain_coro = ManageSshTunnel._drain_pending_tasks()
+            try:
+                asyncio.run_coroutine_threadsafe(
+                    drain_coro,
+                    loop,
+                ).result(timeout=10)
+            except (
+                concurrent.futures.TimeoutError,
+                concurrent.futures.CancelledError,
+                RuntimeError,
+            ) as drain_error:
+                drain_coro.close()
+                log.debug(&#34;Could not drain tunnel loop cleanly: %s&#34;, drain_error)
         try:
             if loop.is_running():
                 loop.call_soon_threadsafe(loop.stop)
-        except Exception:
+        except RuntimeError:
             log.debug(&#34;Could not stop tunnel loop cleanly&#34;)
         if loop_thread.is_alive():
             loop_thread.join(timeout=5)
@@ -845,7 +852,14 @@ In case of a failed login, an error will be raised.</p>
                 return tunnel
 
             self._log.error(&#34;Could not establish tunnel, health probe failed&#34;)
-        except Exception as ex_msg:
+        except (
+            concurrent.futures.TimeoutError,
+            concurrent.futures.CancelledError,
+            RuntimeError,
+            OSError,
+            SSHTunnelError,
+            asyncssh.Error,
+        ) as ex_msg:
             self._log.error(&#34;Could not establish tunnel: %s&#34;, ex_msg)
         return None
 
@@ -864,7 +878,7 @@ In case of a failed login, an error will be raised.</p>
                 self._log.info(&#34;Removing tunnel %s&#34;, tunnel_key)
                 try:
                     tunnel.close()
-                except Exception:
+                except (SSHTunnelError, RuntimeError, OSError, asyncssh.Error):
                     self._log.warning(&#34;Could not stop tunnel before removing&#34;)
                 with self._lock:
                     self._tunnels.pop(tunnel_key, None)
@@ -891,7 +905,7 @@ In case of a failed login, an error will be raised.</p>
             self._log.info(&#34;Refreshing tunnel %s&#34;, tunnel_key)
             try:
                 tunnel.close()
-            except Exception:
+            except (SSHTunnelError, RuntimeError, OSError, asyncssh.Error):
                 self._log.warning(&#34;Could not stop tunnel before refresh&#34;)
             # keep tunnel metadata so subsequent refresh attempts can try again
             recreated = self.create_tunnel(
@@ -988,7 +1002,14 @@ In case of a failed login, an error will be raised.</p>
             return tunnel
 
         self._log.error(&#34;Could not establish tunnel, health probe failed&#34;)
-    except Exception as ex_msg:
+    except (
+        concurrent.futures.TimeoutError,
+        concurrent.futures.CancelledError,
+        RuntimeError,
+        OSError,
+        SSHTunnelError,
+        asyncssh.Error,
+    ) as ex_msg:
         self._log.error(&#34;Could not establish tunnel: %s&#34;, ex_msg)
     return None</code></pre>
 </details>
@@ -1041,7 +1062,7 @@ In case of a failed login, an error will be raised.</p>
         self._log.info(&#34;Refreshing tunnel %s&#34;, tunnel_key)
         try:
             tunnel.close()
-        except Exception:
+        except (SSHTunnelError, RuntimeError, OSError, asyncssh.Error):
             self._log.warning(&#34;Could not stop tunnel before refresh&#34;)
         # keep tunnel metadata so subsequent refresh attempts can try again
         recreated = self.create_tunnel(
@@ -1084,7 +1105,7 @@ In case of a failed login, an error will be raised.</p>
             self._log.info(&#34;Removing tunnel %s&#34;, tunnel_key)
             try:
                 tunnel.close()
-            except Exception:
+            except (SSHTunnelError, RuntimeError, OSError, asyncssh.Error):
                 self._log.warning(&#34;Could not stop tunnel before removing&#34;)
             with self._lock:
                 self._tunnels.pop(tunnel_key, None)
@@ -1228,7 +1249,7 @@ In case of a failed login, an error will be raised.</p>
         &#34;&#34;&#34;
         try:
             node = handle_ref()
-        except Exception:  # pragma: no cover - defensive
+        except (TypeError, ReferenceError):  # pragma: no cover - defensive
             node = None
 
         if node:
@@ -2209,7 +2230,7 @@ The default is None.</dd>
             ip_addr = self.ip_addr[0] if type(self.ip_addr) is tuple else self.ip_addr
             s.connect((ip_addr, int(port)))
             s.shutdown(socket.SHUT_RDWR)
-        except Exception:
+        except OSError:
             return False
         finally:
             s.close()
@@ -2241,7 +2262,7 @@ The default is None.</dd>
                     SCPClient(connection.get_transport(), socket_timeout=60.0) as scp,
                 ):
                     scp.put(os.path.join(file_path, file_name), file_name)
-            except Exception as ex_msg:
+            except (FileNotFoundError, OSError, SCPException, paramiko.SSHException) as ex_msg:
                 self._log.error(&#34;Failed to copy file to device: %s&#34;, ex_msg)
                 if retry_count &gt;= max_retries:
                     return False
@@ -2292,7 +2313,7 @@ The default is None.</dd>
         ip_addr = self.ip_addr[0] if type(self.ip_addr) is tuple else self.ip_addr
         s.connect((ip_addr, int(port)))
         s.shutdown(socket.SHUT_RDWR)
-    except Exception:
+    except OSError:
         return False
     finally:
         s.close()
@@ -2412,7 +2433,7 @@ The default is None.</dd>
                 SCPClient(connection.get_transport(), socket_timeout=60.0) as scp,
             ):
                 scp.put(os.path.join(file_path, file_name), file_name)
-        except Exception as ex_msg:
+        except (FileNotFoundError, OSError, SCPException, paramiko.SSHException) as ex_msg:
             self._log.error(&#34;Failed to copy file to device: %s&#34;, ex_msg)
             if retry_count &gt;= max_retries:
                 return False

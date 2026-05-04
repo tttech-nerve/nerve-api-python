@@ -75,7 +75,7 @@ class MSRole:
         """Get list of permissions for all classes (API)."""
         return self.ms.get(
             "/nerve/rbac/permissions",
-            params={"categories": "", "filterBy": f'{{"name":"{name_filter}"}}'},
+            params={"categories": [], "filterBy": f'{{"name":"{name_filter}"}}'},
             accepted_status=[requests.codes.ok],
         ).json()
 
@@ -190,17 +190,17 @@ class MSUser:
     def get(self, email="", role_type="local"):
         """Get a list of users."""
         user_list = self.ms.get(
-            "/crm/profile/list",
+            "/crm/profiles?limit=500",
             params=[{"filterBy[type]", role_type}],
             accepted_status=[requests.codes.ok],
         ).json()
         if email:
             try:
-                return next(user for user in user_list["data"] if user["username"] == email)
+                return next(user for user in user_list["profiles"] if user["username"] == email)
             except StopIteration:
                 msg = (
                     f"User '{email}' not in role_type '{role_type}' "
-                    f"({[user['username'] for user in user_list['data']]}"
+                    f"({[user['username'] for user in user_list['profiles']]}"
                 )
                 raise ValueError(msg)
         return user_list
@@ -222,15 +222,7 @@ class MSUser:
             "lastName": last_name or uname[-1],
             "username": email,
             "profileImgURL": "",
-            "contact": [
-                {
-                    "contactType": "email",
-                    "isDefault": True,
-                    "label": "Default",
-                    "contact": email,
-                    "email": "",
-                },
-            ],
+            "mfaEnabled": False,
             "roles": role_ids,
         }
 
@@ -239,7 +231,7 @@ class MSUser:
         response = self.ms.post(
             "/crm/profile",
             m_enc_data=m_enc_data,
-            accepted_status=[requests.codes.ok],
+            accepted_status=[requests.codes.ok, requests.codes.created],
         )
         return response.json()
 
@@ -263,6 +255,16 @@ class MSUser:
         payload["profileImgURL"] = ""
 
         payload["id"] = payload.pop("_id")
+
+        payload["mfaEnabled"] = False
+
+        payload.pop("auth", None)
+
+        payload.pop("created", None)
+
+        payload.pop("preferences", None)
+
+        payload.pop("type", None)
 
         m_enc_data = {"data": (None, json.dumps(payload), "form-data")}
 
@@ -296,16 +298,9 @@ class MSUser:
             "firstName": first_name or self.get(email)["firstName"],
             "lastName": last_name or self.get(email)["lastName"],
             "username": email,
+            "email": email,
+            "mfaEnabled": False,
             "profileImgURL": "",
-            "contact": [
-                {
-                    "contactType": "email",
-                    "isDefault": True,
-                    "label": "Default",
-                    "contact": email,
-                    "email": email,
-                },
-            ],
             "currentPassword": old_password,
             "newPassword": new_password,
             "confirmPassword": confirm_new_password,
@@ -314,7 +309,7 @@ class MSUser:
         m_enc_data = {"data": (None, json.dumps(payload), "form-data")}
 
         response = self.ms.put(
-            "/crm/personalProfile",
+            "/crm/personal-profile",
             m_enc_data=m_enc_data,
             accepted_status=[requests.codes.ok],
         )

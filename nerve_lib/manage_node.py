@@ -2289,19 +2289,22 @@ class _MSNodeUpdate:
             "filterBy[searchText]": update_name,
         }
         deploy_list = {"count": 0, "data": []}
+
+        # API response key changed from "data" to "list" in version 3.2.0
+        list_key = "data" if self.ms.version_smaller_than("3.2.0") else "list"
         while True:
             deploy_list_single_read = self.ms.get(
                 "/bom/deployment/list", params=parameters, accepted_status=[requests.codes.ok]
             ).json()
             parameters["page"] += 1
-            deploy_list["data"] += deploy_list_single_read.get("data", [])
+            deploy_list[list_key] += deploy_list_single_read.get(list_key, [])
             deploy_list["count"] = deploy_list_single_read["count"]
-            if len(deploy_list["data"]) == deploy_list_single_read["count"]:
+            if len(deploy_list[list_key]) == deploy_list_single_read["count"]:
                 break
 
         active_deployments = []
         deployment_details = {}
-        for deployment in deploy_list["data"]:
+        for deployment in deploy_list[list_key]:
             deployment_active = False
 
             dep_details = self.get_deployment_details(deployment["_id"])
@@ -2339,7 +2342,12 @@ class _MSNodeUpdate:
 
     def get_deployment_details(self, deployment_id: str, print_info_log=True):
         """Read update deployment detail infos."""
-        return self.ms.get(f"/bom/task/getDeployTasksInDeployment/{deployment_id}").json()
+        detail_status_url = (
+            "/bom/task/getDeployTasksInDeployment"
+            if self.ms.version_smaller_than("3.2.0")
+            else "/bom/task/all-tasks-in-campaign"
+        )
+        return self.ms.get(f"{detail_status_url}/{deployment_id}").json()
 
     def wait_for_all_deployments_beeing_finished(
         self, update_name="", max_deployment_time=1800, check_interval=60
@@ -2393,17 +2401,24 @@ class _MSNodeUpdate:
 
         parameters = {"limit": 50, "page": 1, "contentType": "node_update"}
         deploy_list = {"count": 0, "data": []}
+        # API response key changed from "data" to "list" in version 3.2.0
+        list_key = "data" if self.ms.version_smaller_than("3.2.0") else "list"
+        detail_status_url = (
+            "/bom/task/getDeployTasksInDeployment"
+            if self.ms.version_smaller_than("3.2.0")
+            else "/bom/task/all-tasks-in-campaign"
+        )
         while True:
             deploy_list_single_read = self.ms.get(
                 "/bom/deployment/list", params=parameters, accepted_status=[requests.codes.ok]
             ).json()
             parameters["page"] += 1
-            deploy_list["data"] += deploy_list_single_read.get("data", [])
+            deploy_list[list_key] += deploy_list_single_read.get(list_key, [])
             deploy_list["count"] = deploy_list_single_read["count"]
-            if len(deploy_list["data"]) == deploy_list_single_read["count"]:
+            if len(deploy_list[list_key]) == deploy_list_single_read["count"]:
                 break
 
-        for update in deploy_list["data"]:
+        for update in deploy_list[list_key]:
             self._log.debug(
                 "%s, status: %s, date: %s, user: %s",
                 update["operation_name"],
@@ -2412,7 +2427,7 @@ class _MSNodeUpdate:
                 update["userInitiated"],
             )
             update_tasks = self.ms.get(
-                f"/bom/task/getDeployTasksInDeployment/{update['_id']}",
+                f"{detail_status_url}/{update['_id']}",
                 params={
                     "limit": 200,
                     "filterBy": {
