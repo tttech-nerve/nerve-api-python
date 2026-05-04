@@ -61,7 +61,7 @@ import paramiko
 import requests
 import urllib3
 from requests_toolbelt import MultipartEncoder
-from scp import SCPClient
+from scp import SCPClient, SCPException
 
 urllib3.disable_warnings()
 
@@ -172,21 +172,46 @@ class _AsyncTunnelHandle:
     def stop(self) -> None:
         self.close()
 
+    def _loop_ready(self) -> bool:
+        return bool(self._loop and self._loop.is_running() and not self._loop.is_closed())
+
+    def _best_effort_close_without_loop(self) -> None:
+        try:
+            self._forwarder.close()
+        except (AttributeError, RuntimeError, OSError, asyncssh.Error) as ex_msg:
+            self._log.debug("Exception while closing forwarder without loop: %s", ex_msg)
+        try:
+            self._connection.close()
+        except (AttributeError, RuntimeError, OSError, asyncssh.Error) as ex_msg:
+            self._log.debug("Exception while closing connection without loop: %s", ex_msg)
+
     def close(self) -> None:
-        future = asyncio.run_coroutine_threadsafe(self._close_async(), self._loop)
+        if not self._loop_ready():
+            self._best_effort_close_without_loop()
+            return
+
+        close_coro = self._close_async()
+        try:
+            future = asyncio.run_coroutine_threadsafe(close_coro, self._loop)
+        except RuntimeError as ex_msg:
+            close_coro.close()
+            self._log.debug("Could not schedule tunnel close coroutine: %s", ex_msg)
+            self._best_effort_close_without_loop()
+            return
+
         try:
             future.result(timeout=10)
         except concurrent.futures.TimeoutError:
             future.cancel()
             try:
                 future.result(timeout=5)
-            except Exception as ex_msg:
+            except (concurrent.futures.CancelledError, RuntimeError, OSError, asyncssh.Error) as ex_msg:
                 self._log.debug("TimeoutError when waiting for result: %s", ex_msg)
-        except Exception:
+        except (concurrent.futures.CancelledError, RuntimeError, OSError, asyncssh.Error):
             future.cancel()
             try:
                 future.result(timeout=5)
-            except Exception as ex_msg:
+            except (concurrent.futures.CancelledError, RuntimeError, OSError, asyncssh.Error) as ex_msg:
                 self._log.debug("Exception when waiting for result: %s", ex_msg)
 
     async def _close_async(self) -> None:
@@ -196,7 +221,7 @@ class _AsyncTunnelHandle:
             self._connection.close()
             try:
                 await self._connection.wait_closed()
-            except Exception as ex_msg:
+            except (RuntimeError, OSError, asyncssh.Error) as ex_msg:
                 self._log.debug("Exception when waiting for closed: %s", ex_msg)
 
     def _connection_state_open(self) -> bool:
@@ -212,14 +237,37 @@ class _AsyncTunnelHandle:
         async def _run_probe():
             await self._connection.run("true", check=True)
 
-        future = asyncio.run_coroutine_threadsafe(_run_probe(), self._loop)
+        if not self._loop_ready():
+            return False
+
+        probe_coro = _run_probe()
+        try:
+            future = asyncio.run_coroutine_threadsafe(probe_coro, self._loop)
+        except RuntimeError as error:
+            probe_coro.close()
+            self._log.debug(
+                "Could not schedule SSH tunnel health probe for %s:%s -> %s:%s: %s",
+                self.ssh_host,
+                self.ssh_port,
+                self.remote_bind_address[0],
+                self.remote_bind_address[1],
+                error,
+            )
+            return False
+
         try:
             future.result(timeout=timeout)
-        except Exception as error:
+        except (
+            concurrent.futures.TimeoutError,
+            concurrent.futures.CancelledError,
+            RuntimeError,
+            OSError,
+            asyncssh.Error,
+        ) as error:
             future.cancel()
             try:
                 future.result(timeout=1)
-            except Exception as ex_msg:
+            except (concurrent.futures.CancelledError, RuntimeError, OSError, asyncssh.Error) as ex_msg:
                 self._log.debug("Exception when waiting for probe result: %s", ex_msg)
             self._log.debug(
                 "SSH tunnel health probe failed for %s:%s -> %s:%s: %s",
@@ -379,7 +427,7 @@ class SshGeneral:
             ip_addr = self.ip_addr[0] if type(self.ip_addr) is tuple else self.ip_addr
             s.connect((ip_addr, int(port)))
             s.shutdown(socket.SHUT_RDWR)
-        except Exception:
+        except OSError:
             return False
         finally:
             s.close()
@@ -411,7 +459,7 @@ class SshGeneral:
                     SCPClient(connection.get_transport(), socket_timeout=60.0) as scp,
                 ):
                     scp.put(os.path.join(file_path, file_name), file_name)
-            except Exception as ex_msg:
+            except (FileNotFoundError, OSError, SCPException, paramiko.SSHException) as ex_msg:
                 self._log.error("Failed to copy file to device: %s", ex_msg)
                 if retry_count >= max_retries:
                     return False
@@ -489,20 +537,27 @@ class ManageSshTunnel:
             log.debug("Closing Tunnel %s", tunnel_key)
             try:
                 tunnel.close()
-            except Exception:
+            except (SSHTunnelError, RuntimeError, OSError, asyncssh.Error):
                 log.warning("Could not close tunnel %s cleanly", tunnel_key)
         tunnels.clear()
-        try:
-            asyncio.run_coroutine_threadsafe(
-                ManageSshTunnel._drain_pending_tasks(),
-                loop,
-            ).result(timeout=10)
-        except Exception as drain_error:
-            log.debug("Could not drain tunnel loop cleanly: %s", drain_error)
+        if loop.is_running() and not loop.is_closed():
+            drain_coro = ManageSshTunnel._drain_pending_tasks()
+            try:
+                asyncio.run_coroutine_threadsafe(
+                    drain_coro,
+                    loop,
+                ).result(timeout=10)
+            except (
+                concurrent.futures.TimeoutError,
+                concurrent.futures.CancelledError,
+                RuntimeError,
+            ) as drain_error:
+                drain_coro.close()
+                log.debug("Could not drain tunnel loop cleanly: %s", drain_error)
         try:
             if loop.is_running():
                 loop.call_soon_threadsafe(loop.stop)
-        except Exception:
+        except RuntimeError:
             log.debug("Could not stop tunnel loop cleanly")
         if loop_thread.is_alive():
             loop_thread.join(timeout=5)
@@ -637,7 +692,14 @@ class ManageSshTunnel:
                 return tunnel
 
             self._log.error("Could not establish tunnel, health probe failed")
-        except Exception as ex_msg:
+        except (
+            concurrent.futures.TimeoutError,
+            concurrent.futures.CancelledError,
+            RuntimeError,
+            OSError,
+            SSHTunnelError,
+            asyncssh.Error,
+        ) as ex_msg:
             self._log.error("Could not establish tunnel: %s", ex_msg)
         return None
 
@@ -656,7 +718,7 @@ class ManageSshTunnel:
                 self._log.info("Removing tunnel %s", tunnel_key)
                 try:
                     tunnel.close()
-                except Exception:
+                except (SSHTunnelError, RuntimeError, OSError, asyncssh.Error):
                     self._log.warning("Could not stop tunnel before removing")
                 with self._lock:
                     self._tunnels.pop(tunnel_key, None)
@@ -683,7 +745,7 @@ class ManageSshTunnel:
             self._log.info("Refreshing tunnel %s", tunnel_key)
             try:
                 tunnel.close()
-            except Exception:
+            except (SSHTunnelError, RuntimeError, OSError, asyncssh.Error):
                 self._log.warning("Could not stop tunnel before refresh")
             # keep tunnel metadata so subsequent refresh attempts can try again
             recreated = self.create_tunnel(
@@ -1001,7 +1063,7 @@ class NodeHandle(RequestGeneral):
         """
         try:
             node = handle_ref()
-        except Exception:  # pragma: no cover - defensive
+        except (TypeError, ReferenceError):  # pragma: no cover - defensive
             node = None
 
         if node:
@@ -1228,7 +1290,7 @@ class MSHandle(RequestGeneral):
 
         try:
             ms_handle = handle_ref()
-        except Exception:  # pragma: no cover - defensive
+        except (TypeError, ReferenceError):  # pragma: no cover - defensive
             ms_handle = None
 
         if ms_handle:
