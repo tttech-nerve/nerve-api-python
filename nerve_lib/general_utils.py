@@ -61,7 +61,8 @@ import paramiko
 import requests
 import urllib3
 from requests_toolbelt import MultipartEncoder
-from scp import SCPClient, SCPException
+from scp import SCPClient
+from scp import SCPException
 
 urllib3.disable_warnings()
 
@@ -74,21 +75,32 @@ def setup_logging(compact=False):
         - DEBUG_LOG_FILE: file name of a log file which will contain all logs including debug output
     """
     # remove all handlers which are NOTSET
-    logging.root.handlers = [handler for handler in logging.root.handlers if handler.level != logging.NOTSET]
+    logging.root.handlers = [
+        handler
+        for handler in logging.root.handlers
+        if not (
+            handler.level == logging.NOTSET
+            and isinstance(handler, (logging.StreamHandler, logging.FileHandler))
+        )
+    ]
 
     # add stream handler
     stream_handler_configured = any(
         isinstance(handler, logging.StreamHandler) for handler in logging.root.handlers
     )
     if not stream_handler_configured:
-        logging.basicConfig(
-            level=logging.DEBUG,
-            format="{levelname:<7} {name:<20.20} :: {message}"
+        stream_handler = logging.StreamHandler()
+        formatter = logging.Formatter(
+            "{levelname:<7} {name:<20.20} :: {message}"
             if compact
             else "{levelname:<7} {name:<35.35} {filename:>20.20}-{lineno:<4} :: {message}",
             style="{",
         )
-        logging.root.handlers[-1].setLevel(os.environ.get("LOGGING_LEVEL", "INFO").upper())
+        stream_handler.setFormatter(formatter)
+        stream_handler.setLevel(os.environ.get("LOGGING_LEVEL", "INFO").upper())
+        logging.getLogger().addHandler(stream_handler)
+        logging.getLogger().setLevel("NOTSET")  # Set root-logger level
+
         logging.getLogger("paramiko").setLevel(logging.WARNING)
         logging.getLogger("paramiko.transport").setLevel(logging.CRITICAL)  # Suppress paramiko debug messages
         logging.getLogger("pykeepass").setLevel(logging.WARNING)
@@ -101,7 +113,6 @@ def setup_logging(compact=False):
             isinstance(handler, logging.FileHandler) for handler in logging.root.handlers
         )
         if not file_handler_configured:
-            logger = logging.getLogger()
             file_handler = logging.FileHandler(os.environ.get("DEBUG_LOG_FILE"))
             formatter = logging.Formatter(
                 "{asctime} {levelname:<7} {name:<25} {filename:>25.25}-{lineno:<4} :: {message}",
@@ -109,7 +120,7 @@ def setup_logging(compact=False):
             )
             file_handler.setFormatter(formatter)
             file_handler.setLevel(logging.DEBUG)
-            logger.addHandler(file_handler)
+            logging.getLogger().addHandler(file_handler)
 
 
 class CheckStatusCodeError(Exception):
@@ -299,12 +310,13 @@ class SshGeneral:
 
     def __init__(
         self, ip_addr: str, user: str = "", password: str = "", logger: logging.Logger | None = None
-    ):
+    ):  # nosec B107
         setup_logging()
         self.ip_addr = ip_addr
         self._ssh_usr = user or os.environ.get("SSH_USR")
         self._ssh_psw = password or os.environ.get("SSH_PSW")
         self._log = logger.getChild("SSH") if logger else logging.getLogger(f"SSH-{ip_addr}")
+        self._ssh_connection = None
 
     def __enter__(self):
         """Enter function when using with statement."""
@@ -312,6 +324,8 @@ class SshGeneral:
 
     def __exit__(self, *args):
         """Exit function when using with statement."""
+        if self._ssh_connection:
+            self._ssh_connection.close()
 
     def connect(self, timeout: float = 30.0, key: str | None = None, compress: bool = False) -> type:
         """Create an ssh connection to a device.
@@ -331,6 +345,12 @@ class SshGeneral:
             get handle of a paramiko.SSHClient object.
 
         """
+        if (
+            self._ssh_connection
+            and self._ssh_connection.get_transport()
+            and self._ssh_connection.get_transport().is_active()
+        ):
+            return self._ssh_connection
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ip_addr = self.ip_addr[0] if type(self.ip_addr) is tuple else self.ip_addr
@@ -354,7 +374,7 @@ class SshGeneral:
                 timeout=timeout,
                 compress=compress,
             )
-
+        self._ssh_connection = ssh
         return ssh
 
     def execute(
@@ -398,9 +418,12 @@ class SshGeneral:
         _stdin, stdout, stderr = ssh_.exec_command(cmd, timeout=timeout)
         output += "".join(stdout.readlines())
         output += "".join(stderr.readlines())
-        if not ssh:
-            ssh_.close()
         return output.replace("[sudo] password for admin: ", "")
+
+    def __del__(self):
+        """Destructor to ensure that the ssh connection is closed when the object is deleted."""
+        if self._ssh_connection:
+            self._ssh_connection.close()
 
     def reboot(self):
         """Execute a reboot command over ssh on a device."""
@@ -995,9 +1018,9 @@ class NodeHandle(RequestGeneral):
         local_bind_port: int = 3333,
         logger: logging.Logger | None = None,
     ):
-        if local_ui_ip_addr == ip_addr:
-            assert local_bind_port == local_ui_port, (
-                "local_bind_port must be the same as local_ui_port if local_ui_ip_addr is the same as ip_addr"
+        if local_ui_ip_addr == ip_addr and local_bind_port == local_ui_port:
+            raise ValueError(
+                "local_bind_port must be different from local_ui_port if local_ui_ip_addr is the same as ip_addr"
             )
 
         super().__init__(
@@ -1068,7 +1091,12 @@ class NodeHandle(RequestGeneral):
 
         if node:
             if node._is_logged_in:
-                node.logout()  # close session before closing tunnels
+                try:
+                    node.logout()  # close session before closing tunnels
+                except SSHTunnelError:
+                    node._log.warning(
+                        "Could not logout cleanly during cleanup as tunnel to node cannot be established"
+                    )
             if hasattr(node, "ssh_tunnel") and node.ssh_tunnel:
                 node.ssh_tunnel._finalizer()
 
@@ -1173,7 +1201,7 @@ class NodeHandle(RequestGeneral):
         self.ssh._ssh_usr = user
         self.ssh._ssh_psw = password
 
-    def login(self, user: str = "", password: str = "", **kwargs):
+    def login(self, user: str = "", password: str = "", **kwargs):  # nosec B107
         """Login to Node.
 
         Allows to switch user when providing user/password, otherwise will use existing credentials.
@@ -1247,7 +1275,7 @@ class MSHandle(RequestGeneral):
         password to logon on MS. The default is ENV-var MS_PSW.
     """
 
-    def __init__(self, ms_url: str, user: str = "", password: str = ""):
+    def __init__(self, ms_url: str, user: str = "", password: str = ""):  # nosec B107
         if ms_url.startswith("http"):
             self.ms_url = ms_url.split("://")[1]
             super().__init__(url=ms_url, api_path="/", log=logging.getLogger(f"MS-{ms_url}"))
@@ -1346,7 +1374,7 @@ class MSHandle(RequestGeneral):
         """Execute a request on the MS."""
         accepted_status = kwargs.get("accepted_status", [requests.codes.ok, requests.codes.no_content])
         adding_error_handling = []
-        for error_code in [requests.codes.forbidden]:
+        for error_code in [requests.codes.forbidden, requests.codes.unauthorized]:
             if error_code not in accepted_status:
                 accepted_status.append(error_code)
                 adding_error_handling.append(error_code)
@@ -1373,7 +1401,7 @@ class MSHandle(RequestGeneral):
             if response.status_code in adding_error_handling:
                 if retry_count > 0:
                     break
-                if response.status_code == requests.codes.forbidden:
+                if response.status_code in {requests.codes.forbidden, requests.codes.unauthorized}:
                     self._log.debug("No valid login, trying to login on MS: %s", response.text)
                     self.login()
                     retry_count += 1
@@ -1396,7 +1424,7 @@ class MSHandle(RequestGeneral):
             super()._check_response(method, response, accepted_status)
         return response
 
-    def login(self, user: str = "", password: str = "", **kwargs) -> type:
+    def login(self, user: str = "", password: str = "", **kwargs) -> type:  # nosec B107
         """Login on MS.
 
         Allows to switch user when providing user/password, otherwise will use existing credentials.
@@ -1422,9 +1450,9 @@ class MSHandle(RequestGeneral):
         response = self.post(
             url="/auth/login",
             json={"identity": self.usr, "secret": self.psw},
-            accepted_status=[requests.codes.ok, requests.codes.forbidden],
+            accepted_status=[requests.codes.ok, requests.codes.forbidden, requests.codes.unauthorized],
         )
-        if response.status_code == requests.codes.forbidden:
+        if response.status_code in {requests.codes.forbidden, requests.codes.unauthorized}:
             self._is_logged_in = False
             super()._check_response("post", response, [requests.codes.ok])  # will raise error
         self._add_header["sessionid"] = f"{response.headers['sessionId']}"
@@ -1438,7 +1466,12 @@ class MSHandle(RequestGeneral):
         if self.version_smaller_than("2.10.0"):
             response = self.get("/auth/logout", accepted_status=[requests.codes.ok, requests.codes.forbidden])
         response = self.get(
-            "/auth/logout", accepted_status=[requests.codes.no_content, requests.codes.forbidden]
+            "/auth/logout",
+            accepted_status=[
+                requests.codes.no_content,
+                requests.codes.forbidden,
+                requests.codes.unauthorized,
+            ],
         )
         self._is_logged_in = False
         return response

@@ -102,7 +102,12 @@ el.replaceWith(d);
         ).json()
 
     def test_connection(
-        self, url: str, port=389, bind_dn=&#34;cn=admin,dc=tttech,dc=com&#34;, password=&#34;Passw0rd&#34;, secure=False
+        self,
+        url: str,
+        port=389,
+        bind_dn=&#34;&#34;,
+        password=&#34;&#34;,  # nosec B107
+        secure=False,
     ):
         &#34;&#34;&#34;Test LDAP server connection.
 
@@ -112,6 +117,12 @@ el.replaceWith(d);
             URL of the LDAP server.
         port : int
             Port of the LDAP server. Port 389 is the default port for unencrypted LDAP communication.
+        bind_dn : str
+            Bind DN of the LDAP server.
+        password : str
+            Password of the LDAP server.
+        secure : bool
+            Enable TLS for LDAP communication (switching between unecrypted and encrypted ports).
 
         Returns
         -------
@@ -233,13 +244,13 @@ el.replaceWith(d);
 
     def ldap_payload(
         self,
+        url: str,
         file_name: str = &#34;&#34;,
         name: str = &#34;ldap_config&#34;,
-        url: str = &#34;ldap.dev.nerve.cloud&#34;,
         port: int = 389,
         active: bool = False,
-        bind_dn: str = &#34;cn=admin,dc=tttech,dc=com&#34;,
-        password: str = &#34;Passw0rd&#34;,
+        bind_dn: str = &#34;&#34;,
+        password: str = &#34;&#34;,  # nosec B107
         tls: bool = False,
         recurring_sync=None,
         relationship=None,
@@ -321,7 +332,9 @@ el.replaceWith(d);
             &#34;groups&#34;: groups,
         }
 
-    def query_groups(self, search_base=&#34;&#34;, filter=&#34;&#34;, group_name=&#34;&#34;, admin_group=&#34;&#34;, default_role=&#34;&#34;):
+    def query_groups(
+        self, password, search_base=&#34;&#34;, filter=&#34;&#34;, group_name=&#34;&#34;, admin_group=&#34;&#34;, default_role=&#34;&#34;
+    ):
         &#34;&#34;&#34;Query groups from LDAP configuration.
 
         Parameters
@@ -343,13 +356,23 @@ el.replaceWith(d);
             groups query response
         &#34;&#34;&#34;
         group_payload = self.groups(search_base, filter, group_name, admin_group, default_role)
-        ldap_payload = self.ldap_payload(users=&#34;0&#34;, groups=group_payload)
+        ldap_payload = self.get_default()
+        ldap_payload[&#34;fileName&#34;] = ldap_payload[&#34;file&#34;]
+        ldap_payload.pop(&#34;file&#34;, None)
+        ldap_payload.pop(&#34;initiator&#34;, None)
+        ldap_payload.pop(&#34;urlInfo&#34;, None)
+        ldap_payload.pop(&#34;users&#34;, None)
+
+        ldap_payload[&#34;groups&#34;] = group_payload
+        ldap_payload[&#34;password&#34;] = password
         payload = {&#34;ldap&#34;: ldap_payload, &#34;paging&#34;: {&#34;limit&#34;: 10, &#34;page&#34;: 1}}
         return self.ms.post(
             &#34;/nerve/ldap/query/groups&#34;, json=payload, accepted_status=[requests.codes.ok]
         ).json()
 
-    def query_users(self, search_base=&#34;&#34;, filter=&#34;&#34;, first_name=&#34;&#34;, last_name=&#34;&#34;, email=&#34;&#34;, username=&#34;&#34;):
+    def query_users(
+        self, password, search_base=&#34;&#34;, filter=&#34;&#34;, first_name=&#34;&#34;, last_name=&#34;&#34;, email=&#34;&#34;, username=&#34;&#34;
+    ):
         &#34;&#34;&#34;Query users from LDAP configuration.
 
         Parameters
@@ -373,7 +396,16 @@ el.replaceWith(d);
             users query response
         &#34;&#34;&#34;
         user_payload = self.users(search_base, filter, first_name, last_name, email, username)
-        ldap_payload = self.ldap_payload(users=user_payload, groups=&#34;0&#34;)
+
+        ldap_payload = self.get_default()
+        ldap_payload[&#34;fileName&#34;] = ldap_payload[&#34;file&#34;]
+        ldap_payload.pop(&#34;file&#34;, None)
+        ldap_payload.pop(&#34;initiator&#34;, None)
+        ldap_payload.pop(&#34;urlInfo&#34;, None)
+        ldap_payload.pop(&#34;groups&#34;, None)
+
+        ldap_payload[&#34;users&#34;] = user_payload
+        ldap_payload[&#34;password&#34;] = password
         payload = {&#34;ldap&#34;: ldap_payload, &#34;paging&#34;: {&#34;limit&#34;: 10, &#34;page&#34;: 1}}
         return self.ms.post(
             &#34;/nerve/ldap/query/users&#34;, json=payload, accepted_status=[requests.codes.ok]
@@ -403,11 +435,7 @@ el.replaceWith(d);
         self,
         action: str,
         file_name: str,
-        ldap_payload: dict | None = None,
-        recurring_sync=None,
-        relationship=None,
-        users=None,
-        groups=None,
+        ldap_payload: dict,
     ):
         &#34;&#34;&#34;
         Send LDAP configuration payload with populated data from other functions.
@@ -418,53 +446,27 @@ el.replaceWith(d);
             Action to perform on the LDAP configuration. Can be either &#34;sync&#34; or &#34;save&#34;.
         file_name : str
             File name of the saved configuration.
-        name : str
-            LDAP configuration name on MS.
-        url : str
-            URL of the LDAP server.
-        port : int
-            Port of the LDAP server.
-        active : bool
-            Status of the LDAP configuration.
-        bind_dn : str
-            Bind DN of the LDAP server.
-        password : str
-            Password of the LDAP server.
-        tls : bool
-            Enable TLS for LDAP communication.
+        ldap_payload : dict
+            LDAP configuration payload.
 
         Returns
         -------
         dict
             Response from the request.
         &#34;&#34;&#34;
-        # Populate each component of the payload if not provided
-        recurring_sync = recurring_sync or self.recurring_sync()
-        relationship = relationship or self.relationship()
-        users = users or self.users()
-        groups = groups or self.groups()
-
-        # Create the full LDAP payload
-        payload = ldap_payload or self.ldap_payload(
-            file_name=file_name,
-            name=file_name,
-            recurring_sync=recurring_sync,
-            relationship=relationship,
-            users=users,
-            groups=groups,
-        )
-
         if action == &#34;save&#34;:
             # Send the POST request
-            return self.ms.post(&#34;/nerve/ldap&#34;, json=payload, accepted_status=[requests.codes.ok]).json()
+            return self.ms.post(&#34;/nerve/ldap&#34;, json=ldap_payload, accepted_status=[requests.codes.ok]).json()
         if action == &#34;update&#34;:
             # Send the PUT request
             return self.ms.put(
-                f&#34;/nerve/ldap/{file_name}&#34;, json=payload, accepted_status=[requests.codes.ok]
+                f&#34;/nerve/ldap/{file_name}&#34;, json=ldap_payload, accepted_status=[requests.codes.ok]
             ).json()
         if action == &#34;sync&#34;:
             # Send the POST request
-            return self.ms.post(&#34;/nerve/ldap/sync&#34;, json=payload, accepted_status=[requests.codes.ok]).json()
+            return self.ms.post(
+                &#34;/nerve/ldap/sync&#34;, json=ldap_payload, accepted_status=[requests.codes.ok]
+            ).json()
 
         err_msg = f&#34;Invalid action for function save_sync_ldap: {action}&#34;
         raise ValueError(err_msg)</code></pre>
@@ -634,7 +636,7 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
 <div class="desc"><p>Get default LDAP configuration.</p></div>
 </dd>
 <dt id="nerve_lib.manage_access.LDAP.ldap_payload"><code class="name flex">
-<span>def <span class="ident">ldap_payload</span></span>(<span>self,<br>file_name: str = '',<br>name: str = 'ldap_config',<br>url: str = 'ldap.dev.nerve.cloud',<br>port: int = 389,<br>active: bool = False,<br>bind_dn: str = 'cn=admin,dc=tttech,dc=com',<br>password: str = 'Passw0rd',<br>tls: bool = False,<br>recurring_sync=None,<br>relationship=None,<br>users=None,<br>groups=None)</span>
+<span>def <span class="ident">ldap_payload</span></span>(<span>self,<br>url: str,<br>file_name: str = '',<br>name: str = 'ldap_config',<br>port: int = 389,<br>active: bool = False,<br>bind_dn: str = '',<br>password: str = '',<br>tls: bool = False,<br>recurring_sync=None,<br>relationship=None,<br>users=None,<br>groups=None)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -643,13 +645,13 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
 </summary>
 <pre><code class="python">def ldap_payload(
     self,
+    url: str,
     file_name: str = &#34;&#34;,
     name: str = &#34;ldap_config&#34;,
-    url: str = &#34;ldap.dev.nerve.cloud&#34;,
     port: int = 389,
     active: bool = False,
-    bind_dn: str = &#34;cn=admin,dc=tttech,dc=com&#34;,
-    password: str = &#34;Passw0rd&#34;,
+    bind_dn: str = &#34;&#34;,
+    password: str = &#34;&#34;,  # nosec B107
     tls: bool = False,
     recurring_sync=None,
     relationship=None,
@@ -758,14 +760,16 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
 </dl></div>
 </dd>
 <dt id="nerve_lib.manage_access.LDAP.query_groups"><code class="name flex">
-<span>def <span class="ident">query_groups</span></span>(<span>self, search_base='', filter='', group_name='', admin_group='', default_role='')</span>
+<span>def <span class="ident">query_groups</span></span>(<span>self,<br>password,<br>search_base='',<br>filter='',<br>group_name='',<br>admin_group='',<br>default_role='')</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def query_groups(self, search_base=&#34;&#34;, filter=&#34;&#34;, group_name=&#34;&#34;, admin_group=&#34;&#34;, default_role=&#34;&#34;):
+<pre><code class="python">def query_groups(
+    self, password, search_base=&#34;&#34;, filter=&#34;&#34;, group_name=&#34;&#34;, admin_group=&#34;&#34;, default_role=&#34;&#34;
+):
     &#34;&#34;&#34;Query groups from LDAP configuration.
 
     Parameters
@@ -787,7 +791,15 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
         groups query response
     &#34;&#34;&#34;
     group_payload = self.groups(search_base, filter, group_name, admin_group, default_role)
-    ldap_payload = self.ldap_payload(users=&#34;0&#34;, groups=group_payload)
+    ldap_payload = self.get_default()
+    ldap_payload[&#34;fileName&#34;] = ldap_payload[&#34;file&#34;]
+    ldap_payload.pop(&#34;file&#34;, None)
+    ldap_payload.pop(&#34;initiator&#34;, None)
+    ldap_payload.pop(&#34;urlInfo&#34;, None)
+    ldap_payload.pop(&#34;users&#34;, None)
+
+    ldap_payload[&#34;groups&#34;] = group_payload
+    ldap_payload[&#34;password&#34;] = password
     payload = {&#34;ldap&#34;: ldap_payload, &#34;paging&#34;: {&#34;limit&#34;: 10, &#34;page&#34;: 1}}
     return self.ms.post(
         &#34;/nerve/ldap/query/groups&#34;, json=payload, accepted_status=[requests.codes.ok]
@@ -814,14 +826,16 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
 </dl></div>
 </dd>
 <dt id="nerve_lib.manage_access.LDAP.query_users"><code class="name flex">
-<span>def <span class="ident">query_users</span></span>(<span>self, search_base='', filter='', first_name='', last_name='', email='', username='')</span>
+<span>def <span class="ident">query_users</span></span>(<span>self,<br>password,<br>search_base='',<br>filter='',<br>first_name='',<br>last_name='',<br>email='',<br>username='')</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def query_users(self, search_base=&#34;&#34;, filter=&#34;&#34;, first_name=&#34;&#34;, last_name=&#34;&#34;, email=&#34;&#34;, username=&#34;&#34;):
+<pre><code class="python">def query_users(
+    self, password, search_base=&#34;&#34;, filter=&#34;&#34;, first_name=&#34;&#34;, last_name=&#34;&#34;, email=&#34;&#34;, username=&#34;&#34;
+):
     &#34;&#34;&#34;Query users from LDAP configuration.
 
     Parameters
@@ -845,7 +859,16 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
         users query response
     &#34;&#34;&#34;
     user_payload = self.users(search_base, filter, first_name, last_name, email, username)
-    ldap_payload = self.ldap_payload(users=user_payload, groups=&#34;0&#34;)
+
+    ldap_payload = self.get_default()
+    ldap_payload[&#34;fileName&#34;] = ldap_payload[&#34;file&#34;]
+    ldap_payload.pop(&#34;file&#34;, None)
+    ldap_payload.pop(&#34;initiator&#34;, None)
+    ldap_payload.pop(&#34;urlInfo&#34;, None)
+    ldap_payload.pop(&#34;groups&#34;, None)
+
+    ldap_payload[&#34;users&#34;] = user_payload
+    ldap_payload[&#34;password&#34;] = password
     payload = {&#34;ldap&#34;: ldap_payload, &#34;paging&#34;: {&#34;limit&#34;: 10, &#34;page&#34;: 1}}
     return self.ms.post(
         &#34;/nerve/ldap/query/users&#34;, json=payload, accepted_status=[requests.codes.ok]
@@ -874,7 +897,7 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
 </dl></div>
 </dd>
 <dt id="nerve_lib.manage_access.LDAP.save_sync_ldap"><code class="name flex">
-<span>def <span class="ident">save_sync_ldap</span></span>(<span>self,<br>action: str,<br>file_name: str,<br>ldap_payload: dict | None = None,<br>recurring_sync=None,<br>relationship=None,<br>users=None,<br>groups=None)</span>
+<span>def <span class="ident">save_sync_ldap</span></span>(<span>self, action: str, file_name: str, ldap_payload: dict)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -885,11 +908,7 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
     self,
     action: str,
     file_name: str,
-    ldap_payload: dict | None = None,
-    recurring_sync=None,
-    relationship=None,
-    users=None,
-    groups=None,
+    ldap_payload: dict,
 ):
     &#34;&#34;&#34;
     Send LDAP configuration payload with populated data from other functions.
@@ -900,53 +919,27 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
         Action to perform on the LDAP configuration. Can be either &#34;sync&#34; or &#34;save&#34;.
     file_name : str
         File name of the saved configuration.
-    name : str
-        LDAP configuration name on MS.
-    url : str
-        URL of the LDAP server.
-    port : int
-        Port of the LDAP server.
-    active : bool
-        Status of the LDAP configuration.
-    bind_dn : str
-        Bind DN of the LDAP server.
-    password : str
-        Password of the LDAP server.
-    tls : bool
-        Enable TLS for LDAP communication.
+    ldap_payload : dict
+        LDAP configuration payload.
 
     Returns
     -------
     dict
         Response from the request.
     &#34;&#34;&#34;
-    # Populate each component of the payload if not provided
-    recurring_sync = recurring_sync or self.recurring_sync()
-    relationship = relationship or self.relationship()
-    users = users or self.users()
-    groups = groups or self.groups()
-
-    # Create the full LDAP payload
-    payload = ldap_payload or self.ldap_payload(
-        file_name=file_name,
-        name=file_name,
-        recurring_sync=recurring_sync,
-        relationship=relationship,
-        users=users,
-        groups=groups,
-    )
-
     if action == &#34;save&#34;:
         # Send the POST request
-        return self.ms.post(&#34;/nerve/ldap&#34;, json=payload, accepted_status=[requests.codes.ok]).json()
+        return self.ms.post(&#34;/nerve/ldap&#34;, json=ldap_payload, accepted_status=[requests.codes.ok]).json()
     if action == &#34;update&#34;:
         # Send the PUT request
         return self.ms.put(
-            f&#34;/nerve/ldap/{file_name}&#34;, json=payload, accepted_status=[requests.codes.ok]
+            f&#34;/nerve/ldap/{file_name}&#34;, json=ldap_payload, accepted_status=[requests.codes.ok]
         ).json()
     if action == &#34;sync&#34;:
         # Send the POST request
-        return self.ms.post(&#34;/nerve/ldap/sync&#34;, json=payload, accepted_status=[requests.codes.ok]).json()
+        return self.ms.post(
+            &#34;/nerve/ldap/sync&#34;, json=ldap_payload, accepted_status=[requests.codes.ok]
+        ).json()
 
     err_msg = f&#34;Invalid action for function save_sync_ldap: {action}&#34;
     raise ValueError(err_msg)</code></pre>
@@ -958,20 +951,8 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
 <dd>Action to perform on the LDAP configuration. Can be either "sync" or "save".</dd>
 <dt><strong><code>file_name</code></strong> :&ensp;<code>str</code></dt>
 <dd>File name of the saved configuration.</dd>
-<dt><strong><code>name</code></strong> :&ensp;<code>str</code></dt>
-<dd>LDAP configuration name on MS.</dd>
-<dt><strong><code>url</code></strong> :&ensp;<code>str</code></dt>
-<dd>URL of the LDAP server.</dd>
-<dt><strong><code>port</code></strong> :&ensp;<code>int</code></dt>
-<dd>Port of the LDAP server.</dd>
-<dt><strong><code>active</code></strong> :&ensp;<code>bool</code></dt>
-<dd>Status of the LDAP configuration.</dd>
-<dt><strong><code>bind_dn</code></strong> :&ensp;<code>str</code></dt>
-<dd>Bind DN of the LDAP server.</dd>
-<dt><strong><code>password</code></strong> :&ensp;<code>str</code></dt>
-<dd>Password of the LDAP server.</dd>
-<dt><strong><code>tls</code></strong> :&ensp;<code>bool</code></dt>
-<dd>Enable TLS for LDAP communication.</dd>
+<dt><strong><code>ldap_payload</code></strong> :&ensp;<code>dict</code></dt>
+<dd>LDAP configuration payload.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
@@ -1022,7 +1003,7 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
 </dl></div>
 </dd>
 <dt id="nerve_lib.manage_access.LDAP.test_connection"><code class="name flex">
-<span>def <span class="ident">test_connection</span></span>(<span>self,<br>url: str,<br>port=389,<br>bind_dn='cn=admin,dc=tttech,dc=com',<br>password='Passw0rd',<br>secure=False)</span>
+<span>def <span class="ident">test_connection</span></span>(<span>self, url: str, port=389, bind_dn='', password='', secure=False)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1030,7 +1011,12 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def test_connection(
-    self, url: str, port=389, bind_dn=&#34;cn=admin,dc=tttech,dc=com&#34;, password=&#34;Passw0rd&#34;, secure=False
+    self,
+    url: str,
+    port=389,
+    bind_dn=&#34;&#34;,
+    password=&#34;&#34;,  # nosec B107
+    secure=False,
 ):
     &#34;&#34;&#34;Test LDAP server connection.
 
@@ -1040,6 +1026,12 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
         URL of the LDAP server.
     port : int
         Port of the LDAP server. Port 389 is the default port for unencrypted LDAP communication.
+    bind_dn : str
+        Bind DN of the LDAP server.
+    password : str
+        Password of the LDAP server.
+    secure : bool
+        Enable TLS for LDAP communication (switching between unecrypted and encrypted ports).
 
     Returns
     -------
@@ -1061,6 +1053,12 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
 <dd>URL of the LDAP server.</dd>
 <dt><strong><code>port</code></strong> :&ensp;<code>int</code></dt>
 <dd>Port of the LDAP server. Port 389 is the default port for unencrypted LDAP communication.</dd>
+<dt><strong><code>bind_dn</code></strong> :&ensp;<code>str</code></dt>
+<dd>Bind DN of the LDAP server.</dd>
+<dt><strong><code>password</code></strong> :&ensp;<code>str</code></dt>
+<dd>Password of the LDAP server.</dd>
+<dt><strong><code>secure</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Enable TLS for LDAP communication (switching between unecrypted and encrypted ports).</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
@@ -1598,17 +1596,21 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
     def get(self, email=&#34;&#34;, role_type=&#34;local&#34;):
         &#34;&#34;&#34;Get a list of users.&#34;&#34;&#34;
         user_list = self.ms.get(
-            &#34;/crm/profiles?limit=500&#34;,
-            params=[{&#34;filterBy[type]&#34;, role_type}],
+            &#34;/crm/profile/list&#34; if self.ms.version_smaller_than(&#34;3.2.0&#34;) else &#34;/crm/profiles&#34;,
+            params={&#34;limit&#34;: 500, &#34;filterBy[type]&#34;: role_type},
             accepted_status=[requests.codes.ok],
         ).json()
         if email:
             try:
-                return next(user for user in user_list[&#34;profiles&#34;] if user[&#34;username&#34;] == email)
+                return next(
+                    user
+                    for user in user_list[&#34;data&#34; if self.ms.version_smaller_than(&#34;3.2.0&#34;) else &#34;profiles&#34;]
+                    if user[&#34;username&#34;] == email
+                )
             except StopIteration:
                 msg = (
                     f&#34;User &#39;{email}&#39; not in role_type &#39;{role_type}&#39; &#34;
-                    f&#34;({[user[&#39;username&#39;] for user in user_list[&#39;profiles&#39;]]}&#34;
+                    f&#34;({[user[&#39;username&#39;] for user in user_list[&#39;data&#39; if self.ms.version_smaller_than(&#39;3.2.0&#39;) else &#39;profiles&#39;]]})&#34;
                 )
                 raise ValueError(msg)
         return user_list
@@ -1661,17 +1663,12 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
             payload[&#34;lastName&#34;] = last_name
 
         payload[&#34;profileImgURL&#34;] = &#34;&#34;
-
         payload[&#34;id&#34;] = payload.pop(&#34;_id&#34;)
-
         payload[&#34;mfaEnabled&#34;] = False
 
         payload.pop(&#34;auth&#34;, None)
-
         payload.pop(&#34;created&#34;, None)
-
         payload.pop(&#34;preferences&#34;, None)
-
         payload.pop(&#34;type&#34;, None)
 
         m_enc_data = {&#34;data&#34;: (None, json.dumps(payload), &#34;form-data&#34;)}
@@ -1695,7 +1692,7 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
         last_name=&#34;&#34;,
         old_password=&#34;&#34;,
         new_password=&#34;&#34;,
-        confirm_new_password=&#34;&#34;,
+        confirm_new_password=&#34;&#34;,  # nosec B107
         user_id=&#34;&#34;,
     ):
         &#34;&#34;&#34;Edit an personal user.&#34;&#34;&#34;
@@ -1713,11 +1710,17 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
             &#34;newPassword&#34;: new_password,
             &#34;confirmPassword&#34;: confirm_new_password,
         }
+        if self.ms.version_smaller_than(&#34;3.2.0&#34;):
+            payload[&#34;preferredLanguage&#34;] = &#34;en_EN&#34;
+        if not old_password and not new_password and not confirm_new_password:
+            payload.pop(&#34;currentPassword&#34;)
+            payload.pop(&#34;newPassword&#34;)
+            payload.pop(&#34;confirmPassword&#34;)
 
         m_enc_data = {&#34;data&#34;: (None, json.dumps(payload), &#34;form-data&#34;)}
 
         response = self.ms.put(
-            &#34;/crm/personal-profile&#34;,
+            &#34;/crm/personalProfile&#34; if self.ms.version_smaller_than(&#34;3.2.0&#34;) else &#34;/crm/personal-profile&#34;,
             m_enc_data=m_enc_data,
             accepted_status=[requests.codes.ok],
         )
@@ -1810,17 +1813,12 @@ handle to node 'nerve_lib.general_utils.NodeHandle(&hellip;)'.</p></div>
         payload[&#34;lastName&#34;] = last_name
 
     payload[&#34;profileImgURL&#34;] = &#34;&#34;
-
     payload[&#34;id&#34;] = payload.pop(&#34;_id&#34;)
-
     payload[&#34;mfaEnabled&#34;] = False
 
     payload.pop(&#34;auth&#34;, None)
-
     payload.pop(&#34;created&#34;, None)
-
     payload.pop(&#34;preferences&#34;, None)
-
     payload.pop(&#34;type&#34;, None)
 
     m_enc_data = {&#34;data&#34;: (None, json.dumps(payload), &#34;form-data&#34;)}
@@ -1845,17 +1843,21 @@ handle to node 'nerve_lib.general_utils.NodeHandle(&hellip;)'.</p></div>
 <pre><code class="python">def get(self, email=&#34;&#34;, role_type=&#34;local&#34;):
     &#34;&#34;&#34;Get a list of users.&#34;&#34;&#34;
     user_list = self.ms.get(
-        &#34;/crm/profiles?limit=500&#34;,
-        params=[{&#34;filterBy[type]&#34;, role_type}],
+        &#34;/crm/profile/list&#34; if self.ms.version_smaller_than(&#34;3.2.0&#34;) else &#34;/crm/profiles&#34;,
+        params={&#34;limit&#34;: 500, &#34;filterBy[type]&#34;: role_type},
         accepted_status=[requests.codes.ok],
     ).json()
     if email:
         try:
-            return next(user for user in user_list[&#34;profiles&#34;] if user[&#34;username&#34;] == email)
+            return next(
+                user
+                for user in user_list[&#34;data&#34; if self.ms.version_smaller_than(&#34;3.2.0&#34;) else &#34;profiles&#34;]
+                if user[&#34;username&#34;] == email
+            )
         except StopIteration:
             msg = (
                 f&#34;User &#39;{email}&#39; not in role_type &#39;{role_type}&#39; &#34;
-                f&#34;({[user[&#39;username&#39;] for user in user_list[&#39;profiles&#39;]]}&#34;
+                f&#34;({[user[&#39;username&#39;] for user in user_list[&#39;data&#39; if self.ms.version_smaller_than(&#39;3.2.0&#39;) else &#39;profiles&#39;]]})&#34;
             )
             raise ValueError(msg)
     return user_list</code></pre>
@@ -1877,7 +1879,7 @@ handle to node 'nerve_lib.general_utils.NodeHandle(&hellip;)'.</p></div>
     last_name=&#34;&#34;,
     old_password=&#34;&#34;,
     new_password=&#34;&#34;,
-    confirm_new_password=&#34;&#34;,
+    confirm_new_password=&#34;&#34;,  # nosec B107
     user_id=&#34;&#34;,
 ):
     &#34;&#34;&#34;Edit an personal user.&#34;&#34;&#34;
@@ -1895,11 +1897,17 @@ handle to node 'nerve_lib.general_utils.NodeHandle(&hellip;)'.</p></div>
         &#34;newPassword&#34;: new_password,
         &#34;confirmPassword&#34;: confirm_new_password,
     }
+    if self.ms.version_smaller_than(&#34;3.2.0&#34;):
+        payload[&#34;preferredLanguage&#34;] = &#34;en_EN&#34;
+    if not old_password and not new_password and not confirm_new_password:
+        payload.pop(&#34;currentPassword&#34;)
+        payload.pop(&#34;newPassword&#34;)
+        payload.pop(&#34;confirmPassword&#34;)
 
     m_enc_data = {&#34;data&#34;: (None, json.dumps(payload), &#34;form-data&#34;)}
 
     response = self.ms.put(
-        &#34;/crm/personal-profile&#34;,
+        &#34;/crm/personalProfile&#34; if self.ms.version_smaller_than(&#34;3.2.0&#34;) else &#34;/crm/personal-profile&#34;,
         m_enc_data=m_enc_data,
         accepted_status=[requests.codes.ok],
     )

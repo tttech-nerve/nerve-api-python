@@ -98,15 +98,28 @@ el.replaceWith(d);
 
     def create(self, text_header, text_msg, image_path=&#34;&#34;, active=True, show_before_login=False):
         &#34;&#34;&#34;Create a new notification item.&#34;&#34;&#34;
-        with open(image_path, &#34;rb&#34;) if image_path else None as image_open:
+        if image_path:
+            with open(image_path, &#34;rb&#34;) as image_open:
+                m_enc_data = self.__prepare_content(
+                    text_header, text_msg, image_path, active, show_before_login, image_open
+                )
+
+                resp = self.ms.post(
+                    &#34;/nerve/notifications&#34;,
+                    m_enc_data=m_enc_data,
+                    accepted_status=[requests.codes.ok],
+                )
+        else:
             m_enc_data = self.__prepare_content(
-                text_header, text_msg, image_path, active, show_before_login, image_open
+                text_header, text_msg, image_path, active, show_before_login, None
             )
+
             resp = self.ms.post(
                 &#34;/nerve/notifications&#34;,
                 m_enc_data=m_enc_data,
                 accepted_status=[requests.codes.ok],
             )
+
         self._log.info(&#34;Created Notification %s&#34;, text_header)
         return resp.json()
 
@@ -120,9 +133,19 @@ el.replaceWith(d);
         show_before_login=False,
     ):
         &#34;&#34;&#34;Edit an existing notification item.&#34;&#34;&#34;
-        with open(image_path, &#34;rb&#34;) if image_path else None as image_open:
+        if image_path:
+            with open(image_path, &#34;rb&#34;) as image_open:
+                m_enc_data = self.__prepare_content(
+                    text_header, text_msg, image_path, active, show_before_login, image_open
+                )
+                resp = self.ms.put(
+                    f&#34;/nerve/notifications/{notification_id}&#34;,
+                    m_enc_data=m_enc_data,
+                    accepted_status=[requests.codes.ok],
+                )
+        else:
             m_enc_data = self.__prepare_content(
-                text_header, text_msg, image_path, active, show_before_login, image_open
+                text_header, text_msg, image_path, active, show_before_login, None
             )
             resp = self.ms.put(
                 f&#34;/nerve/notifications/{notification_id}&#34;,
@@ -266,15 +289,28 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
 </summary>
 <pre><code class="python">def create(self, text_header, text_msg, image_path=&#34;&#34;, active=True, show_before_login=False):
     &#34;&#34;&#34;Create a new notification item.&#34;&#34;&#34;
-    with open(image_path, &#34;rb&#34;) if image_path else None as image_open:
+    if image_path:
+        with open(image_path, &#34;rb&#34;) as image_open:
+            m_enc_data = self.__prepare_content(
+                text_header, text_msg, image_path, active, show_before_login, image_open
+            )
+
+            resp = self.ms.post(
+                &#34;/nerve/notifications&#34;,
+                m_enc_data=m_enc_data,
+                accepted_status=[requests.codes.ok],
+            )
+    else:
         m_enc_data = self.__prepare_content(
-            text_header, text_msg, image_path, active, show_before_login, image_open
+            text_header, text_msg, image_path, active, show_before_login, None
         )
+
         resp = self.ms.post(
             &#34;/nerve/notifications&#34;,
             m_enc_data=m_enc_data,
             accepted_status=[requests.codes.ok],
         )
+
     self._log.info(&#34;Created Notification %s&#34;, text_header)
     return resp.json()</code></pre>
 </details>
@@ -363,9 +399,19 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
     show_before_login=False,
 ):
     &#34;&#34;&#34;Edit an existing notification item.&#34;&#34;&#34;
-    with open(image_path, &#34;rb&#34;) if image_path else None as image_open:
+    if image_path:
+        with open(image_path, &#34;rb&#34;) as image_open:
+            m_enc_data = self.__prepare_content(
+                text_header, text_msg, image_path, active, show_before_login, image_open
+            )
+            resp = self.ms.put(
+                f&#34;/nerve/notifications/{notification_id}&#34;,
+                m_enc_data=m_enc_data,
+                accepted_status=[requests.codes.ok],
+            )
+    else:
         m_enc_data = self.__prepare_content(
-            text_header, text_msg, image_path, active, show_before_login, image_open
+            text_header, text_msg, image_path, active, show_before_login, None
         )
         resp = self.ms.put(
             f&#34;/nerve/notifications/{notification_id}&#34;,

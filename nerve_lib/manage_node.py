@@ -28,8 +28,10 @@ import json
 import time
 import uuid
 from copy import deepcopy
+from dataclasses import dataclass
 from datetime import UTC
 from datetime import datetime
+from ipaddress import IPv4Network
 
 import requests
 import yaml
@@ -85,7 +87,15 @@ class LocalNode:  # noqa: PLR0904
                 return False
         return False
 
-    def set_proxy(self, enabled, http_proxy, https_proxy, no_proxy="", user="", password=""):
+    def set_proxy(
+        self,
+        enabled,
+        http_proxy,
+        https_proxy,
+        no_proxy="",
+        user="",
+        password="",  # nosec B107
+    ):
         """Manage Proxy settings on a node."""
         payload = {
             "enabled": enabled,
@@ -112,7 +122,7 @@ class LocalNode:  # noqa: PLR0904
         payload = {
             "path": nfs_mountpoint,
             "user": "",
-            "password": "",
+            "password": "",  # nosec B105
             "id": "",
             "protocol": "nfs",
             "type": "vmBackups",
@@ -576,53 +586,148 @@ class LocalNode:  # noqa: PLR0904
             json=payload,
         )
 
+    @dataclass(slots=True)
+    class NetworkInterfaceConfiguration:
+        """Network interface configuration for LocalUI updates."""
+
+        interface_name: str
+        allocation: str
+        ip_address: str = "0.0.0.0"
+        netmask: str = "255.255.255.0"
+        mtu: int = 1500
+        disabled: bool | None = None
+
+        def __post_init__(self):
+            """Validate and normalize the interface configuration."""
+            valid_allocations = {"dhcp", "static", "unconfigured", "unused"}
+            if self.allocation not in valid_allocations:
+                msg = "Invalid allocation. Valid values are dhcp, static, unconfigured, unused."
+                raise ValueError(msg)
+            if self.disabled is None:
+                self.disabled = self.allocation in {"unconfigured", "unused"}
+
+        @property
+        def _new_ip_assignment(self) -> str:
+            """Convert legacy allocation names to the new API naming."""
+            return "unused" if self.allocation == "unconfigured" else self.allocation
+
+        @property
+        def _prefix_length(self) -> int:
+            """Convert dotted netmask notation to CIDR prefix length."""
+            return IPv4Network(f"0.0.0.0/{self.netmask}").prefixlen
+
+        def as_legacy_payload(
+            self,
+            gateway: str,
+            dns_servers: list[str],
+            disabled_wan_traffic: bool,
+        ) -> dict:
+            """Build the payload fragment required by the legacy endpoint."""
+            config = {
+                "interface_name": self.interface_name,
+                "allocation": "unconfigured" if self._new_ip_assignment == "unused" else self.allocation,
+                "ip_address": self.ip_address,
+                "netmask": self.netmask,
+                "domainNames": dns_servers,
+            }
+            if self.interface_name == "wan":
+                config["gateway"] = gateway
+                config["disabledWanTraffic"] = disabled_wan_traffic
+            return config
+
+        def as_current_payload(self) -> dict:
+            """Build the payload fragment required by the current endpoint."""
+            config = {
+                "disabled": self.disabled,
+                "ip-assignment": self._new_ip_assignment,
+                "mtu": self.mtu,
+                "name": self.interface_name,
+            }
+            if self._new_ip_assignment == "static":
+                config["ip-interface"] = f"{self.ip_address}/{self._prefix_length}"
+            return config
+
+    def _normalize_network_interface_configs(
+        self,
+        interface_configs: "LocalNode.NetworkInterfaceConfiguration | list[LocalNode.NetworkInterfaceConfiguration]",
+    ) -> list["LocalNode.NetworkInterfaceConfiguration"]:
+        """Normalize a single or multiple interface configs to a validated list."""
+        if isinstance(interface_configs, self.NetworkInterfaceConfiguration):
+            return [interface_configs]
+        if not interface_configs:
+            msg = "At least one network interface configuration is required."
+            raise ValueError(msg)
+        if not all(isinstance(cfg, self.NetworkInterfaceConfiguration) for cfg in interface_configs):
+            msg = "interface_configs must contain only NetworkInterfaceConfiguration instances."
+            raise TypeError(msg)
+        return interface_configs
+
     def set_network_configuration(
         self,
-        interface: str,
-        allocation: str,
-        ip_address: str = "0.0.0.0",
-        netmask: str = "0.0.0.0",
-        gateway: str = "0.0.0.0",
-        domain_names: list | None = None,
-    ):
-        """Set network configuration of an interface.
+        interface_configs: "LocalNode.NetworkInterfaceConfiguration | list[LocalNode.NetworkInterfaceConfiguration]",
+        gateway: str = "",
+        dns_servers: list[str] | None = None,
+        disabled_wan_traffic: bool = False,
+    ) -> dict:
+        """Set network configuration for one or more interfaces.
 
         Parameters
         ----------
-        interface : str
-            Name of the interface.
-        allocation : str
-            Allocation of the interface. (one of dhcp, static, unconfigured)
-        ip_address : str, optional
-            IP address of the interface. The default is "0.0.0.0"
-        netmask : str, optional
-            Netmask of the interface. The default is "0.0.0.0"
+        interface_configs : NetworkInterfaceConfiguration | list[NetworkInterfaceConfiguration]
+            One or more interface configurations.
         gateway : str, optional
-            Gateway of the interface. The default is "0.0.0.0"
-        domain_names : list, optional
-            Domain names of the interface. The default is [].
+            Default gateway for the node. The default is "".
+        dns_servers : list[str] | None, optional
+            DNS server IP addresses. The default is an empty list.
+        disabled_wan_traffic : bool, optional
+            Whether WAN traffic is disabled. The default is False.
+
+        Example:
+            >>> extern1 = node.NetworkInterfaceConfiguration(
+            ...     interface_name="extern1",
+            ...     allocation="static",
+            ...     ip_address="192.168.1.100",
+            ...     netmask="255.255.255.0"
+            ... )
+            >>> node.set_network_configuration([extern1])
         """
-        return self.node.post(
-            "api/setup/network/interfaces",
-            json={
+        interface_configs = self._normalize_network_interface_configs(interface_configs)
+        dns_servers = dns_servers or []
+
+        if self.version_smaller_than("3.2.0"):
+            return self.node.post(
+                "/api/setup/network/init-config-update",
+                json={
+                    "configurations": [
+                        interface_config.as_legacy_payload(gateway, dns_servers, disabled_wan_traffic)
+                        for interface_config in interface_configs
+                    ]
+                },
+                accepted_status=[requests.codes.ok],
+            ).json()
+
+        config = {
+            "networking": {
                 "interfaces": [
-                    {
-                        "interface_name": interface,
-                        "allocation": allocation,
-                        "ip_address": ip_address,
-                        "netmask": netmask,
-                        "gateway": gateway,
-                        "domainNames": domain_names if domain_names is not None else [],
-                    }
-                ]
-            },
+                    interface_config.as_current_payload() for interface_config in interface_configs
+                ],
+                "disabledWanTraffic": disabled_wan_traffic,
+            }
+        }
+        if dns_servers:
+            config["networking"]["dns"] = {"servers": dns_servers}
+        if gateway:
+            config["networking"]["default-gateway"] = gateway
+        return self.node.post(
+            "/api/setup/network/config-update",
+            json=config,
             accepted_status=[requests.codes.ok],
         ).json()
 
     def get_network_configuration(self):
         """Get network configuration of all interface."""
         return self.node.get(
-            "api/setup/network/interfaces",
+            "/api/setup/network/interfaces",
             accepted_status=[requests.codes.ok],
         ).json()
 
@@ -646,7 +751,20 @@ class LocalNode:  # noqa: PLR0904
         with open(destination_path, "wb") as file:
             file.write(response.content)
 
-        self._log.info(f"File downloaded successfully to: {destination_path}")
+        self._log.info("File downloaded successfully to: %s", destination_path)
+
+    def download_debug_log(self, destination_path: str) -> None:
+        """Download debug logs archive from the node."""
+        response = self.node.get(
+            "/api/system/debug-logs-archive",
+            accepted_status=[requests.codes.ok],
+            timeout=(7.5, 300),
+        )
+
+        with open(destination_path, "wb") as file:
+            file.write(response.content)
+
+        self._log.info("File downloaded successfully to: %s", destination_path)
 
     def read_file(self, file_path):
         """Read the content of a file on the device."""
@@ -749,6 +867,26 @@ class MSNode:
             return {}
         # Return the entire node list
         return node_list
+
+    def get_nodes_filtered(self, node_name: str | None = None, serial_number: str | None = None) -> dict:
+        """Read node list of MS filtered by name and/or serial number."""
+        parameters = {"limit": 50, "page": 1, "order[created]": "asc"}
+        if node_name:
+            parameters["filterBy[name]"] = node_name
+        if serial_number:
+            parameters["filterBy[serialNumber]"] = serial_number
+        nodes = {"count": 0, "data": []}
+        while True:
+            nodes_single_read = self.ms.get(
+                "/nerve/nodes/filtered/list", params=parameters, accepted_status=[requests.codes.ok]
+            ).json()
+            parameters["page"] += 1
+            nodes["data"] += nodes_single_read.get("data", [])
+            nodes["count"] = nodes_single_read["count"]
+            if len(nodes["data"]) == nodes_single_read["count"]:
+                break
+
+        return nodes["data"]
 
     def get_nodes_by_name(self, node_name_filter: str | None = None) -> dict:
         """Read node list of MS filtered by name of the node.
@@ -1263,37 +1401,30 @@ class _SelectedNode:  # noqa: PLR0904
             for key in list(con_dict_copy.keys()):  # Iterate over a copy of the keys to avoid runtime issues
                 if key not in {
                     "acknowledgment",
-                    "connection",
                     "name",
                     "port",
                     "serialNumber",
                     "type",
                     "versionId",
                     "workloadId",
-                    "uniqueConnectionRequestNo",
                     "_id",
+                    "uniqueConnectionRequestNo",
                 }:
-                    del con_dict_copy[key]
+                    con_dict_copy.pop(key, None)
         response = self.node.ms.post(url, json=con_dict_copy, accepted_status=[requests.codes.ok])
-        session_id = response.request.headers["sessionid"]
+        connect_url = None
         try:
-            connect_url = None
-            if "url" not in response.json():
-                time.sleep(5)
-                active_connection = self.node.get_active_remote_connections()
-                for connection in active_connection:
-                    if response.json()["requestUid"] == connection["connectionRequest"]["requestUid"]:
-                        connect_id = connection["connection"]["_id"]
-                        url = f"nerverm://{self.node.ms.ms_url}"
-                        connect_url = f"{url}/{connect_id}/{response.json()['requestUid']}/{session_id}"
-                        break
-            else:
+            if self.node.ms.version_smaller_than("3.1.0"):
+                session_id = response.request.headers["sessionid"]
                 connect_url = f"{response.json()['url']}/{session_id}"
+            else:
+                connect_url = response.json()["url"]
         except KeyError:
             if retry:
+                # Connection url is only provided for active remote connections. As a workaround trigger get connection again.
                 return self.__get_remote_connection_url(con_dict_copy, retry=False)
             msg = f"Response is unexpected, should contain key 'url'\n{response.text}"
-            raise ValueError(msg)
+            raise KeyError(msg)
         return connect_url
 
     def import_remote_connections(self, yaml_file: str):
@@ -1421,7 +1552,7 @@ class _SelectedNode:  # noqa: PLR0904
         for workload in dep_workloads:
             if workload_name == workload.get("device_name"):
                 return workload
-        msg = f"Workload with name {workload_name} does not exist on dut"
+        msg = f"Workload with name '{workload_name}' does not exist on dut"
         raise AttributeError(msg)
 
     def workload_control(self, workload_name: str, command: str, remove_images=True) -> None:
@@ -1672,7 +1803,7 @@ class _SelectedNode:  # noqa: PLR0904
         with open(destination_path, "wb") as file:
             file.write(response.content)
 
-        self._log.info(f"File downloaded successfully to: {destination_path}")
+        self._log.info("File downloaded successfully to: %s", destination_path)
 
     def get_workload_details(self, workload_name: str) -> dict:
         """Get detailed workload information.

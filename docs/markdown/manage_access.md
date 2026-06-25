@@ -118,7 +118,7 @@ Classes
     `get_default(self)`
     :   Get default LDAP configuration.
 
-    `ldap_payload(self, file_name: str = '', name: str = 'ldap_config', url: str = 'ldap.dev.nerve.cloud', port: int = 389, active: bool = False, bind_dn: str = 'cn=admin,dc=tttech,dc=com', password: str = 'Passw0rd', tls: bool = False, recurring_sync=None, relationship=None, users=None, groups=None)`
+    `ldap_payload(self, url: str, file_name: str = '', name: str = 'ldap_config', port: int = 389, active: bool = False, bind_dn: str = '', password: str = '', tls: bool = False, recurring_sync=None, relationship=None, users=None, groups=None)`
     :   Set LDAP configuration payload.
         
         Parameters
@@ -145,7 +145,7 @@ Classes
         type
             LDAP payload
 
-    `query_groups(self, search_base='', filter='', group_name='', admin_group='', default_role='')`
+    `query_groups(self, password, search_base='', filter='', group_name='', admin_group='', default_role='')`
     :   Query groups from LDAP configuration.
         
         Parameters
@@ -166,7 +166,7 @@ Classes
         type
             groups query response
 
-    `query_users(self, search_base='', filter='', first_name='', last_name='', email='', username='')`
+    `query_users(self, password, search_base='', filter='', first_name='', last_name='', email='', username='')`
     :   Query users from LDAP configuration.
         
         Parameters
@@ -189,7 +189,7 @@ Classes
         type
             users query response
 
-    `save_sync_ldap(self, action: str, file_name: str, ldap_payload: dict | None = None, recurring_sync=None, relationship=None, users=None, groups=None)`
+    `save_sync_ldap(self, action: str, file_name: str, ldap_payload: dict)`
     :   Send LDAP configuration payload with populated data from other functions.
         
         Parameters
@@ -198,20 +198,8 @@ Classes
             Action to perform on the LDAP configuration. Can be either "sync" or "save".
         file_name : str
             File name of the saved configuration.
-        name : str
-            LDAP configuration name on MS.
-        url : str
-            URL of the LDAP server.
-        port : int
-            Port of the LDAP server.
-        active : bool
-            Status of the LDAP configuration.
-        bind_dn : str
-            Bind DN of the LDAP server.
-        password : str
-            Password of the LDAP server.
-        tls : bool
-            Enable TLS for LDAP communication.
+        ldap_payload : dict
+            LDAP configuration payload.
         
         Returns
         -------
@@ -233,7 +221,7 @@ Classes
         type
             response from the MS
 
-    `test_connection(self, url: str, port=389, bind_dn='cn=admin,dc=tttech,dc=com', password='Passw0rd', secure=False)`
+    `test_connection(self, url: str, port=389, bind_dn='', password='', secure=False)`
     :   Test LDAP server connection.
         
         Parameters
@@ -242,6 +230,12 @@ Classes
             URL of the LDAP server.
         port : int
             Port of the LDAP server. Port 389 is the default port for unencrypted LDAP communication.
+        bind_dn : str
+            Bind DN of the LDAP server.
+        password : str
+            Password of the LDAP server.
+        secure : bool
+            Enable TLS for LDAP communication (switching between unecrypted and encrypted ports).
         
         Returns
         -------

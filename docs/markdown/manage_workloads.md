@@ -205,7 +205,7 @@ Classes
         released : bool, optional
             Mark workload as released version
         aut_usr, aut_psw : str, optional
-            In case of file_option == "file" (registry workload) it is possible to define login credentials
+            In case of file_option == "path" (registry workload) it is possible to define login credentials
         compose_dict: dict, optional
             docker-compose only: docker compose file as dict
         docker_config_volumes : list, optional
@@ -239,7 +239,7 @@ Classes
         payload : dict
             workload description file, generated with Workloads.gen_workload_configuration(...).
         file_paths : list[str], optional
-            pathes to the workload related files. The default is [].
+            paths to the workload related files. The default is [].
         api_version : int, optional
             API version to be used, one of 1, 2, 3. The default is 2.
             API version 3 is required for internalDockerRegistry or docker-compose workloads

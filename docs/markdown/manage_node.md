@@ -19,6 +19,11 @@ Classes
 `LocalNode(node_handle: type)`
 :   Node related functions from LocalUI.
 
+    ### Class variables
+
+    `NetworkInterfaceConfiguration`
+    :   Network interface configuration for LocalUI updates.
+
     ### Instance variables
 
     `version`
@@ -64,6 +69,9 @@ Classes
 
     `download_audit_log(self, destination_path: str) ‑> dict`
     :   Download current audit log file and archives created by logrotate, compressed in a zip archive.
+
+    `download_debug_log(self, destination_path: str) ‑> None`
+    :   Download debug logs archive from the node.
 
     `edit_file(self, file_path, content, password)`
     :   Write content to a file on the device.
@@ -185,23 +193,28 @@ Classes
     `set_local_repository(self, protocol, repo_type, path, user=None, password=None, options='')`
     :   Set a local repository.
 
-    `set_network_configuration(self, interface: str, allocation: str, ip_address: str = '0.0.0.0', netmask: str = '0.0.0.0', gateway: str = '0.0.0.0', domain_names: list | None = None)`
-    :   Set network configuration of an interface.
+    `set_network_configuration(self, interface_configs: LocalNode.NetworkInterfaceConfiguration | list[LocalNode.NetworkInterfaceConfiguration], gateway: str = '', dns_servers: list[str] | None = None, disabled_wan_traffic: bool = False) ‑> dict`
+    :   Set network configuration for one or more interfaces.
         
         Parameters
         ----------
-        interface : str
-            Name of the interface.
-        allocation : str
-            Allocation of the interface. (one of dhcp, static, unconfigured)
-        ip_address : str, optional
-            IP address of the interface. The default is "0.0.0.0"
-        netmask : str, optional
-            Netmask of the interface. The default is "0.0.0.0"
+        interface_configs : NetworkInterfaceConfiguration | list[NetworkInterfaceConfiguration]
+            One or more interface configurations.
         gateway : str, optional
-            Gateway of the interface. The default is "0.0.0.0"
-        domain_names : list, optional
-            Domain names of the interface. The default is [].
+            Default gateway for the node. The default is "".
+        dns_servers : list[str] | None, optional
+            DNS server IP addresses. The default is an empty list.
+        disabled_wan_traffic : bool, optional
+            Whether WAN traffic is disabled. The default is False.
+        
+        Example:
+            >>> extern1 = node.NetworkInterfaceConfiguration(
+            ...     interface_name="extern1",
+            ...     allocation="static",
+            ...     ip_address="192.168.1.100",
+            ...     netmask="255.255.255.0"
+            ... )
+            >>> node.set_network_configuration([extern1])
 
     `set_proxy(self, enabled, http_proxy, https_proxy, no_proxy='', user='', password='')`
     :   Manage Proxy settings on a node.
@@ -352,6 +365,9 @@ Classes
         -------
         dict
             Node list informatnion from MS API.
+
+    `get_nodes_filtered(self, node_name: str | None = None, serial_number: str | None = None) ‑> dict`
+    :   Read node list of MS filtered by name and/or serial number.
 
     `remove_active_remote_connections(self, remote_ids: list | None = None) ‑> type`
     :   Remove established remote connections from MS.
