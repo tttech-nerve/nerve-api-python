@@ -2176,7 +2176,7 @@ class _WorkloadVersion:  # noqa: PLR0904
                         accepted_status=[requests.codes.ok, requests.codes.accepted],
                         timeout=(7.5, 360),
                     )
-                    self._log.info("Export ready for download %s:", export_url)
+                    self._log.debug("Export ready for download %s", export_url)
                     return response
                 if export_info.get("status") == "failed":
                     raise WorkloadDeployError(f"Workload export failed: {export_info}")

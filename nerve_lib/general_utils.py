@@ -1236,7 +1236,6 @@ class NodeHandle(RequestGeneral):
                 accepted_status=[requests.codes.ok, requests.codes.unauthorized],
             )
             if response.status_code == requests.codes.unauthorized:
-                self._is_logged_in = False
                 super()._check_status_code("POST", response, [requests.codes.ok])  # will raise error
 
         except urllib3.exceptions.MaxRetryError:
@@ -1255,11 +1254,19 @@ class NodeHandle(RequestGeneral):
     def logout(self):
         """Logout from Node."""
         self._log.debug("Logout from Node")
-        response = self.get(
-            "/api/auth/logout", accepted_status=[requests.codes.no_content, requests.codes.unauthorized]
-        )
-        self._is_logged_in = False
-        return response
+        try:
+            response = self.get(
+                "/api/auth/logout", accepted_status=[requests.codes.no_content, requests.codes.unauthorized]
+            )
+        except urllib3.exceptions.MaxRetryError:
+            self._log.error("Logout failed, max retry exceeded")
+            time.sleep(5)
+        except requests.exceptions.ConnectionError:
+            self._log.error("Logout failed, request ConnectionError is raised!")
+            time.sleep(5)
+        else:
+            self._is_logged_in = False
+            return response
 
 
 class MSHandle(RequestGeneral):
