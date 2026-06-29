@@ -113,7 +113,7 @@ Classes
     :   Wait for the configuration process to finish, by checking the status until it is not 'RECONFIGURING' anymore.
 
 `LocalDNA(node_handle: type)`
-:   Manage the DNA of a device directly using localUI API comamnds.
+:   Manage the workload DNA of a device directly using localUI API comamnds.
     
     Parameters
     ----------
@@ -125,7 +125,7 @@ Classes
     * nerve_lib.manage_dna.DNACommon
 
 `LocalUIDNAServiceOS(node_handle: type)`
-:   Manage Service OS DNA of a device via Local UI API commands.
+:   Manage node DNA of a device via Local UI API commands.
     
     Parameters
     ----------
@@ -138,7 +138,7 @@ Classes
     * nerve_lib.manage_dna.DNACommon
 
 `MSDNA(ms_handle: type, node_serial_number: str)`
-:   Management system API commands to handle DNA of a device.
+:   Management system API commands to handle workload DNA of a device.
     
     Parameters
     ----------
@@ -152,14 +152,14 @@ Classes
     * nerve_lib.manage_dna.DNACommon
 
 `ServiceOSDNA(ms_handle: type, node_serial_number: str)`
-:   Management system API commands to handle Service OS DNA of a device.
+:   Management system API commands to handle node DNA of a device.
     
     Parameters
     ----------
     ms_handle : type
         handle to the MS 'nerve_lib.general_utils.MSHandle(...)'.
     node_serial_number : str
-        Serial number of the connected node to execute the Service OS DNA functions with.
+        Serial number of the connected node to execute the node DNA functions with.
 
     ### Ancestors (in MRO)
 
@@ -167,7 +167,7 @@ Classes
     * nerve_lib.manage_dna.DNACommon
 
 `ServiceOSDNACommon(handle, base_url: str, log: logging.Logger)`
-:   Common class for localUI and MS based Service OS DNA handling.
+:   Common class for localUI and MS based node DNA handling.
 
     ### Ancestors (in MRO)
 
@@ -181,7 +181,7 @@ Classes
     ### Methods
 
     `put_target(self, config_dict: dict) ‑> dict`
-    :   Apply target Service OS DNA configuration using a configuration dict.
+    :   Apply target node dna configuration using a configuration dict.
         
         Parameters
         ----------

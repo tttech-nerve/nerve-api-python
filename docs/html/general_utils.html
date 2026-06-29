@@ -82,21 +82,32 @@ loading the module, or by changing the level of the root logger, e.g.
         - DEBUG_LOG_FILE: file name of a log file which will contain all logs including debug output
     &#34;&#34;&#34;
     # remove all handlers which are NOTSET
-    logging.root.handlers = [handler for handler in logging.root.handlers if handler.level != logging.NOTSET]
+    logging.root.handlers = [
+        handler
+        for handler in logging.root.handlers
+        if not (
+            handler.level == logging.NOTSET
+            and isinstance(handler, (logging.StreamHandler, logging.FileHandler))
+        )
+    ]
 
     # add stream handler
     stream_handler_configured = any(
         isinstance(handler, logging.StreamHandler) for handler in logging.root.handlers
     )
     if not stream_handler_configured:
-        logging.basicConfig(
-            level=logging.DEBUG,
-            format=&#34;{levelname:&lt;7} {name:&lt;20.20} :: {message}&#34;
+        stream_handler = logging.StreamHandler()
+        formatter = logging.Formatter(
+            &#34;{levelname:&lt;7} {name:&lt;20.20} :: {message}&#34;
             if compact
             else &#34;{levelname:&lt;7} {name:&lt;35.35} {filename:&gt;20.20}-{lineno:&lt;4} :: {message}&#34;,
             style=&#34;{&#34;,
         )
-        logging.root.handlers[-1].setLevel(os.environ.get(&#34;LOGGING_LEVEL&#34;, &#34;INFO&#34;).upper())
+        stream_handler.setFormatter(formatter)
+        stream_handler.setLevel(os.environ.get(&#34;LOGGING_LEVEL&#34;, &#34;INFO&#34;).upper())
+        logging.getLogger().addHandler(stream_handler)
+        logging.getLogger().setLevel(&#34;NOTSET&#34;)  # Set root-logger level
+
         logging.getLogger(&#34;paramiko&#34;).setLevel(logging.WARNING)
         logging.getLogger(&#34;paramiko.transport&#34;).setLevel(logging.CRITICAL)  # Suppress paramiko debug messages
         logging.getLogger(&#34;pykeepass&#34;).setLevel(logging.WARNING)
@@ -109,7 +120,6 @@ loading the module, or by changing the level of the root logger, e.g.
             isinstance(handler, logging.FileHandler) for handler in logging.root.handlers
         )
         if not file_handler_configured:
-            logger = logging.getLogger()
             file_handler = logging.FileHandler(os.environ.get(&#34;DEBUG_LOG_FILE&#34;))
             formatter = logging.Formatter(
                 &#34;{asctime} {levelname:&lt;7} {name:&lt;25} {filename:&gt;25.25}-{lineno:&lt;4} :: {message}&#34;,
@@ -117,7 +127,7 @@ loading the module, or by changing the level of the root logger, e.g.
             )
             file_handler.setFormatter(formatter)
             file_handler.setLevel(logging.DEBUG)
-            logger.addHandler(file_handler)</code></pre>
+            logging.getLogger().addHandler(file_handler)</code></pre>
 </details>
 <div class="desc"><p>Create logging output configuration if it does not exist already.</p>
 <p>Usable ENV Vars:
@@ -183,7 +193,7 @@ msg.value: string error message</p></div>
         password to logon on MS. The default is ENV-var MS_PSW.
     &#34;&#34;&#34;
 
-    def __init__(self, ms_url: str, user: str = &#34;&#34;, password: str = &#34;&#34;):
+    def __init__(self, ms_url: str, user: str = &#34;&#34;, password: str = &#34;&#34;):  # nosec B107
         if ms_url.startswith(&#34;http&#34;):
             self.ms_url = ms_url.split(&#34;://&#34;)[1]
             super().__init__(url=ms_url, api_path=&#34;/&#34;, log=logging.getLogger(f&#34;MS-{ms_url}&#34;))
@@ -282,7 +292,7 @@ msg.value: string error message</p></div>
         &#34;&#34;&#34;Execute a request on the MS.&#34;&#34;&#34;
         accepted_status = kwargs.get(&#34;accepted_status&#34;, [requests.codes.ok, requests.codes.no_content])
         adding_error_handling = []
-        for error_code in [requests.codes.forbidden]:
+        for error_code in [requests.codes.forbidden, requests.codes.unauthorized]:
             if error_code not in accepted_status:
                 accepted_status.append(error_code)
                 adding_error_handling.append(error_code)
@@ -309,7 +319,7 @@ msg.value: string error message</p></div>
             if response.status_code in adding_error_handling:
                 if retry_count &gt; 0:
                     break
-                if response.status_code == requests.codes.forbidden:
+                if response.status_code in {requests.codes.forbidden, requests.codes.unauthorized}:
                     self._log.debug(&#34;No valid login, trying to login on MS: %s&#34;, response.text)
                     self.login()
                     retry_count += 1
@@ -332,7 +342,7 @@ msg.value: string error message</p></div>
             super()._check_response(method, response, accepted_status)
         return response
 
-    def login(self, user: str = &#34;&#34;, password: str = &#34;&#34;, **kwargs) -&gt; type:
+    def login(self, user: str = &#34;&#34;, password: str = &#34;&#34;, **kwargs) -&gt; type:  # nosec B107
         &#34;&#34;&#34;Login on MS.
 
         Allows to switch user when providing user/password, otherwise will use existing credentials.
@@ -358,9 +368,9 @@ msg.value: string error message</p></div>
         response = self.post(
             url=&#34;/auth/login&#34;,
             json={&#34;identity&#34;: self.usr, &#34;secret&#34;: self.psw},
-            accepted_status=[requests.codes.ok, requests.codes.forbidden],
+            accepted_status=[requests.codes.ok, requests.codes.forbidden, requests.codes.unauthorized],
         )
-        if response.status_code == requests.codes.forbidden:
+        if response.status_code in {requests.codes.forbidden, requests.codes.unauthorized}:
             self._is_logged_in = False
             super()._check_response(&#34;post&#34;, response, [requests.codes.ok])  # will raise error
         self._add_header[&#34;sessionid&#34;] = f&#34;{response.headers[&#39;sessionId&#39;]}&#34;
@@ -374,7 +384,12 @@ msg.value: string error message</p></div>
         if self.version_smaller_than(&#34;2.10.0&#34;):
             response = self.get(&#34;/auth/logout&#34;, accepted_status=[requests.codes.ok, requests.codes.forbidden])
         response = self.get(
-            &#34;/auth/logout&#34;, accepted_status=[requests.codes.no_content, requests.codes.forbidden]
+            &#34;/auth/logout&#34;,
+            accepted_status=[
+                requests.codes.no_content,
+                requests.codes.forbidden,
+                requests.codes.unauthorized,
+            ],
         )
         self._is_logged_in = False
         return response</code></pre>
@@ -434,7 +449,7 @@ def version(self) -&gt; str:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def login(self, user: str = &#34;&#34;, password: str = &#34;&#34;, **kwargs) -&gt; type:
+<pre><code class="python">def login(self, user: str = &#34;&#34;, password: str = &#34;&#34;, **kwargs) -&gt; type:  # nosec B107
     &#34;&#34;&#34;Login on MS.
 
     Allows to switch user when providing user/password, otherwise will use existing credentials.
@@ -460,9 +475,9 @@ def version(self) -&gt; str:
     response = self.post(
         url=&#34;/auth/login&#34;,
         json={&#34;identity&#34;: self.usr, &#34;secret&#34;: self.psw},
-        accepted_status=[requests.codes.ok, requests.codes.forbidden],
+        accepted_status=[requests.codes.ok, requests.codes.forbidden, requests.codes.unauthorized],
     )
-    if response.status_code == requests.codes.forbidden:
+    if response.status_code in {requests.codes.forbidden, requests.codes.unauthorized}:
         self._is_logged_in = False
         super()._check_response(&#34;post&#34;, response, [requests.codes.ok])  # will raise error
     self._add_header[&#34;sessionid&#34;] = f&#34;{response.headers[&#39;sessionId&#39;]}&#34;
@@ -497,7 +512,12 @@ In case of a failed login, an error will be raised.</p>
     if self.version_smaller_than(&#34;2.10.0&#34;):
         response = self.get(&#34;/auth/logout&#34;, accepted_status=[requests.codes.ok, requests.codes.forbidden])
     response = self.get(
-        &#34;/auth/logout&#34;, accepted_status=[requests.codes.no_content, requests.codes.forbidden]
+        &#34;/auth/logout&#34;,
+        accepted_status=[
+            requests.codes.no_content,
+            requests.codes.forbidden,
+            requests.codes.unauthorized,
+        ],
     )
     self._is_logged_in = False
     return response</code></pre>
@@ -516,7 +536,7 @@ In case of a failed login, an error will be raised.</p>
     &#34;&#34;&#34;Execute a request on the MS.&#34;&#34;&#34;
     accepted_status = kwargs.get(&#34;accepted_status&#34;, [requests.codes.ok, requests.codes.no_content])
     adding_error_handling = []
-    for error_code in [requests.codes.forbidden]:
+    for error_code in [requests.codes.forbidden, requests.codes.unauthorized]:
         if error_code not in accepted_status:
             accepted_status.append(error_code)
             adding_error_handling.append(error_code)
@@ -543,7 +563,7 @@ In case of a failed login, an error will be raised.</p>
         if response.status_code in adding_error_handling:
             if retry_count &gt; 0:
                 break
-            if response.status_code == requests.codes.forbidden:
+            if response.status_code in {requests.codes.forbidden, requests.codes.unauthorized}:
                 self._log.debug(&#34;No valid login, trying to login on MS: %s&#34;, response.text)
                 self.login()
                 retry_count += 1
@@ -1181,9 +1201,9 @@ In case of a failed login, an error will be raised.</p>
         local_bind_port: int = 3333,
         logger: logging.Logger | None = None,
     ):
-        if local_ui_ip_addr == ip_addr:
-            assert local_bind_port == local_ui_port, (
-                &#34;local_bind_port must be the same as local_ui_port if local_ui_ip_addr is the same as ip_addr&#34;
+        if local_ui_ip_addr == ip_addr and local_bind_port == local_ui_port:
+            raise ValueError(
+                &#34;local_bind_port must be different from local_ui_port if local_ui_ip_addr is the same as ip_addr&#34;
             )
 
         super().__init__(
@@ -1254,7 +1274,12 @@ In case of a failed login, an error will be raised.</p>
 
         if node:
             if node._is_logged_in:
-                node.logout()  # close session before closing tunnels
+                try:
+                    node.logout()  # close session before closing tunnels
+                except SSHTunnelError:
+                    node._log.warning(
+                        &#34;Could not logout cleanly during cleanup as tunnel to node cannot be established&#34;
+                    )
             if hasattr(node, &#34;ssh_tunnel&#34;) and node.ssh_tunnel:
                 node.ssh_tunnel._finalizer()
 
@@ -1359,7 +1384,7 @@ In case of a failed login, an error will be raised.</p>
         self.ssh._ssh_usr = user
         self.ssh._ssh_psw = password
 
-    def login(self, user: str = &#34;&#34;, password: str = &#34;&#34;, **kwargs):
+    def login(self, user: str = &#34;&#34;, password: str = &#34;&#34;, **kwargs):  # nosec B107
         &#34;&#34;&#34;Login to Node.
 
         Allows to switch user when providing user/password, otherwise will use existing credentials.
@@ -1394,7 +1419,6 @@ In case of a failed login, an error will be raised.</p>
                 accepted_status=[requests.codes.ok, requests.codes.unauthorized],
             )
             if response.status_code == requests.codes.unauthorized:
-                self._is_logged_in = False
                 super()._check_status_code(&#34;POST&#34;, response, [requests.codes.ok])  # will raise error
 
         except urllib3.exceptions.MaxRetryError:
@@ -1413,11 +1437,19 @@ In case of a failed login, an error will be raised.</p>
     def logout(self):
         &#34;&#34;&#34;Logout from Node.&#34;&#34;&#34;
         self._log.debug(&#34;Logout from Node&#34;)
-        response = self.get(
-            &#34;/api/auth/logout&#34;, accepted_status=[requests.codes.no_content, requests.codes.unauthorized]
-        )
-        self._is_logged_in = False
-        return response</code></pre>
+        try:
+            response = self.get(
+                &#34;/api/auth/logout&#34;, accepted_status=[requests.codes.no_content, requests.codes.unauthorized]
+            )
+        except urllib3.exceptions.MaxRetryError:
+            self._log.error(&#34;Logout failed, max retry exceeded&#34;)
+            time.sleep(5)
+        except requests.exceptions.ConnectionError:
+            self._log.error(&#34;Logout failed, request ConnectionError is raised!&#34;)
+            time.sleep(5)
+        else:
+            self._is_logged_in = False
+            return response</code></pre>
 </details>
 <div class="desc"><p>Node requests and ssh connection management.</p>
 <p>Example:</p>
@@ -1486,7 +1518,7 @@ In case of a failed login, an error will be raised.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def login(self, user: str = &#34;&#34;, password: str = &#34;&#34;, **kwargs):
+<pre><code class="python">def login(self, user: str = &#34;&#34;, password: str = &#34;&#34;, **kwargs):  # nosec B107
     &#34;&#34;&#34;Login to Node.
 
     Allows to switch user when providing user/password, otherwise will use existing credentials.
@@ -1521,7 +1553,6 @@ In case of a failed login, an error will be raised.</p>
             accepted_status=[requests.codes.ok, requests.codes.unauthorized],
         )
         if response.status_code == requests.codes.unauthorized:
-            self._is_logged_in = False
             super()._check_status_code(&#34;POST&#34;, response, [requests.codes.ok])  # will raise error
 
     except urllib3.exceptions.MaxRetryError:
@@ -1561,11 +1592,19 @@ In case of a login error, e.g. max retry exceeded, the function will wait for 5 
 <pre><code class="python">def logout(self):
     &#34;&#34;&#34;Logout from Node.&#34;&#34;&#34;
     self._log.debug(&#34;Logout from Node&#34;)
-    response = self.get(
-        &#34;/api/auth/logout&#34;, accepted_status=[requests.codes.no_content, requests.codes.unauthorized]
-    )
-    self._is_logged_in = False
-    return response</code></pre>
+    try:
+        response = self.get(
+            &#34;/api/auth/logout&#34;, accepted_status=[requests.codes.no_content, requests.codes.unauthorized]
+        )
+    except urllib3.exceptions.MaxRetryError:
+        self._log.error(&#34;Logout failed, max retry exceeded&#34;)
+        time.sleep(5)
+    except requests.exceptions.ConnectionError:
+        self._log.error(&#34;Logout failed, request ConnectionError is raised!&#34;)
+        time.sleep(5)
+    else:
+        self._is_logged_in = False
+        return response</code></pre>
 </details>
 <div class="desc"><p>Logout from Node.</p></div>
 </dd>
@@ -2102,12 +2141,13 @@ The default is None.</dd>
 
     def __init__(
         self, ip_addr: str, user: str = &#34;&#34;, password: str = &#34;&#34;, logger: logging.Logger | None = None
-    ):
+    ):  # nosec B107
         setup_logging()
         self.ip_addr = ip_addr
         self._ssh_usr = user or os.environ.get(&#34;SSH_USR&#34;)
         self._ssh_psw = password or os.environ.get(&#34;SSH_PSW&#34;)
         self._log = logger.getChild(&#34;SSH&#34;) if logger else logging.getLogger(f&#34;SSH-{ip_addr}&#34;)
+        self._ssh_connection = None
 
     def __enter__(self):
         &#34;&#34;&#34;Enter function when using with statement.&#34;&#34;&#34;
@@ -2115,6 +2155,8 @@ The default is None.</dd>
 
     def __exit__(self, *args):
         &#34;&#34;&#34;Exit function when using with statement.&#34;&#34;&#34;
+        if self._ssh_connection:
+            self._ssh_connection.close()
 
     def connect(self, timeout: float = 30.0, key: str | None = None, compress: bool = False) -&gt; type:
         &#34;&#34;&#34;Create an ssh connection to a device.
@@ -2134,6 +2176,12 @@ The default is None.</dd>
             get handle of a paramiko.SSHClient object.
 
         &#34;&#34;&#34;
+        if (
+            self._ssh_connection
+            and self._ssh_connection.get_transport()
+            and self._ssh_connection.get_transport().is_active()
+        ):
+            return self._ssh_connection
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ip_addr = self.ip_addr[0] if type(self.ip_addr) is tuple else self.ip_addr
@@ -2157,7 +2205,7 @@ The default is None.</dd>
                 timeout=timeout,
                 compress=compress,
             )
-
+        self._ssh_connection = ssh
         return ssh
 
     def execute(
@@ -2201,9 +2249,12 @@ The default is None.</dd>
         _stdin, stdout, stderr = ssh_.exec_command(cmd, timeout=timeout)
         output += &#34;&#34;.join(stdout.readlines())
         output += &#34;&#34;.join(stderr.readlines())
-        if not ssh:
-            ssh_.close()
         return output.replace(&#34;[sudo] password for admin: &#34;, &#34;&#34;)
+
+    def __del__(self):
+        &#34;&#34;&#34;Destructor to ensure that the ssh connection is closed when the object is deleted.&#34;&#34;&#34;
+        if self._ssh_connection:
+            self._ssh_connection.close()
 
     def reboot(self):
         &#34;&#34;&#34;Execute a reboot command over ssh on a device.&#34;&#34;&#34;
@@ -2357,6 +2408,12 @@ The default is None.</dd>
         get handle of a paramiko.SSHClient object.
 
     &#34;&#34;&#34;
+    if (
+        self._ssh_connection
+        and self._ssh_connection.get_transport()
+        and self._ssh_connection.get_transport().is_active()
+    ):
+        return self._ssh_connection
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ip_addr = self.ip_addr[0] if type(self.ip_addr) is tuple else self.ip_addr
@@ -2380,7 +2437,7 @@ The default is None.</dd>
             timeout=timeout,
             compress=compress,
         )
-
+    self._ssh_connection = ssh
     return ssh</code></pre>
 </details>
 <div class="desc"><p>Create an ssh connection to a device.</p>
@@ -2508,8 +2565,6 @@ The default is None.</dd>
     _stdin, stdout, stderr = ssh_.exec_command(cmd, timeout=timeout)
     output += &#34;&#34;.join(stdout.readlines())
     output += &#34;&#34;.join(stderr.readlines())
-    if not ssh:
-        ssh_.close()
     return output.replace(&#34;[sudo] password for admin: &#34;, &#34;&#34;)</code></pre>
 </details>
 <div class="desc"><p>Execute a ssh command on a device.</p>

@@ -140,12 +140,12 @@ el.replaceWith(d);
                         raise RuntimeError(msg) from ex_msg
 
             self._log.info(&#34;Local Workload %s deployed&#34;, file_paths)
+            if response.status_code == requests.codes.no_content or not response.text.strip():
+                return {}
             try:
                 return response.json()
             except ValueError:
-                raise AssertionError(
-                    f&#34;Expected JSON but got: {response.status_code} {response.text}&#34;
-                )
+                raise AssertionError(f&#34;Expected JSON but got: {response.status_code} {response.text}&#34;)
 
     def get_workload_list(self):
         &#34;&#34;&#34;Get list of deployed workloads.&#34;&#34;&#34;
@@ -338,12 +338,12 @@ el.replaceWith(d);
                     raise RuntimeError(msg) from ex_msg
 
         self._log.info(&#34;Local Workload %s deployed&#34;, file_paths)
+        if response.status_code == requests.codes.no_content or not response.text.strip():
+            return {}
         try:
             return response.json()
         except ValueError:
-            raise AssertionError(
-                f&#34;Expected JSON but got: {response.status_code} {response.text}&#34;
-            )</code></pre>
+            raise AssertionError(f&#34;Expected JSON but got: {response.status_code} {response.text}&#34;)</code></pre>
 </details>
 <div class="desc"><p>Deploy workload on node directly.</p>
 <h2 id="parameters">Parameters</h2>
@@ -515,7 +515,7 @@ specified Docker container.</p></div>
         payload : dict
             workload description file, generated with Workloads.gen_workload_configuration(...).
         file_paths : list[str], optional
-            pathes to the workload related files. The default is [].
+            paths to the workload related files. The default is [].
         api_version : int, optional
             API version to be used, one of 1, 2, 3. The default is 2.
             API version 3 is required for internalDockerRegistry or docker-compose workloads
@@ -549,22 +549,32 @@ specified Docker container.</p></div>
                 payload[&#34;_id&#34;] = workload_id
                 update_workload = True
 
-                if payload[&#34;type&#34;] == &#34;docker&#34; and api_version == self.API_V3:
-                    _, version_id = wl_version._get_ids(api_version=self.API_V3)
                 _, version_id = wl_version._get_ids()
 
                 if patch_version:
-                    wl_version._log.info(&#34;Patching workload version&#34;)
+                    wl_version._log.info(
+                        &#34;Patching workload version &#39;%s&#39; for workload &#39;%s&#39;&#34;,
+                        payload[&#34;versions&#34;][0][&#34;name&#34;],
+                        payload[&#34;name&#34;],
+                    )
                     payload[&#34;versions&#34;][0][&#34;_id&#34;] = version_id
                 elif api_version != self.API_V3:
-                    wl_version._log.info(&#34;workload and version already exists, skipping provisioning&#34;)
+                    wl_version._log.info(
+                        &#34;workload &#39;%s&#39; and version &#39;%s&#39; already exists, skipping provisioning&#34;,
+                        payload[&#34;name&#34;],
+                        payload[&#34;versions&#34;][0][&#34;name&#34;],
+                    )
                     return
 
             except ValueError:
                 if update_workload:
-                    wl_version._log.info(&#34;Creating a new version&#34;)
+                    wl_version._log.info(
+                        &#34;Creating a new version &#39;%s&#39; for workload &#39;%s&#39;&#34;,
+                        payload[&#34;versions&#34;][0][&#34;name&#34;],
+                        payload[&#34;name&#34;],
+                    )
                 else:
-                    wl_version._log.info(&#34;Creating a new workload&#34;)
+                    wl_version._log.info(&#34;Creating a new workload &#39;%s&#39;&#34;, payload[&#34;name&#34;])
 
             if api_version == self.API_V2:
                 self.__send_provision_workload(
@@ -581,20 +591,30 @@ specified Docker container.</p></div>
                 # Step2: Create Version
                 wl_version.create_compose_version(payload[&#34;versions&#34;][0], patch_version)
                 # Step3: Upload files
-                if payload.get(&#34;internalDockerRegistry&#34;) == True:
-                    workload_json_files = [file for file in file_paths if file.endswith(&#34;workload.json&#34;)]
-                    for file in workload_json_files:
-                        with open(file, &#34;r&#34;, encoding=&#34;utf-8&#34;) as f:
-                            content = json.load(f)
-                            for file_info in content[&#34;version&#34;].get(&#34;files&#34;, []):
-                                if file_info[&#34;sourceInfo&#34;][&#34;type&#34;] == &#34;docker-image&#34;:
-                                    repo = file_info[&#34;sourceInfo&#34;][&#34;source&#34;]
-                                    repo = self.ms.ms_url + &#34;/&#34; + repo
+                if payload.get(&#34;internalDockerRegistry&#34;) == True and file_paths:
+                    if isinstance(file_paths, str):
+                        file_paths = [file_paths]
 
-                                    wl_version.set_compose_repo(
-                                        repo=repo,
-                                        type=&#34;docker&#34;,
-                                    )
+                    workload_json_files = [
+                        file
+                        for file in file_paths
+                        if isinstance(file, str) and file.endswith(&#34;workload.json&#34;)
+                    ]
+
+                    if workload_json_files:
+                        for file in workload_json_files:
+                            with open(file, &#34;r&#34;, encoding=&#34;utf-8&#34;) as f:
+                                content = json.load(f)
+                                for file_info in content[&#34;version&#34;].get(&#34;files&#34;, []):
+                                    if file_info[&#34;sourceInfo&#34;][&#34;type&#34;] == &#34;docker-image&#34;:
+                                        repo = self.ms.ms_url + &#34;/&#34; + file_info[&#34;sourceInfo&#34;][&#34;source&#34;]
+                                        wl_version.set_compose_repo(repo=repo, type=&#34;docker&#34;)
+                    else:
+                        for repo in file_paths:
+                            if isinstance(repo, str):
+                                wl_version.set_compose_repo(repo=repo, type=&#34;docker&#34;)
+                # Step4: Check deployable state
+                wl_version.get_compose_deployable_state(registry_download_timeout)
 
             elif api_version == self.API_V3 and payload[&#34;type&#34;] == &#34;docker-compose&#34;:
                 # docker compose workload only
@@ -747,8 +767,8 @@ specified Docker container.</p></div>
                         return
                     if version[&#34;isDownloading&#34;] is False:
                         break
-                    time.sleep(10)
-                self.ms._log.warning(&#34;Docker workload from registry NOT provisioned!&#34;)
+                    time.sleep(2)
+                raise WorkloadDeployError(&#34;Docker workload from registry NOT provisioned!&#34;)
         elif &#34;name&#34; in payload:
             self.ms._log.info(&#34;Provisioned workload &#39;%s&#39;&#34;, payload[&#34;name&#34;])
         else:
@@ -970,7 +990,7 @@ specified Docker container.</p></div>
         released : bool, optional
             Mark workload as released version
         aut_usr, aut_psw : str, optional
-            In case of file_option == &#34;file&#34; (registry workload) it is possible to define login credentials
+            In case of file_option == &#34;path&#34; (registry workload) it is possible to define login credentials
         compose_dict: dict, optional
             docker-compose only: docker compose file as dict
         docker_config_volumes : list, optional
@@ -994,12 +1014,14 @@ specified Docker container.</p></div>
         if networks is None:
             networks = [&#34;bridge&#34;]
 
+        internal_docker_registry = True if provision_type == &#34;docker-internal&#34; else internal_docker_registry
+
         if type(file_paths) is str:
             file_paths = [file_paths]
 
-        files = {}
-        for idx, file_path in enumerate(sorted(file_paths, key=lambda file: os.path.splitext(file)[1])):
-            files[f&#34;{idx}&#34;] = {&#34;originalName&#34;: os.path.split(file_path)[-1]}
+        files = []
+        for file_path in sorted(file_paths, key=lambda file: os.path.splitext(file)[1]):
+            files.append({&#34;originalName&#34;: os.path.split(file_path)[-1]})
 
         if not release_name:
             release_name = wrkld_version_name
@@ -1021,6 +1043,8 @@ specified Docker container.</p></div>
             ports = self.__fix_workload_config_v1_ports(ports)
             docker_volumes = self.__fix_workload_config_v1_docker_volumes(docker_volumes)
             env_var = self.__fix_workload_config_v1_env_var(env_var)
+            properties_name = &#34;generalDataSection&#34;
+            payload[&#34;status&#34;] = &#34;new&#34;
         if api_version in {self.API_V2, self.API_V3}:
             networks = self.__fix_workload_config_v2_networks(networks)
             ports = self.__fix_workload_config_v2_ports(ports)
@@ -1030,15 +1054,13 @@ specified Docker container.</p></div>
             if provision_type == &#34;vm&#34;:
                 vm_memory = self.__fix_workload_config_v2_vm_memory(vm_memory)
 
-            # Updating workload with v2 endpoint which is structured differently to v1 endpoint.
             payload[&#34;disabled&#34;] = False
+
+        if api_version == self.API_V2:
             payload[&#34;deleted&#34;] = False
-
             properties_name = &#34;workloadProperties&#34;
-
-        else:
-            properties_name = &#34;generalDataSection&#34;
-            payload[&#34;status&#34;] = &#34;new&#34;
+        if api_version == self.API_V3:
+            properties_name = &#34;workloadSpecificProperties&#34;
 
         payload[&#34;versions&#34;][0] |= {
             &#34;released&#34;: released,
@@ -1046,7 +1068,9 @@ specified Docker container.</p></div>
             &#34;remoteConnections&#34;: remote_connections if remote_connections is not None else [],
         }
 
-        if provision_type not in {&#34;docker-compose&#34;, &#34;registry&#34;}:
+        if provision_type not in {&#34;docker-compose&#34;, &#34;registry&#34;, &#34;docker-internal&#34;} and not (
+            provision_type == &#34;docker&#34; and internal_docker_registry
+        ):
             payload[&#34;versions&#34;][0] |= {&#34;files&#34;: files}
 
         if provision_type != &#34;docker-compose&#34;:
@@ -1056,7 +1080,11 @@ specified Docker container.</p></div>
             if limit_memory and provision_type not in {&#34;vm&#34;, &#34;codesys&#34;}:
                 payload[&#34;versions&#34;][0][properties_name][&#34;limit_memory&#34;] = limit_memory
 
-        if provision_type == &#34;registry&#34; and auth_usr:
+        if (
+            provision_type == &#34;registry&#34;
+            or (provision_type == &#34;docker&#34; and internal_docker_registry)
+            or provision_type == &#34;docker-internal&#34;
+        ) and auth_usr:
             if api_version == self.API_V1:
                 payload[&#34;versions&#34;][0][properties_name][&#34;auth-credentials&#34;] = (
                     f&#34;username:{auth_usr},password:{auth_psw}&#34;
@@ -1066,12 +1094,13 @@ specified Docker container.</p></div>
                     &#34;username&#34;: auth_usr,
                     &#34;password&#34;: auth_psw,
                 }
-        if provision_type in {&#34;registry&#34;, &#34;docker&#34;}:
-            payload[&#34;versions&#34;][0] |= {
-                &#34;dockerFileOption&#34;: &#34;path&#34; if provision_type == &#34;registry&#34; else &#34;file&#34;,
-                &#34;dockerFilePath&#34;: file_paths[0] if provision_type == &#34;registry&#34; else &#34;&#34;,
-                &#34;restartOnConfigurationUpdate&#34;: restart_on_config_update,
-            }
+        if provision_type in {&#34;registry&#34;, &#34;docker&#34;, &#34;docker-internal&#34;}:
+            if not internal_docker_registry:
+                payload[&#34;versions&#34;][0] |= {
+                    &#34;dockerFileOption&#34;: &#34;path&#34; if provision_type == &#34;registry&#34; else &#34;file&#34;,
+                    &#34;dockerFilePath&#34;: file_paths[0] if provision_type == &#34;registry&#34; else &#34;&#34;,
+                    &#34;restartOnConfigurationUpdate&#34;: restart_on_config_update,
+                }
             payload[&#34;versions&#34;][0][properties_name] |= {
                 &#34;docker_volumes&#34;: docker_volumes,
                 &#34;container_name&#34;: container_name,
@@ -1116,33 +1145,12 @@ specified Docker container.</p></div>
                 payload[&#34;versions&#34;][0][&#34;workloadSpecificProperties&#34;][&#34;dockerConfigurationStorage&#34;].append(
                     deepcopy(config_storage),
                 )
-            del payload[&#34;deleted&#34;]
-            del payload[&#34;versions&#34;][0][&#34;deleted&#34;]
-            del payload[&#34;versions&#34;][0][&#34;releaseName&#34;]
-        if provision_type == &#34;docker-internal&#34;:
-            config_storage = None
-            del payload[&#34;deleted&#34;]
-            payload[&#34;versions&#34;][0] = {}
-            payload[&#34;versions&#34;][0][&#34;name&#34;] = wrkld_version_name
-            payload[&#34;versions&#34;][0][&#34;released&#34;] = released
-            payload[&#34;versions&#34;][0][&#34;selectors&#34;] = label if label is not None else []
-            payload[&#34;versions&#34;][0][&#34;remoteConnections&#34;] = (
-                remote_connections if remote_connections is not None else []
-            )
-            payload[&#34;versions&#34;][0][&#34;workloadSpecificProperties&#34;] = {
-                &#34;port_mappings_protocol&#34;: ports,
-                &#34;environment_variables&#34;: env_var,
-                &#34;limit_memory&#34;: limit_memory if limit_memory is not None else {},
-                &#34;limit_CPUs&#34;: limit_cpus if limit_cpus is not None else &#34;&#34;,
-                &#34;container_name&#34;: container_name,
-                &#34;networks&#34;: networks,
-                &#34;restart_policy&#34;: restart_policy,
-                &#34;docker_volumes&#34;: docker_volumes,
-                &#34;auth_credentials&#34;: {
-                    &#34;username&#34;: auth_usr,
-                    &#34;password&#34;: auth_psw,
-                },
-            }
+            payload.pop(&#34;deleted&#34;, None)
+            payload[&#34;versions&#34;][0].pop(&#34;deleted&#34;, None)
+            payload[&#34;versions&#34;][0].pop(&#34;releaseName&#34;, None)
+        if provision_type == &#34;docker-internal&#34; or (internal_docker_registry and provision_type == &#34;docker&#34;):
+            payload[&#34;versions&#34;][0].pop(&#34;releaseName&#34;, None)
+            payload[&#34;versions&#34;][0].pop(&#34;deleted&#34;, None)
         return payload
 
     def get_workloads_dict(
@@ -1191,6 +1199,18 @@ specified Docker container.</p></div>
                     .json()
                     .get(&#34;data&#34;)
                 )
+
+                for version in versions:
+                    if not &#34;files&#34; in version:
+                        version[&#34;files&#34;] = (
+                            self.ms
+                            .get(
+                                f&#34;/nerve/v3/workloads/{workload_id}/versions/{version.get(&#39;_id&#39;)}/files&#34;,
+                                accepted_status=[requests.codes.ok],
+                            )
+                            .json()
+                            .get(&#34;files&#34;, [])
+                        )
             else:
                 try:
                     versions = (
@@ -1231,12 +1251,12 @@ specified Docker container.</p></div>
             Patch the workload with new paramters, if set to false, the workload will only be created, not changed.
         &#34;&#34;&#34;
         payload1 = deepcopy(payload)
-        del payload1[&#34;versions&#34;]
+        payload1.pop(&#34;versions&#34;, None)
         api_v3_path = &#34;/nerve/v3/workloads&#34;
         if update_workload:
             api_v3_path = f&#34;/nerve/v3/workloads/{payload1[&#39;_id&#39;]}&#34;
-            del payload1[&#34;_id&#34;]
-            del payload1[&#34;type&#34;]
+            payload1.pop(&#34;_id&#34;, None)
+            payload1.pop(&#34;type&#34;, None)
         self.__send_provision_workload(api_v3_path, [], payload1, update_workload)
 
     def check_for_deployment_state(
@@ -1821,7 +1841,7 @@ if state = None, the current state will just be printed.</p>
     released : bool, optional
         Mark workload as released version
     aut_usr, aut_psw : str, optional
-        In case of file_option == &#34;file&#34; (registry workload) it is possible to define login credentials
+        In case of file_option == &#34;path&#34; (registry workload) it is possible to define login credentials
     compose_dict: dict, optional
         docker-compose only: docker compose file as dict
     docker_config_volumes : list, optional
@@ -1845,12 +1865,14 @@ if state = None, the current state will just be printed.</p>
     if networks is None:
         networks = [&#34;bridge&#34;]
 
+    internal_docker_registry = True if provision_type == &#34;docker-internal&#34; else internal_docker_registry
+
     if type(file_paths) is str:
         file_paths = [file_paths]
 
-    files = {}
-    for idx, file_path in enumerate(sorted(file_paths, key=lambda file: os.path.splitext(file)[1])):
-        files[f&#34;{idx}&#34;] = {&#34;originalName&#34;: os.path.split(file_path)[-1]}
+    files = []
+    for file_path in sorted(file_paths, key=lambda file: os.path.splitext(file)[1]):
+        files.append({&#34;originalName&#34;: os.path.split(file_path)[-1]})
 
     if not release_name:
         release_name = wrkld_version_name
@@ -1872,6 +1894,8 @@ if state = None, the current state will just be printed.</p>
         ports = self.__fix_workload_config_v1_ports(ports)
         docker_volumes = self.__fix_workload_config_v1_docker_volumes(docker_volumes)
         env_var = self.__fix_workload_config_v1_env_var(env_var)
+        properties_name = &#34;generalDataSection&#34;
+        payload[&#34;status&#34;] = &#34;new&#34;
     if api_version in {self.API_V2, self.API_V3}:
         networks = self.__fix_workload_config_v2_networks(networks)
         ports = self.__fix_workload_config_v2_ports(ports)
@@ -1881,15 +1905,13 @@ if state = None, the current state will just be printed.</p>
         if provision_type == &#34;vm&#34;:
             vm_memory = self.__fix_workload_config_v2_vm_memory(vm_memory)
 
-        # Updating workload with v2 endpoint which is structured differently to v1 endpoint.
         payload[&#34;disabled&#34;] = False
+
+    if api_version == self.API_V2:
         payload[&#34;deleted&#34;] = False
-
         properties_name = &#34;workloadProperties&#34;
-
-    else:
-        properties_name = &#34;generalDataSection&#34;
-        payload[&#34;status&#34;] = &#34;new&#34;
+    if api_version == self.API_V3:
+        properties_name = &#34;workloadSpecificProperties&#34;
 
     payload[&#34;versions&#34;][0] |= {
         &#34;released&#34;: released,
@@ -1897,7 +1919,9 @@ if state = None, the current state will just be printed.</p>
         &#34;remoteConnections&#34;: remote_connections if remote_connections is not None else [],
     }
 
-    if provision_type not in {&#34;docker-compose&#34;, &#34;registry&#34;}:
+    if provision_type not in {&#34;docker-compose&#34;, &#34;registry&#34;, &#34;docker-internal&#34;} and not (
+        provision_type == &#34;docker&#34; and internal_docker_registry
+    ):
         payload[&#34;versions&#34;][0] |= {&#34;files&#34;: files}
 
     if provision_type != &#34;docker-compose&#34;:
@@ -1907,7 +1931,11 @@ if state = None, the current state will just be printed.</p>
         if limit_memory and provision_type not in {&#34;vm&#34;, &#34;codesys&#34;}:
             payload[&#34;versions&#34;][0][properties_name][&#34;limit_memory&#34;] = limit_memory
 
-    if provision_type == &#34;registry&#34; and auth_usr:
+    if (
+        provision_type == &#34;registry&#34;
+        or (provision_type == &#34;docker&#34; and internal_docker_registry)
+        or provision_type == &#34;docker-internal&#34;
+    ) and auth_usr:
         if api_version == self.API_V1:
             payload[&#34;versions&#34;][0][properties_name][&#34;auth-credentials&#34;] = (
                 f&#34;username:{auth_usr},password:{auth_psw}&#34;
@@ -1917,12 +1945,13 @@ if state = None, the current state will just be printed.</p>
                 &#34;username&#34;: auth_usr,
                 &#34;password&#34;: auth_psw,
             }
-    if provision_type in {&#34;registry&#34;, &#34;docker&#34;}:
-        payload[&#34;versions&#34;][0] |= {
-            &#34;dockerFileOption&#34;: &#34;path&#34; if provision_type == &#34;registry&#34; else &#34;file&#34;,
-            &#34;dockerFilePath&#34;: file_paths[0] if provision_type == &#34;registry&#34; else &#34;&#34;,
-            &#34;restartOnConfigurationUpdate&#34;: restart_on_config_update,
-        }
+    if provision_type in {&#34;registry&#34;, &#34;docker&#34;, &#34;docker-internal&#34;}:
+        if not internal_docker_registry:
+            payload[&#34;versions&#34;][0] |= {
+                &#34;dockerFileOption&#34;: &#34;path&#34; if provision_type == &#34;registry&#34; else &#34;file&#34;,
+                &#34;dockerFilePath&#34;: file_paths[0] if provision_type == &#34;registry&#34; else &#34;&#34;,
+                &#34;restartOnConfigurationUpdate&#34;: restart_on_config_update,
+            }
         payload[&#34;versions&#34;][0][properties_name] |= {
             &#34;docker_volumes&#34;: docker_volumes,
             &#34;container_name&#34;: container_name,
@@ -1967,33 +1996,12 @@ if state = None, the current state will just be printed.</p>
             payload[&#34;versions&#34;][0][&#34;workloadSpecificProperties&#34;][&#34;dockerConfigurationStorage&#34;].append(
                 deepcopy(config_storage),
             )
-        del payload[&#34;deleted&#34;]
-        del payload[&#34;versions&#34;][0][&#34;deleted&#34;]
-        del payload[&#34;versions&#34;][0][&#34;releaseName&#34;]
-    if provision_type == &#34;docker-internal&#34;:
-        config_storage = None
-        del payload[&#34;deleted&#34;]
-        payload[&#34;versions&#34;][0] = {}
-        payload[&#34;versions&#34;][0][&#34;name&#34;] = wrkld_version_name
-        payload[&#34;versions&#34;][0][&#34;released&#34;] = released
-        payload[&#34;versions&#34;][0][&#34;selectors&#34;] = label if label is not None else []
-        payload[&#34;versions&#34;][0][&#34;remoteConnections&#34;] = (
-            remote_connections if remote_connections is not None else []
-        )
-        payload[&#34;versions&#34;][0][&#34;workloadSpecificProperties&#34;] = {
-            &#34;port_mappings_protocol&#34;: ports,
-            &#34;environment_variables&#34;: env_var,
-            &#34;limit_memory&#34;: limit_memory if limit_memory is not None else {},
-            &#34;limit_CPUs&#34;: limit_cpus if limit_cpus is not None else &#34;&#34;,
-            &#34;container_name&#34;: container_name,
-            &#34;networks&#34;: networks,
-            &#34;restart_policy&#34;: restart_policy,
-            &#34;docker_volumes&#34;: docker_volumes,
-            &#34;auth_credentials&#34;: {
-                &#34;username&#34;: auth_usr,
-                &#34;password&#34;: auth_psw,
-            },
-        }
+        payload.pop(&#34;deleted&#34;, None)
+        payload[&#34;versions&#34;][0].pop(&#34;deleted&#34;, None)
+        payload[&#34;versions&#34;][0].pop(&#34;releaseName&#34;, None)
+    if provision_type == &#34;docker-internal&#34; or (internal_docker_registry and provision_type == &#34;docker&#34;):
+        payload[&#34;versions&#34;][0].pop(&#34;releaseName&#34;, None)
+        payload[&#34;versions&#34;][0].pop(&#34;deleted&#34;, None)
     return payload</code></pre>
 </details>
 <div class="desc"><p>Provision of Docker.</p>
@@ -2061,7 +2069,7 @@ default is disabled: {"enabled": False}</dd>
 <dt><strong><code>released</code></strong> :&ensp;<code>bool</code>, optional</dt>
 <dd>Mark workload as released version</dd>
 <dt><strong><code>aut_usr</code></strong>, <strong><code>aut_psw</code></strong> :&ensp;<code>str</code>, optional</dt>
-<dd>In case of file_option == "file" (registry workload) it is possible to define login credentials</dd>
+<dd>In case of file_option == "path" (registry workload) it is possible to define login credentials</dd>
 <dt><strong><code>compose_dict</code></strong> :&ensp;<code>dict</code>, optional</dt>
 <dd>docker-compose only: docker compose file as dict</dd>
 <dt><strong><code>docker_config_volumes</code></strong> :&ensp;<code>list</code>, optional</dt>
@@ -2124,6 +2132,18 @@ default is disabled: {"enabled": False}</dd>
                 .json()
                 .get(&#34;data&#34;)
             )
+
+            for version in versions:
+                if not &#34;files&#34; in version:
+                    version[&#34;files&#34;] = (
+                        self.ms
+                        .get(
+                            f&#34;/nerve/v3/workloads/{workload_id}/versions/{version.get(&#39;_id&#39;)}/files&#34;,
+                            accepted_status=[requests.codes.ok],
+                        )
+                        .json()
+                        .get(&#34;files&#34;, [])
+                    )
         else:
             try:
                 versions = (
@@ -2179,12 +2199,12 @@ default is disabled: {"enabled": False}</dd>
         Patch the workload with new paramters, if set to false, the workload will only be created, not changed.
     &#34;&#34;&#34;
     payload1 = deepcopy(payload)
-    del payload1[&#34;versions&#34;]
+    payload1.pop(&#34;versions&#34;, None)
     api_v3_path = &#34;/nerve/v3/workloads&#34;
     if update_workload:
         api_v3_path = f&#34;/nerve/v3/workloads/{payload1[&#39;_id&#39;]}&#34;
-        del payload1[&#34;_id&#34;]
-        del payload1[&#34;type&#34;]
+        payload1.pop(&#34;_id&#34;, None)
+        payload1.pop(&#34;type&#34;, None)
     self.__send_provision_workload(api_v3_path, [], payload1, update_workload)</code></pre>
 </details>
 <div class="desc"><p>Create new docker-compose workload.</p>
@@ -2219,7 +2239,7 @@ default is disabled: {"enabled": False}</dd>
     payload : dict
         workload description file, generated with Workloads.gen_workload_configuration(...).
     file_paths : list[str], optional
-        pathes to the workload related files. The default is [].
+        paths to the workload related files. The default is [].
     api_version : int, optional
         API version to be used, one of 1, 2, 3. The default is 2.
         API version 3 is required for internalDockerRegistry or docker-compose workloads
@@ -2253,22 +2273,32 @@ default is disabled: {"enabled": False}</dd>
             payload[&#34;_id&#34;] = workload_id
             update_workload = True
 
-            if payload[&#34;type&#34;] == &#34;docker&#34; and api_version == self.API_V3:
-                _, version_id = wl_version._get_ids(api_version=self.API_V3)
             _, version_id = wl_version._get_ids()
 
             if patch_version:
-                wl_version._log.info(&#34;Patching workload version&#34;)
+                wl_version._log.info(
+                    &#34;Patching workload version &#39;%s&#39; for workload &#39;%s&#39;&#34;,
+                    payload[&#34;versions&#34;][0][&#34;name&#34;],
+                    payload[&#34;name&#34;],
+                )
                 payload[&#34;versions&#34;][0][&#34;_id&#34;] = version_id
             elif api_version != self.API_V3:
-                wl_version._log.info(&#34;workload and version already exists, skipping provisioning&#34;)
+                wl_version._log.info(
+                    &#34;workload &#39;%s&#39; and version &#39;%s&#39; already exists, skipping provisioning&#34;,
+                    payload[&#34;name&#34;],
+                    payload[&#34;versions&#34;][0][&#34;name&#34;],
+                )
                 return
 
         except ValueError:
             if update_workload:
-                wl_version._log.info(&#34;Creating a new version&#34;)
+                wl_version._log.info(
+                    &#34;Creating a new version &#39;%s&#39; for workload &#39;%s&#39;&#34;,
+                    payload[&#34;versions&#34;][0][&#34;name&#34;],
+                    payload[&#34;name&#34;],
+                )
             else:
-                wl_version._log.info(&#34;Creating a new workload&#34;)
+                wl_version._log.info(&#34;Creating a new workload &#39;%s&#39;&#34;, payload[&#34;name&#34;])
 
         if api_version == self.API_V2:
             self.__send_provision_workload(
@@ -2285,20 +2315,30 @@ default is disabled: {"enabled": False}</dd>
             # Step2: Create Version
             wl_version.create_compose_version(payload[&#34;versions&#34;][0], patch_version)
             # Step3: Upload files
-            if payload.get(&#34;internalDockerRegistry&#34;) == True:
-                workload_json_files = [file for file in file_paths if file.endswith(&#34;workload.json&#34;)]
-                for file in workload_json_files:
-                    with open(file, &#34;r&#34;, encoding=&#34;utf-8&#34;) as f:
-                        content = json.load(f)
-                        for file_info in content[&#34;version&#34;].get(&#34;files&#34;, []):
-                            if file_info[&#34;sourceInfo&#34;][&#34;type&#34;] == &#34;docker-image&#34;:
-                                repo = file_info[&#34;sourceInfo&#34;][&#34;source&#34;]
-                                repo = self.ms.ms_url + &#34;/&#34; + repo
+            if payload.get(&#34;internalDockerRegistry&#34;) == True and file_paths:
+                if isinstance(file_paths, str):
+                    file_paths = [file_paths]
 
-                                wl_version.set_compose_repo(
-                                    repo=repo,
-                                    type=&#34;docker&#34;,
-                                )
+                workload_json_files = [
+                    file
+                    for file in file_paths
+                    if isinstance(file, str) and file.endswith(&#34;workload.json&#34;)
+                ]
+
+                if workload_json_files:
+                    for file in workload_json_files:
+                        with open(file, &#34;r&#34;, encoding=&#34;utf-8&#34;) as f:
+                            content = json.load(f)
+                            for file_info in content[&#34;version&#34;].get(&#34;files&#34;, []):
+                                if file_info[&#34;sourceInfo&#34;][&#34;type&#34;] == &#34;docker-image&#34;:
+                                    repo = self.ms.ms_url + &#34;/&#34; + file_info[&#34;sourceInfo&#34;][&#34;source&#34;]
+                                    wl_version.set_compose_repo(repo=repo, type=&#34;docker&#34;)
+                else:
+                    for repo in file_paths:
+                        if isinstance(repo, str):
+                            wl_version.set_compose_repo(repo=repo, type=&#34;docker&#34;)
+            # Step4: Check deployable state
+            wl_version.get_compose_deployable_state(registry_download_timeout)
 
         elif api_version == self.API_V3 and payload[&#34;type&#34;] == &#34;docker-compose&#34;:
             # docker compose workload only
@@ -2353,7 +2393,7 @@ default is disabled: {"enabled": False}</dd>
 <dt><strong><code>payload</code></strong> :&ensp;<code>dict</code></dt>
 <dd>workload description file, generated with Workloads.gen_workload_configuration(&hellip;).</dd>
 <dt><strong><code>file_paths</code></strong> :&ensp;<code>list[str]</code>, optional</dt>
-<dd>pathes to the workload related files. The default is [].</dd>
+<dd>paths to the workload related files. The default is [].</dd>
 <dt><strong><code>api_version</code></strong> :&ensp;<code>int</code>, optional</dt>
 <dd>API version to be used, one of 1, 2, 3. The default is 2.
 API version 3 is required for internalDockerRegistry or docker-compose workloads</dd>

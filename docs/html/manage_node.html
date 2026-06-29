@@ -114,7 +114,15 @@ el.replaceWith(d);
                 return False
         return False
 
-    def set_proxy(self, enabled, http_proxy, https_proxy, no_proxy=&#34;&#34;, user=&#34;&#34;, password=&#34;&#34;):
+    def set_proxy(
+        self,
+        enabled,
+        http_proxy,
+        https_proxy,
+        no_proxy=&#34;&#34;,
+        user=&#34;&#34;,
+        password=&#34;&#34;,  # nosec B107
+    ):
         &#34;&#34;&#34;Manage Proxy settings on a node.&#34;&#34;&#34;
         payload = {
             &#34;enabled&#34;: enabled,
@@ -141,7 +149,7 @@ el.replaceWith(d);
         payload = {
             &#34;path&#34;: nfs_mountpoint,
             &#34;user&#34;: &#34;&#34;,
-            &#34;password&#34;: &#34;&#34;,
+            &#34;password&#34;: &#34;&#34;,  # nosec B105
             &#34;id&#34;: &#34;&#34;,
             &#34;protocol&#34;: &#34;nfs&#34;,
             &#34;type&#34;: &#34;vmBackups&#34;,
@@ -605,53 +613,148 @@ el.replaceWith(d);
             json=payload,
         )
 
+    @dataclass(slots=True)
+    class NetworkInterfaceConfiguration:
+        &#34;&#34;&#34;Network interface configuration for LocalUI updates.&#34;&#34;&#34;
+
+        interface_name: str
+        allocation: str
+        ip_address: str = &#34;0.0.0.0&#34;
+        netmask: str = &#34;255.255.255.0&#34;
+        mtu: int = 1500
+        disabled: bool | None = None
+
+        def __post_init__(self):
+            &#34;&#34;&#34;Validate and normalize the interface configuration.&#34;&#34;&#34;
+            valid_allocations = {&#34;dhcp&#34;, &#34;static&#34;, &#34;unconfigured&#34;, &#34;unused&#34;}
+            if self.allocation not in valid_allocations:
+                msg = &#34;Invalid allocation. Valid values are dhcp, static, unconfigured, unused.&#34;
+                raise ValueError(msg)
+            if self.disabled is None:
+                self.disabled = self.allocation in {&#34;unconfigured&#34;, &#34;unused&#34;}
+
+        @property
+        def _new_ip_assignment(self) -&gt; str:
+            &#34;&#34;&#34;Convert legacy allocation names to the new API naming.&#34;&#34;&#34;
+            return &#34;unused&#34; if self.allocation == &#34;unconfigured&#34; else self.allocation
+
+        @property
+        def _prefix_length(self) -&gt; int:
+            &#34;&#34;&#34;Convert dotted netmask notation to CIDR prefix length.&#34;&#34;&#34;
+            return IPv4Network(f&#34;0.0.0.0/{self.netmask}&#34;).prefixlen
+
+        def as_legacy_payload(
+            self,
+            gateway: str,
+            dns_servers: list[str],
+            disabled_wan_traffic: bool,
+        ) -&gt; dict:
+            &#34;&#34;&#34;Build the payload fragment required by the legacy endpoint.&#34;&#34;&#34;
+            config = {
+                &#34;interface_name&#34;: self.interface_name,
+                &#34;allocation&#34;: &#34;unconfigured&#34; if self._new_ip_assignment == &#34;unused&#34; else self.allocation,
+                &#34;ip_address&#34;: self.ip_address,
+                &#34;netmask&#34;: self.netmask,
+                &#34;domainNames&#34;: dns_servers,
+            }
+            if self.interface_name == &#34;wan&#34;:
+                config[&#34;gateway&#34;] = gateway
+                config[&#34;disabledWanTraffic&#34;] = disabled_wan_traffic
+            return config
+
+        def as_current_payload(self) -&gt; dict:
+            &#34;&#34;&#34;Build the payload fragment required by the current endpoint.&#34;&#34;&#34;
+            config = {
+                &#34;disabled&#34;: self.disabled,
+                &#34;ip-assignment&#34;: self._new_ip_assignment,
+                &#34;mtu&#34;: self.mtu,
+                &#34;name&#34;: self.interface_name,
+            }
+            if self._new_ip_assignment == &#34;static&#34;:
+                config[&#34;ip-interface&#34;] = f&#34;{self.ip_address}/{self._prefix_length}&#34;
+            return config
+
+    def _normalize_network_interface_configs(
+        self,
+        interface_configs: &#34;LocalNode.NetworkInterfaceConfiguration | list[LocalNode.NetworkInterfaceConfiguration]&#34;,
+    ) -&gt; list[&#34;LocalNode.NetworkInterfaceConfiguration&#34;]:
+        &#34;&#34;&#34;Normalize a single or multiple interface configs to a validated list.&#34;&#34;&#34;
+        if isinstance(interface_configs, self.NetworkInterfaceConfiguration):
+            return [interface_configs]
+        if not interface_configs:
+            msg = &#34;At least one network interface configuration is required.&#34;
+            raise ValueError(msg)
+        if not all(isinstance(cfg, self.NetworkInterfaceConfiguration) for cfg in interface_configs):
+            msg = &#34;interface_configs must contain only NetworkInterfaceConfiguration instances.&#34;
+            raise TypeError(msg)
+        return interface_configs
+
     def set_network_configuration(
         self,
-        interface: str,
-        allocation: str,
-        ip_address: str = &#34;0.0.0.0&#34;,
-        netmask: str = &#34;0.0.0.0&#34;,
-        gateway: str = &#34;0.0.0.0&#34;,
-        domain_names: list | None = None,
-    ):
-        &#34;&#34;&#34;Set network configuration of an interface.
+        interface_configs: &#34;LocalNode.NetworkInterfaceConfiguration | list[LocalNode.NetworkInterfaceConfiguration]&#34;,
+        gateway: str = &#34;&#34;,
+        dns_servers: list[str] | None = None,
+        disabled_wan_traffic: bool = False,
+    ) -&gt; dict:
+        &#34;&#34;&#34;Set network configuration for one or more interfaces.
 
         Parameters
         ----------
-        interface : str
-            Name of the interface.
-        allocation : str
-            Allocation of the interface. (one of dhcp, static, unconfigured)
-        ip_address : str, optional
-            IP address of the interface. The default is &#34;0.0.0.0&#34;
-        netmask : str, optional
-            Netmask of the interface. The default is &#34;0.0.0.0&#34;
+        interface_configs : NetworkInterfaceConfiguration | list[NetworkInterfaceConfiguration]
+            One or more interface configurations.
         gateway : str, optional
-            Gateway of the interface. The default is &#34;0.0.0.0&#34;
-        domain_names : list, optional
-            Domain names of the interface. The default is [].
+            Default gateway for the node. The default is &#34;&#34;.
+        dns_servers : list[str] | None, optional
+            DNS server IP addresses. The default is an empty list.
+        disabled_wan_traffic : bool, optional
+            Whether WAN traffic is disabled. The default is False.
+
+        Example:
+            &gt;&gt;&gt; extern1 = node.NetworkInterfaceConfiguration(
+            ...     interface_name=&#34;extern1&#34;,
+            ...     allocation=&#34;static&#34;,
+            ...     ip_address=&#34;192.168.1.100&#34;,
+            ...     netmask=&#34;255.255.255.0&#34;
+            ... )
+            &gt;&gt;&gt; node.set_network_configuration([extern1])
         &#34;&#34;&#34;
-        return self.node.post(
-            &#34;api/setup/network/interfaces&#34;,
-            json={
+        interface_configs = self._normalize_network_interface_configs(interface_configs)
+        dns_servers = dns_servers or []
+
+        if self.version_smaller_than(&#34;3.2.0&#34;):
+            return self.node.post(
+                &#34;/api/setup/network/init-config-update&#34;,
+                json={
+                    &#34;configurations&#34;: [
+                        interface_config.as_legacy_payload(gateway, dns_servers, disabled_wan_traffic)
+                        for interface_config in interface_configs
+                    ]
+                },
+                accepted_status=[requests.codes.ok],
+            ).json()
+
+        config = {
+            &#34;networking&#34;: {
                 &#34;interfaces&#34;: [
-                    {
-                        &#34;interface_name&#34;: interface,
-                        &#34;allocation&#34;: allocation,
-                        &#34;ip_address&#34;: ip_address,
-                        &#34;netmask&#34;: netmask,
-                        &#34;gateway&#34;: gateway,
-                        &#34;domainNames&#34;: domain_names if domain_names is not None else [],
-                    }
-                ]
-            },
+                    interface_config.as_current_payload() for interface_config in interface_configs
+                ],
+                &#34;disabledWanTraffic&#34;: disabled_wan_traffic,
+            }
+        }
+        if dns_servers:
+            config[&#34;networking&#34;][&#34;dns&#34;] = {&#34;servers&#34;: dns_servers}
+        if gateway:
+            config[&#34;networking&#34;][&#34;default-gateway&#34;] = gateway
+        return self.node.post(
+            &#34;/api/setup/network/config-update&#34;,
+            json=config,
             accepted_status=[requests.codes.ok],
         ).json()
 
     def get_network_configuration(self):
         &#34;&#34;&#34;Get network configuration of all interface.&#34;&#34;&#34;
         return self.node.get(
-            &#34;api/setup/network/interfaces&#34;,
+            &#34;/api/setup/network/interfaces&#34;,
             accepted_status=[requests.codes.ok],
         ).json()
 
@@ -675,7 +778,20 @@ el.replaceWith(d);
         with open(destination_path, &#34;wb&#34;) as file:
             file.write(response.content)
 
-        self._log.info(f&#34;File downloaded successfully to: {destination_path}&#34;)
+        self._log.info(&#34;File downloaded successfully to: %s&#34;, destination_path)
+
+    def download_debug_log(self, destination_path: str) -&gt; None:
+        &#34;&#34;&#34;Download debug logs archive from the node.&#34;&#34;&#34;
+        response = self.node.get(
+            &#34;/api/system/debug-logs-archive&#34;,
+            accepted_status=[requests.codes.ok],
+            timeout=(7.5, 300),
+        )
+
+        with open(destination_path, &#34;wb&#34;) as file:
+            file.write(response.content)
+
+        self._log.info(&#34;File downloaded successfully to: %s&#34;, destination_path)
 
     def read_file(self, file_path):
         &#34;&#34;&#34;Read the content of a file on the device.&#34;&#34;&#34;
@@ -738,6 +854,13 @@ el.replaceWith(d);
         )</code></pre>
 </details>
 <div class="desc"><p>Node related functions from LocalUI.</p></div>
+<h3>Class variables</h3>
+<dl>
+<dt id="nerve_lib.manage_node.LocalNode.NetworkInterfaceConfiguration"><code class="name">var <span class="ident">NetworkInterfaceConfiguration</span></code></dt>
+<dd>
+<div class="desc"><p>Network interface configuration for LocalUI updates.</p></div>
+</dd>
+</dl>
 <h3>Instance variables</h3>
 <dl>
 <dt id="nerve_lib.manage_node.LocalNode.version"><code class="name">prop <span class="ident">version</span></code></dt>
@@ -1054,9 +1177,32 @@ Type of schedule (Interval, Day)</p></div>
     with open(destination_path, &#34;wb&#34;) as file:
         file.write(response.content)
 
-    self._log.info(f&#34;File downloaded successfully to: {destination_path}&#34;)</code></pre>
+    self._log.info(&#34;File downloaded successfully to: %s&#34;, destination_path)</code></pre>
 </details>
 <div class="desc"><p>Download current audit log file and archives created by logrotate, compressed in a zip archive.</p></div>
+</dd>
+<dt id="nerve_lib.manage_node.LocalNode.download_debug_log"><code class="name flex">
+<span>def <span class="ident">download_debug_log</span></span>(<span>self, destination_path: str) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def download_debug_log(self, destination_path: str) -&gt; None:
+    &#34;&#34;&#34;Download debug logs archive from the node.&#34;&#34;&#34;
+    response = self.node.get(
+        &#34;/api/system/debug-logs-archive&#34;,
+        accepted_status=[requests.codes.ok],
+        timeout=(7.5, 300),
+    )
+
+    with open(destination_path, &#34;wb&#34;) as file:
+        file.write(response.content)
+
+    self._log.info(&#34;File downloaded successfully to: %s&#34;, destination_path)</code></pre>
+</details>
+<div class="desc"><p>Download debug logs archive from the node.</p></div>
 </dd>
 <dt id="nerve_lib.manage_node.LocalNode.edit_file"><code class="name flex">
 <span>def <span class="ident">edit_file</span></span>(<span>self, file_path, content, password)</span>
@@ -1177,7 +1323,7 @@ Returns: list of permission codes (strings)</p></div>
 <pre><code class="python">def get_network_configuration(self):
     &#34;&#34;&#34;Get network configuration of all interface.&#34;&#34;&#34;
     return self.node.get(
-        &#34;api/setup/network/interfaces&#34;,
+        &#34;/api/setup/network/interfaces&#34;,
         accepted_status=[requests.codes.ok],
     ).json()</code></pre>
 </details>
@@ -1665,7 +1811,7 @@ Returns: response object</p></div>
 <div class="desc"><p>Set a local repository.</p></div>
 </dd>
 <dt id="nerve_lib.manage_node.LocalNode.set_network_configuration"><code class="name flex">
-<span>def <span class="ident">set_network_configuration</span></span>(<span>self,<br>interface: str,<br>allocation: str,<br>ip_address: str = '0.0.0.0',<br>netmask: str = '0.0.0.0',<br>gateway: str = '0.0.0.0',<br>domain_names: list | None = None)</span>
+<span>def <span class="ident">set_network_configuration</span></span>(<span>self,<br>interface_configs: <a title="nerve_lib.manage_node.LocalNode.NetworkInterfaceConfiguration" href="#nerve_lib.manage_node.LocalNode.NetworkInterfaceConfiguration">LocalNode.NetworkInterfaceConfiguration</a> | list[<a title="nerve_lib.manage_node.LocalNode.NetworkInterfaceConfiguration" href="#nerve_lib.manage_node.LocalNode.NetworkInterfaceConfiguration">LocalNode.NetworkInterfaceConfiguration</a>],<br>gateway: str = '',<br>dns_servers: list[str] | None = None,<br>disabled_wan_traffic: bool = False) ‑> dict</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1674,63 +1820,87 @@ Returns: response object</p></div>
 </summary>
 <pre><code class="python">def set_network_configuration(
     self,
-    interface: str,
-    allocation: str,
-    ip_address: str = &#34;0.0.0.0&#34;,
-    netmask: str = &#34;0.0.0.0&#34;,
-    gateway: str = &#34;0.0.0.0&#34;,
-    domain_names: list | None = None,
-):
-    &#34;&#34;&#34;Set network configuration of an interface.
+    interface_configs: &#34;LocalNode.NetworkInterfaceConfiguration | list[LocalNode.NetworkInterfaceConfiguration]&#34;,
+    gateway: str = &#34;&#34;,
+    dns_servers: list[str] | None = None,
+    disabled_wan_traffic: bool = False,
+) -&gt; dict:
+    &#34;&#34;&#34;Set network configuration for one or more interfaces.
 
     Parameters
     ----------
-    interface : str
-        Name of the interface.
-    allocation : str
-        Allocation of the interface. (one of dhcp, static, unconfigured)
-    ip_address : str, optional
-        IP address of the interface. The default is &#34;0.0.0.0&#34;
-    netmask : str, optional
-        Netmask of the interface. The default is &#34;0.0.0.0&#34;
+    interface_configs : NetworkInterfaceConfiguration | list[NetworkInterfaceConfiguration]
+        One or more interface configurations.
     gateway : str, optional
-        Gateway of the interface. The default is &#34;0.0.0.0&#34;
-    domain_names : list, optional
-        Domain names of the interface. The default is [].
+        Default gateway for the node. The default is &#34;&#34;.
+    dns_servers : list[str] | None, optional
+        DNS server IP addresses. The default is an empty list.
+    disabled_wan_traffic : bool, optional
+        Whether WAN traffic is disabled. The default is False.
+
+    Example:
+        &gt;&gt;&gt; extern1 = node.NetworkInterfaceConfiguration(
+        ...     interface_name=&#34;extern1&#34;,
+        ...     allocation=&#34;static&#34;,
+        ...     ip_address=&#34;192.168.1.100&#34;,
+        ...     netmask=&#34;255.255.255.0&#34;
+        ... )
+        &gt;&gt;&gt; node.set_network_configuration([extern1])
     &#34;&#34;&#34;
-    return self.node.post(
-        &#34;api/setup/network/interfaces&#34;,
-        json={
+    interface_configs = self._normalize_network_interface_configs(interface_configs)
+    dns_servers = dns_servers or []
+
+    if self.version_smaller_than(&#34;3.2.0&#34;):
+        return self.node.post(
+            &#34;/api/setup/network/init-config-update&#34;,
+            json={
+                &#34;configurations&#34;: [
+                    interface_config.as_legacy_payload(gateway, dns_servers, disabled_wan_traffic)
+                    for interface_config in interface_configs
+                ]
+            },
+            accepted_status=[requests.codes.ok],
+        ).json()
+
+    config = {
+        &#34;networking&#34;: {
             &#34;interfaces&#34;: [
-                {
-                    &#34;interface_name&#34;: interface,
-                    &#34;allocation&#34;: allocation,
-                    &#34;ip_address&#34;: ip_address,
-                    &#34;netmask&#34;: netmask,
-                    &#34;gateway&#34;: gateway,
-                    &#34;domainNames&#34;: domain_names if domain_names is not None else [],
-                }
-            ]
-        },
+                interface_config.as_current_payload() for interface_config in interface_configs
+            ],
+            &#34;disabledWanTraffic&#34;: disabled_wan_traffic,
+        }
+    }
+    if dns_servers:
+        config[&#34;networking&#34;][&#34;dns&#34;] = {&#34;servers&#34;: dns_servers}
+    if gateway:
+        config[&#34;networking&#34;][&#34;default-gateway&#34;] = gateway
+    return self.node.post(
+        &#34;/api/setup/network/config-update&#34;,
+        json=config,
         accepted_status=[requests.codes.ok],
     ).json()</code></pre>
 </details>
-<div class="desc"><p>Set network configuration of an interface.</p>
+<div class="desc"><p>Set network configuration for one or more interfaces.</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
-<dt><strong><code>interface</code></strong> :&ensp;<code>str</code></dt>
-<dd>Name of the interface.</dd>
-<dt><strong><code>allocation</code></strong> :&ensp;<code>str</code></dt>
-<dd>Allocation of the interface. (one of dhcp, static, unconfigured)</dd>
-<dt><strong><code>ip_address</code></strong> :&ensp;<code>str</code>, optional</dt>
-<dd>IP address of the interface. The default is "0.0.0.0"</dd>
-<dt><strong><code>netmask</code></strong> :&ensp;<code>str</code>, optional</dt>
-<dd>Netmask of the interface. The default is "0.0.0.0"</dd>
+<dt><strong><code>interface_configs</code></strong> :&ensp;<code>NetworkInterfaceConfiguration | list[NetworkInterfaceConfiguration]</code></dt>
+<dd>One or more interface configurations.</dd>
 <dt><strong><code>gateway</code></strong> :&ensp;<code>str</code>, optional</dt>
-<dd>Gateway of the interface. The default is "0.0.0.0"</dd>
-<dt><strong><code>domain_names</code></strong> :&ensp;<code>list</code>, optional</dt>
-<dd>Domain names of the interface. The default is [].</dd>
-</dl></div>
+<dd>Default gateway for the node. The default is "".</dd>
+<dt><strong><code>dns_servers</code></strong> :&ensp;<code>list[str] | None</code>, optional</dt>
+<dd>DNS server IP addresses. The default is an empty list.</dd>
+<dt><strong><code>disabled_wan_traffic</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>Whether WAN traffic is disabled. The default is False.</dd>
+</dl>
+<h2 id="example">Example</h2>
+<pre><code class="language-python-repl">&gt;&gt;&gt; extern1 = node.NetworkInterfaceConfiguration(
+...     interface_name=&quot;extern1&quot;,
+...     allocation=&quot;static&quot;,
+...     ip_address=&quot;192.168.1.100&quot;,
+...     netmask=&quot;255.255.255.0&quot;
+... )
+&gt;&gt;&gt; node.set_network_configuration([extern1])
+</code></pre></div>
 </dd>
 <dt id="nerve_lib.manage_node.LocalNode.set_proxy"><code class="name flex">
 <span>def <span class="ident">set_proxy</span></span>(<span>self, enabled, http_proxy, https_proxy, no_proxy='', user='', password='')</span>
@@ -1740,7 +1910,15 @@ Returns: response object</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def set_proxy(self, enabled, http_proxy, https_proxy, no_proxy=&#34;&#34;, user=&#34;&#34;, password=&#34;&#34;):
+<pre><code class="python">def set_proxy(
+    self,
+    enabled,
+    http_proxy,
+    https_proxy,
+    no_proxy=&#34;&#34;,
+    user=&#34;&#34;,
+    password=&#34;&#34;,  # nosec B107
+):
     &#34;&#34;&#34;Manage Proxy settings on a node.&#34;&#34;&#34;
     payload = {
         &#34;enabled&#34;: enabled,
@@ -1773,7 +1951,7 @@ Returns: response object</p></div>
     payload = {
         &#34;path&#34;: nfs_mountpoint,
         &#34;user&#34;: &#34;&#34;,
-        &#34;password&#34;: &#34;&#34;,
+        &#34;password&#34;: &#34;&#34;,  # nosec B105
         &#34;id&#34;: &#34;&#34;,
         &#34;protocol&#34;: &#34;nfs&#34;,
         &#34;type&#34;: &#34;vmBackups&#34;,
@@ -1973,6 +2151,26 @@ Returns: response object</p></div>
             return {}
         # Return the entire node list
         return node_list
+
+    def get_nodes_filtered(self, node_name: str | None = None, serial_number: str | None = None) -&gt; dict:
+        &#34;&#34;&#34;Read node list of MS filtered by name and/or serial number.&#34;&#34;&#34;
+        parameters = {&#34;limit&#34;: 50, &#34;page&#34;: 1, &#34;order[created]&#34;: &#34;asc&#34;}
+        if node_name:
+            parameters[&#34;filterBy[name]&#34;] = node_name
+        if serial_number:
+            parameters[&#34;filterBy[serialNumber]&#34;] = serial_number
+        nodes = {&#34;count&#34;: 0, &#34;data&#34;: []}
+        while True:
+            nodes_single_read = self.ms.get(
+                &#34;/nerve/nodes/filtered/list&#34;, params=parameters, accepted_status=[requests.codes.ok]
+            ).json()
+            parameters[&#34;page&#34;] += 1
+            nodes[&#34;data&#34;] += nodes_single_read.get(&#34;data&#34;, [])
+            nodes[&#34;count&#34;] = nodes_single_read[&#34;count&#34;]
+            if len(nodes[&#34;data&#34;]) == nodes_single_read[&#34;count&#34;]:
+                break
+
+        return nodes[&#34;data&#34;]
 
     def get_nodes_by_name(self, node_name_filter: str | None = None) -&gt; dict:
         &#34;&#34;&#34;Read node list of MS filtered by name of the node.
@@ -2528,6 +2726,36 @@ The default is None.</dd>
 <dd>Node list informatnion from MS API.</dd>
 </dl></div>
 </dd>
+<dt id="nerve_lib.manage_node.MSNode.get_nodes_filtered"><code class="name flex">
+<span>def <span class="ident">get_nodes_filtered</span></span>(<span>self, node_name: str | None = None, serial_number: str | None = None) ‑> dict</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_nodes_filtered(self, node_name: str | None = None, serial_number: str | None = None) -&gt; dict:
+    &#34;&#34;&#34;Read node list of MS filtered by name and/or serial number.&#34;&#34;&#34;
+    parameters = {&#34;limit&#34;: 50, &#34;page&#34;: 1, &#34;order[created]&#34;: &#34;asc&#34;}
+    if node_name:
+        parameters[&#34;filterBy[name]&#34;] = node_name
+    if serial_number:
+        parameters[&#34;filterBy[serialNumber]&#34;] = serial_number
+    nodes = {&#34;count&#34;: 0, &#34;data&#34;: []}
+    while True:
+        nodes_single_read = self.ms.get(
+            &#34;/nerve/nodes/filtered/list&#34;, params=parameters, accepted_status=[requests.codes.ok]
+        ).json()
+        parameters[&#34;page&#34;] += 1
+        nodes[&#34;data&#34;] += nodes_single_read.get(&#34;data&#34;, [])
+        nodes[&#34;count&#34;] = nodes_single_read[&#34;count&#34;]
+        if len(nodes[&#34;data&#34;]) == nodes_single_read[&#34;count&#34;]:
+            break
+
+    return nodes[&#34;data&#34;]</code></pre>
+</details>
+<div class="desc"><p>Read node list of MS filtered by name and/or serial number.</p></div>
+</dd>
 <dt id="nerve_lib.manage_node.MSNode.remove_active_remote_connections"><code class="name flex">
 <span>def <span class="ident">remove_active_remote_connections</span></span>(<span>self, remote_ids: list | None = None) ‑> type</span>
 </code></dt>
@@ -2615,6 +2843,7 @@ if parameter is None, all active connection will be removed</dd>
 <li>
 <h4><code><a title="nerve_lib.manage_node.LocalNode" href="#nerve_lib.manage_node.LocalNode">LocalNode</a></code></h4>
 <ul class="">
+<li><code><a title="nerve_lib.manage_node.LocalNode.NetworkInterfaceConfiguration" href="#nerve_lib.manage_node.LocalNode.NetworkInterfaceConfiguration">NetworkInterfaceConfiguration</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.auth_ms_on_node" href="#nerve_lib.manage_node.LocalNode.auth_ms_on_node">auth_ms_on_node</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.change_password" href="#nerve_lib.manage_node.LocalNode.change_password">change_password</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.change_ssh_password" href="#nerve_lib.manage_node.LocalNode.change_ssh_password">change_ssh_password</a></code></li>
@@ -2627,6 +2856,7 @@ if parameter is None, all active connection will be removed</dd>
 <li><code><a title="nerve_lib.manage_node.LocalNode.delete_vm_snapshot" href="#nerve_lib.manage_node.LocalNode.delete_vm_snapshot">delete_vm_snapshot</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.deploy_vm_backup" href="#nerve_lib.manage_node.LocalNode.deploy_vm_backup">deploy_vm_backup</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.download_audit_log" href="#nerve_lib.manage_node.LocalNode.download_audit_log">download_audit_log</a></code></li>
+<li><code><a title="nerve_lib.manage_node.LocalNode.download_debug_log" href="#nerve_lib.manage_node.LocalNode.download_debug_log">download_debug_log</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.edit_file" href="#nerve_lib.manage_node.LocalNode.edit_file">edit_file</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.get_backup_list" href="#nerve_lib.manage_node.LocalNode.get_backup_list">get_backup_list</a></code></li>
 <li><code><a title="nerve_lib.manage_node.LocalNode.get_configuration" href="#nerve_lib.manage_node.LocalNode.get_configuration">get_configuration</a></code></li>
@@ -2670,6 +2900,7 @@ if parameter is None, all active connection will be removed</dd>
 <li><code><a title="nerve_lib.manage_node.MSNode.get_deploy_list" href="#nerve_lib.manage_node.MSNode.get_deploy_list">get_deploy_list</a></code></li>
 <li><code><a title="nerve_lib.manage_node.MSNode.get_nodes" href="#nerve_lib.manage_node.MSNode.get_nodes">get_nodes</a></code></li>
 <li><code><a title="nerve_lib.manage_node.MSNode.get_nodes_by_name" href="#nerve_lib.manage_node.MSNode.get_nodes_by_name">get_nodes_by_name</a></code></li>
+<li><code><a title="nerve_lib.manage_node.MSNode.get_nodes_filtered" href="#nerve_lib.manage_node.MSNode.get_nodes_filtered">get_nodes_filtered</a></code></li>
 <li><code><a title="nerve_lib.manage_node.MSNode.remove_active_remote_connections" href="#nerve_lib.manage_node.MSNode.remove_active_remote_connections">remove_active_remote_connections</a></code></li>
 </ul>
 </li>

@@ -2,7 +2,7 @@
     <img src="./img/logo-nerve-black.svg" alt="Nerve"/><b>&nbsp;LIB</b><br><br>
     <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg"/></a>
     <a href="https://docs.python.org/3/"><img src="https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue.svg"/></a>
-    <a href="https://docs.nerve.cloud"><img src="https://img.shields.io/badge/nerve-2.9%20%7C%202.10%20%7C%203.0%20%7C%203.1-blue.svg"/></a>
+    <a href="https://docs.nerve.cloud"><img src="https://img.shields.io/badge/nerve-2.9%20%7C%202.10%20%7C%203.0%20%7C%203.1.1-blue.svg"/></a>
 </p>
 
 The *nerve_lib* provides an interface to the REST API of a [Nerve Management System](https://docs.nerve.cloud/) in python. It implements authentication, and management of nodes and workloads. The *nerve_lib* can be used to integrate Nerve related tasks into a build pipeline (e.g. automatically creating a workload and deploying it on a test node when a new version of an application image is built).
@@ -77,10 +77,7 @@ from nerve_lib import MSWorkloads
 with MSHandle("testms.nerve.cloud", "ms-username", "ms-password") as ms_handle:
     wl = MSWorkloads(ms_handle)
     wl_config = wl.gen_workload_configuration(
-        "docker",
-        wrkld_name="docker",
-        file_paths=["docker.tar"],
-        restart_policy="always"
+        "docker", wrkld_name="docker", file_paths=["docker.tar"], restart_policy="always"
     )
     wl.provision_workload(wl_config, file_paths=["images/docker.tar"])
 ```
@@ -90,7 +87,7 @@ with MSHandle("testms.nerve.cloud", "ms-username", "ms-password") as ms_handle:
 from nerve_lib import MSHandle
 from nerve_lib import MSNode
 
-with MSHandle("testms.nerve.cloud", "ms-username", "ms-password") as ms_handle:
+with MSHandle("testms.nerve.cloud") as ms_handle:
     nodes = MSNode(ms_handle)
     nodes.get_nodes_by_name("MFN")
 ```

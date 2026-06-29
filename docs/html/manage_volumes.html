@@ -152,7 +152,7 @@ el.replaceWith(d);
         start_time = time.time()
         while time.time() - start_time &lt; retry_timeout:
             try:
-                response = self.get_volumes(dut_serial).json()
+                response = self.get_volumes(dut_serial)
                 volume = next((v for v in response.get(&#34;volumes&#34;, []) if v[&#34;name&#34;] == volume_name), None)
                 if not volume:
                     raise RuntimeError(f&#34;Volume &#39;{volume_name}&#39; not found in response: {response}&#34;)
@@ -188,7 +188,7 @@ el.replaceWith(d);
     start_time = time.time()
     while time.time() - start_time &lt; retry_timeout:
         try:
-            response = self.get_volumes(dut_serial).json()
+            response = self.get_volumes(dut_serial)
             volume = next((v for v in response.get(&#34;volumes&#34;, []) if v[&#34;name&#34;] == volume_name), None)
             if not volume:
                 raise RuntimeError(f&#34;Volume &#39;{volume_name}&#39; not found in response: {response}&#34;)

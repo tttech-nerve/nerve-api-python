@@ -190,17 +190,21 @@ class MSUser:
     def get(self, email="", role_type="local"):
         """Get a list of users."""
         user_list = self.ms.get(
-            "/crm/profiles?limit=500",
-            params=[{"filterBy[type]", role_type}],
+            "/crm/profile/list" if self.ms.version_smaller_than("3.2.0") else "/crm/profiles",
+            params={"limit": 500, "filterBy[type]": role_type},
             accepted_status=[requests.codes.ok],
         ).json()
         if email:
             try:
-                return next(user for user in user_list["profiles"] if user["username"] == email)
+                return next(
+                    user
+                    for user in user_list["data" if self.ms.version_smaller_than("3.2.0") else "profiles"]
+                    if user["username"] == email
+                )
             except StopIteration:
                 msg = (
                     f"User '{email}' not in role_type '{role_type}' "
-                    f"({[user['username'] for user in user_list['profiles']]}"
+                    f"({[user['username'] for user in user_list['data' if self.ms.version_smaller_than('3.2.0') else 'profiles']]})"
                 )
                 raise ValueError(msg)
         return user_list
@@ -253,17 +257,12 @@ class MSUser:
             payload["lastName"] = last_name
 
         payload["profileImgURL"] = ""
-
         payload["id"] = payload.pop("_id")
-
         payload["mfaEnabled"] = False
 
         payload.pop("auth", None)
-
         payload.pop("created", None)
-
         payload.pop("preferences", None)
-
         payload.pop("type", None)
 
         m_enc_data = {"data": (None, json.dumps(payload), "form-data")}
@@ -287,7 +286,7 @@ class MSUser:
         last_name="",
         old_password="",
         new_password="",
-        confirm_new_password="",
+        confirm_new_password="",  # nosec B107
         user_id="",
     ):
         """Edit an personal user."""
@@ -305,11 +304,17 @@ class MSUser:
             "newPassword": new_password,
             "confirmPassword": confirm_new_password,
         }
+        if self.ms.version_smaller_than("3.2.0"):
+            payload["preferredLanguage"] = "en_EN"
+        if not old_password and not new_password and not confirm_new_password:
+            payload.pop("currentPassword")
+            payload.pop("newPassword")
+            payload.pop("confirmPassword")
 
         m_enc_data = {"data": (None, json.dumps(payload), "form-data")}
 
         response = self.ms.put(
-            "/crm/personal-profile",
+            "/crm/personalProfile" if self.ms.version_smaller_than("3.2.0") else "/crm/personal-profile",
             m_enc_data=m_enc_data,
             accepted_status=[requests.codes.ok],
         )
@@ -410,7 +415,12 @@ class LDAP:
         ).json()
 
     def test_connection(
-        self, url: str, port=389, bind_dn="cn=admin,dc=tttech,dc=com", password="Passw0rd", secure=False
+        self,
+        url: str,
+        port=389,
+        bind_dn="",
+        password="",  # nosec B107
+        secure=False,
     ):
         """Test LDAP server connection.
 
@@ -420,6 +430,12 @@ class LDAP:
             URL of the LDAP server.
         port : int
             Port of the LDAP server. Port 389 is the default port for unencrypted LDAP communication.
+        bind_dn : str
+            Bind DN of the LDAP server.
+        password : str
+            Password of the LDAP server.
+        secure : bool
+            Enable TLS for LDAP communication (switching between unecrypted and encrypted ports).
 
         Returns
         -------
@@ -541,13 +557,13 @@ class LDAP:
 
     def ldap_payload(
         self,
+        url: str,
         file_name: str = "",
         name: str = "ldap_config",
-        url: str = "ldap.dev.nerve.cloud",
         port: int = 389,
         active: bool = False,
-        bind_dn: str = "cn=admin,dc=tttech,dc=com",
-        password: str = "Passw0rd",
+        bind_dn: str = "",
+        password: str = "",  # nosec B107
         tls: bool = False,
         recurring_sync=None,
         relationship=None,
@@ -629,7 +645,9 @@ class LDAP:
             "groups": groups,
         }
 
-    def query_groups(self, search_base="", filter="", group_name="", admin_group="", default_role=""):
+    def query_groups(
+        self, password, search_base="", filter="", group_name="", admin_group="", default_role=""
+    ):
         """Query groups from LDAP configuration.
 
         Parameters
@@ -651,13 +669,23 @@ class LDAP:
             groups query response
         """
         group_payload = self.groups(search_base, filter, group_name, admin_group, default_role)
-        ldap_payload = self.ldap_payload(users="0", groups=group_payload)
+        ldap_payload = self.get_default()
+        ldap_payload["fileName"] = ldap_payload["file"]
+        ldap_payload.pop("file", None)
+        ldap_payload.pop("initiator", None)
+        ldap_payload.pop("urlInfo", None)
+        ldap_payload.pop("users", None)
+
+        ldap_payload["groups"] = group_payload
+        ldap_payload["password"] = password
         payload = {"ldap": ldap_payload, "paging": {"limit": 10, "page": 1}}
         return self.ms.post(
             "/nerve/ldap/query/groups", json=payload, accepted_status=[requests.codes.ok]
         ).json()
 
-    def query_users(self, search_base="", filter="", first_name="", last_name="", email="", username=""):
+    def query_users(
+        self, password, search_base="", filter="", first_name="", last_name="", email="", username=""
+    ):
         """Query users from LDAP configuration.
 
         Parameters
@@ -681,7 +709,16 @@ class LDAP:
             users query response
         """
         user_payload = self.users(search_base, filter, first_name, last_name, email, username)
-        ldap_payload = self.ldap_payload(users=user_payload, groups="0")
+
+        ldap_payload = self.get_default()
+        ldap_payload["fileName"] = ldap_payload["file"]
+        ldap_payload.pop("file", None)
+        ldap_payload.pop("initiator", None)
+        ldap_payload.pop("urlInfo", None)
+        ldap_payload.pop("groups", None)
+
+        ldap_payload["users"] = user_payload
+        ldap_payload["password"] = password
         payload = {"ldap": ldap_payload, "paging": {"limit": 10, "page": 1}}
         return self.ms.post(
             "/nerve/ldap/query/users", json=payload, accepted_status=[requests.codes.ok]
@@ -711,11 +748,7 @@ class LDAP:
         self,
         action: str,
         file_name: str,
-        ldap_payload: dict | None = None,
-        recurring_sync=None,
-        relationship=None,
-        users=None,
-        groups=None,
+        ldap_payload: dict,
     ):
         """
         Send LDAP configuration payload with populated data from other functions.
@@ -726,53 +759,27 @@ class LDAP:
             Action to perform on the LDAP configuration. Can be either "sync" or "save".
         file_name : str
             File name of the saved configuration.
-        name : str
-            LDAP configuration name on MS.
-        url : str
-            URL of the LDAP server.
-        port : int
-            Port of the LDAP server.
-        active : bool
-            Status of the LDAP configuration.
-        bind_dn : str
-            Bind DN of the LDAP server.
-        password : str
-            Password of the LDAP server.
-        tls : bool
-            Enable TLS for LDAP communication.
+        ldap_payload : dict
+            LDAP configuration payload.
 
         Returns
         -------
         dict
             Response from the request.
         """
-        # Populate each component of the payload if not provided
-        recurring_sync = recurring_sync or self.recurring_sync()
-        relationship = relationship or self.relationship()
-        users = users or self.users()
-        groups = groups or self.groups()
-
-        # Create the full LDAP payload
-        payload = ldap_payload or self.ldap_payload(
-            file_name=file_name,
-            name=file_name,
-            recurring_sync=recurring_sync,
-            relationship=relationship,
-            users=users,
-            groups=groups,
-        )
-
         if action == "save":
             # Send the POST request
-            return self.ms.post("/nerve/ldap", json=payload, accepted_status=[requests.codes.ok]).json()
+            return self.ms.post("/nerve/ldap", json=ldap_payload, accepted_status=[requests.codes.ok]).json()
         if action == "update":
             # Send the PUT request
             return self.ms.put(
-                f"/nerve/ldap/{file_name}", json=payload, accepted_status=[requests.codes.ok]
+                f"/nerve/ldap/{file_name}", json=ldap_payload, accepted_status=[requests.codes.ok]
             ).json()
         if action == "sync":
             # Send the POST request
-            return self.ms.post("/nerve/ldap/sync", json=payload, accepted_status=[requests.codes.ok]).json()
+            return self.ms.post(
+                "/nerve/ldap/sync", json=ldap_payload, accepted_status=[requests.codes.ok]
+            ).json()
 
         err_msg = f"Invalid action for function save_sync_ldap: {action}"
         raise ValueError(err_msg)

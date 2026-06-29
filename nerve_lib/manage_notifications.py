@@ -68,15 +68,28 @@ class MSNotifications:
 
     def create(self, text_header, text_msg, image_path="", active=True, show_before_login=False):
         """Create a new notification item."""
-        with open(image_path, "rb") if image_path else None as image_open:
+        if image_path:
+            with open(image_path, "rb") as image_open:
+                m_enc_data = self.__prepare_content(
+                    text_header, text_msg, image_path, active, show_before_login, image_open
+                )
+
+                resp = self.ms.post(
+                    "/nerve/notifications",
+                    m_enc_data=m_enc_data,
+                    accepted_status=[requests.codes.ok],
+                )
+        else:
             m_enc_data = self.__prepare_content(
-                text_header, text_msg, image_path, active, show_before_login, image_open
+                text_header, text_msg, image_path, active, show_before_login, None
             )
+
             resp = self.ms.post(
                 "/nerve/notifications",
                 m_enc_data=m_enc_data,
                 accepted_status=[requests.codes.ok],
             )
+
         self._log.info("Created Notification %s", text_header)
         return resp.json()
 
@@ -90,9 +103,19 @@ class MSNotifications:
         show_before_login=False,
     ):
         """Edit an existing notification item."""
-        with open(image_path, "rb") if image_path else None as image_open:
+        if image_path:
+            with open(image_path, "rb") as image_open:
+                m_enc_data = self.__prepare_content(
+                    text_header, text_msg, image_path, active, show_before_login, image_open
+                )
+                resp = self.ms.put(
+                    f"/nerve/notifications/{notification_id}",
+                    m_enc_data=m_enc_data,
+                    accepted_status=[requests.codes.ok],
+                )
+        else:
             m_enc_data = self.__prepare_content(
-                text_header, text_msg, image_path, active, show_before_login, image_open
+                text_header, text_msg, image_path, active, show_before_login, None
             )
             resp = self.ms.put(
                 f"/nerve/notifications/{notification_id}",

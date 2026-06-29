@@ -200,7 +200,7 @@ class DockerVolumes:
         start_time = time.time()
         while time.time() - start_time < retry_timeout:
             try:
-                response = self.get_volumes(dut_serial).json()
+                response = self.get_volumes(dut_serial)
                 volume = next((v for v in response.get("volumes", []) if v["name"] == volume_name), None)
                 if not volume:
                     raise RuntimeError(f"Volume '{volume_name}' not found in response: {response}")

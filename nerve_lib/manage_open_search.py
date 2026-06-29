@@ -31,9 +31,9 @@ Example:
 
 import json
 from copy import deepcopy
+from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
-from datetime import timezone
 
 import requests
 
@@ -105,7 +105,7 @@ class MSOpenSearch:
         if search_filters is None:
             search_filters = []
         # Get the current time in UTC
-        current_time = datetime.now(timezone.utc)
+        current_time = datetime.now(UTC)
         past_time = current_time - timedelta(hours=past_hours)
 
         # Format the time as a string

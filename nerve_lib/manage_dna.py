@@ -90,7 +90,10 @@ class DNACommon:
                 for cfile in zip_file.namelist():
                     self._log.info("Reading content of %s", cfile)
                     with zip_file.open(cfile) as file:
-                        config_file[cfile] = yaml.safe_load(file.read())
+                        if cfile.endswith((".yaml", ".yml")):
+                            config_file[cfile] = yaml.safe_load(file.read())
+                        else:
+                            config_file[cfile] = file.read()
             except BadZipFile:
                 self._log.warning("Received DNA configuration is not a valid zip file")
             else:
@@ -256,7 +259,7 @@ class DNACommon:
 
 
 class MSDNA(DNACommon):
-    """Management system API commands to handle DNA of a device.
+    """Management system API commands to handle workload DNA of a device.
 
     Parameters
     ----------
@@ -275,7 +278,7 @@ class MSDNA(DNACommon):
 
 
 class LocalDNA(DNACommon):
-    """Manage the DNA of a device directly using localUI API comamnds.
+    """Manage the workload DNA of a device directly using localUI API comamnds.
 
     Parameters
     ----------
@@ -298,10 +301,10 @@ class LocalDNA(DNACommon):
 
 
 class ServiceOSDNACommon(DNACommon):
-    """Common class for localUI and MS based Service OS DNA handling."""
+    """Common class for localUI and MS based node DNA handling."""
 
     def put_target(self, config_dict: dict) -> dict:
-        """Apply target Service OS DNA configuration using a configuration dict.
+        """Apply target node dna configuration using a configuration dict.
 
         Parameters
         ----------
@@ -327,14 +330,14 @@ class ServiceOSDNACommon(DNACommon):
 
 
 class ServiceOSDNA(ServiceOSDNACommon):
-    """Management system API commands to handle Service OS DNA of a device.
+    """Management system API commands to handle node DNA of a device.
 
     Parameters
     ----------
     ms_handle : type
         handle to the MS 'nerve_lib.general_utils.MSHandle(...)'.
     node_serial_number : str
-        Serial number of the connected node to execute the Service OS DNA functions with.
+        Serial number of the connected node to execute the node DNA functions with.
     """
 
     def __init__(self, ms_handle: type, node_serial_number: str):
@@ -346,7 +349,7 @@ class ServiceOSDNA(ServiceOSDNACommon):
 
 
 class LocalUIDNAServiceOS(ServiceOSDNACommon):
-    """Manage Service OS DNA of a device via Local UI API commands.
+    """Manage node DNA of a device via Local UI API commands.
 
     Parameters
     ----------
