@@ -178,11 +178,11 @@ el.replaceWith(d);
 
     def get_audit(self, past_hours: int = 5, search_filters: list | None = None):
         &#34;&#34;&#34;Get audit logs from open search.&#34;&#34;&#34;
-        return self._get_index(index=&#34;audit-ms*&#34;, past_hours=past_hours, search_filters=search_filters)
+        return self._get_index(index=&#34;audit-*,audit-ms-*&#34;, past_hours=past_hours, search_filters=search_filters)
 
     def get_audit_node(self, past_hours: int = 5, search_filters: list | None = None):
         &#34;&#34;&#34;Get audit logs node from open search.&#34;&#34;&#34;
-        return self._get_index(index=&#34;audit-node*&#34;, past_hours=past_hours, search_filters=search_filters)
+        return self._get_index(index=&#34;audit-*,audit-node*&#34;,past_hours=past_hours,search_filters=search_filters,)
 
     def get_filebeat(self, past_hours: int = 5, search_filters: list | None = None):
         &#34;&#34;&#34;Get filebeat logs from open search.&#34;&#34;&#34;
@@ -199,7 +199,7 @@ el.replaceWith(d);
     def get_audit_docker(self, past_hours: int = 5, search_filters: list | None = None):
         &#34;&#34;&#34;Get audit logs node from open search.&#34;&#34;&#34;
         return self._get_index(
-            index=&#34;audit-docker-log*&#34;, past_hours=past_hours, search_filters=search_filters
+            index=&#34;audit-*,audit-docker-log-*&#34;, past_hours=past_hours, search_filters=search_filters
         )
 
     def filter_audit_hits(self, past_hours=5, node=False, docker=False, **kwargs):
@@ -215,15 +215,17 @@ el.replaceWith(d);
         else:
             response_data = self.get_audit(past_hours)
 
-        hits_indexs = [hits[&#34;_source&#34;] for hits in response_data[&#34;rawResponse&#34;][&#34;hits&#34;][&#34;hits&#34;]]
+        hits = response_data[&#34;rawResponse&#34;][&#34;hits&#34;][&#34;hits&#34;]
 
         matching_hits = []
 
-        for hits_index in hits_indexs:
+        for hit in hits:
+            hits_index = hit.get(&#34;_source&#34;, {})
             add_match = True
             for name, value in kwargs.items():
                 if hits_index.get(name) != value:
                     add_match = False
+                    break
             if add_match:
                 matching_hits.append(hits_index)
         return matching_hits
@@ -464,15 +466,17 @@ def create_search_multimatch_phrase(phrase):
     else:
         response_data = self.get_audit(past_hours)
 
-    hits_indexs = [hits[&#34;_source&#34;] for hits in response_data[&#34;rawResponse&#34;][&#34;hits&#34;][&#34;hits&#34;]]
+    hits = response_data[&#34;rawResponse&#34;][&#34;hits&#34;][&#34;hits&#34;]
 
     matching_hits = []
 
-    for hits_index in hits_indexs:
+    for hit in hits:
+        hits_index = hit.get(&#34;_source&#34;, {})
         add_match = True
         for name, value in kwargs.items():
             if hits_index.get(name) != value:
                 add_match = False
+                break
         if add_match:
             matching_hits.append(hits_index)
     return matching_hits</code></pre>
@@ -549,7 +553,7 @@ def create_search_multimatch_phrase(phrase):
 </summary>
 <pre><code class="python">def get_audit(self, past_hours: int = 5, search_filters: list | None = None):
     &#34;&#34;&#34;Get audit logs from open search.&#34;&#34;&#34;
-    return self._get_index(index=&#34;audit-ms*&#34;, past_hours=past_hours, search_filters=search_filters)</code></pre>
+    return self._get_index(index=&#34;audit-*,audit-ms-*&#34;, past_hours=past_hours, search_filters=search_filters)</code></pre>
 </details>
 <div class="desc"><p>Get audit logs from open search.</p></div>
 </dd>
@@ -564,7 +568,7 @@ def create_search_multimatch_phrase(phrase):
 <pre><code class="python">def get_audit_docker(self, past_hours: int = 5, search_filters: list | None = None):
     &#34;&#34;&#34;Get audit logs node from open search.&#34;&#34;&#34;
     return self._get_index(
-        index=&#34;audit-docker-log*&#34;, past_hours=past_hours, search_filters=search_filters
+        index=&#34;audit-*,audit-docker-log-*&#34;, past_hours=past_hours, search_filters=search_filters
     )</code></pre>
 </details>
 <div class="desc"><p>Get audit logs node from open search.</p></div>
@@ -579,7 +583,7 @@ def create_search_multimatch_phrase(phrase):
 </summary>
 <pre><code class="python">def get_audit_node(self, past_hours: int = 5, search_filters: list | None = None):
     &#34;&#34;&#34;Get audit logs node from open search.&#34;&#34;&#34;
-    return self._get_index(index=&#34;audit-node*&#34;, past_hours=past_hours, search_filters=search_filters)</code></pre>
+    return self._get_index(index=&#34;audit-*,audit-node*&#34;,past_hours=past_hours,search_filters=search_filters,)</code></pre>
 </details>
 <div class="desc"><p>Get audit logs node from open search.</p></div>
 </dd>

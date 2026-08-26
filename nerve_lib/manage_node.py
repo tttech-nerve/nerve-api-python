@@ -37,7 +37,7 @@ import requests
 import yaml
 
 
-class LocalNode:  # noqa: PLR0904
+class LocalNode:  # ruff:ignore[too-many-public-methods]
     """Node related functions from LocalUI."""
 
     def __init__(self, node_handle: type):
@@ -75,9 +75,9 @@ class LocalNode:  # noqa: PLR0904
         current_version = self.version.split("-", maxsplit=1)[0].split(".")
         comp_version = version.split("-", maxsplit=1)[0].split(".")
 
-        if len(current_version) != 3:  # noqa: PLR2004
+        if len(current_version) != 3:  # ruff:ignore[magic-value-comparison]
             return False  # e.g integration, master
-        if len(comp_version) != 3:  # noqa: PLR2004
+        if len(comp_version) != 3:  # ruff:ignore[magic-value-comparison]
             return True  # e.g integration, master
 
         for i in range(3):
@@ -868,6 +868,16 @@ class MSNode:
         # Return the entire node list
         return node_list
 
+    def get_nodes_info(self) -> dict:
+        """Read node list of MS with additional information.
+
+        Returns
+        -------
+        dict
+            Node list informatnion from MS API.
+        """
+        return self.ms.get("/nerve/v2/nodes", accepted_status=[requests.codes.ok]).json()
+
     def get_nodes_filtered(self, node_name: str | None = None, serial_number: str | None = None) -> dict:
         """Read node list of MS filtered by name and/or serial number."""
         parameters = {"limit": 50, "page": 1, "order[created]": "asc"}
@@ -1093,7 +1103,7 @@ class MSNode:
         return _SelectedNode(self, serial_number)
 
 
-class _SelectedNode:  # noqa: PLR0904
+class _SelectedNode:  # ruff:ignore[too-many-public-methods]
     """Create handle for selected Node.
 
     The handle will allow to control a specific node from the MS. e.g. to read it's online state
@@ -1555,7 +1565,13 @@ class _SelectedNode:  # noqa: PLR0904
         msg = f"Workload with name '{workload_name}' does not exist on dut"
         raise AttributeError(msg)
 
-    def workload_control(self, workload_name: str, command: str, remove_images=True) -> None:
+    def workload_control(
+        self,
+        workload_name: str,
+        command: str,
+        remove_images: bool = True,
+        service_name: str | None = None,
+    ) -> None:
         """Control the workload status.
 
         Parameters
@@ -1563,14 +1579,18 @@ class _SelectedNode:  # noqa: PLR0904
         workload_name : str
             Workload to be controlled.
         command : str
-            Command can be one of START, STOP, SUSPEND, RESUME, RESTART, UNDEPLOY".
+            Command can be one of START, STOP, SUSPEND, RESUME, RESTART, UNDEPLOY.
+        remove_images : bool, optional
+            If command is UNDEPLOY, controls whether workload images are removed.
+        service_name : str | None, optional
+            If set, command is applied only to the specified docker-compose service.
         """
         workload = self.get_workloads(workload_name)
         workload_id = workload.get("workloadId")
         version_id = workload.get("versionId")
-        if len(workload_id) > 24:  # noqa: PLR2004
+        if len(workload_id) > 24:  # ruff:ignore[magic-value-comparison]
             workload_id = workload_id[:24]
-        if len(version_id) > 24:  # noqa: PLR2004
+        if len(version_id) > 24:  # ruff:ignore[magic-value-comparison]
             version_id = version_id[:24]
         payload = {
             "command": command.upper(),
@@ -1582,6 +1602,8 @@ class _SelectedNode:  # noqa: PLR0904
         }
         if command.upper() == "UNDEPLOY":
             payload["removeImages"] = remove_images
+        if service_name:
+            payload["serviceName"] = service_name
 
         self._log.info(
             "Triggering Command '%s' on workload '%s'",
@@ -1887,16 +1909,68 @@ class _SelectedNode:  # noqa: PLR0904
     def remove_unused_images(self):
         """Remove unused images from node.
 
-        Parameters
-        ----------
-        dut : type
-            reference to node handles (general_utils.NodeHandle).
         Returns
         -------
         Response object from the MS API.
         """
         return self.node.ms.delete(
             f"nerve/v2/node/{self.serial_number}/docker-resources/images/unused",
+            accepted_status=[requests.codes.no_content],
+        )
+
+    def get_compose_restrictions(self, source="active") -> dict:
+        """Get compose restrictions file content.
+
+        Returns
+        -------
+        dict
+            Compose restrictions file content.
+        """
+        
+        if source not in {"active", "default"}:
+            raise ValueError("compose-restrictions source must be either 'active' or 'default'")
+        return self.node.ms.get(
+            f"/nerve/v2/node/{self.serial_number}/compose-restrictions",
+            params={"source": source},
+            accepted_status=[requests.codes.ok],
+        ).json()
+
+    def get_compose_restrictions_version(self, source="active") -> dict:
+        """Get compose restrictions version information
+
+        Returns
+        -------
+        dict
+            Compose restrictions version information.
+        """
+        return self.node.ms.get(
+            f"/nerve/v2/node/{self.serial_number}/compose-restrictions/version",
+            accepted_status=[requests.codes.ok],
+        ).json()
+
+    def update_compose_restrictions(self, restrictions: dict, base_version: int = 0):
+        """Update compose restrictions file content.
+
+        Parameters
+        ----------
+        restrictions : dict
+            New compose restrictions content.
+        base_version : int, optional
+            Version of the compose restrictions file the changes are based on.
+            If not provided the version from the restrictions will be used.
+        Returns
+        -------
+        Response object from the MS API.
+        """
+        if base_version == 0:
+            base_version = restrictions.get("version", 1)
+        m_enc_data = {
+            "file": ("compose-restrictions.json", json.dumps(restrictions), "application/json"),
+            "baseVersion": (None, str(base_version), "text/plain"),
+        }
+        self.node.ms.post(
+            f"/nerve/v2/node/{self.serial_number}/compose-restrictions",
+            m_enc_data=m_enc_data,
             accepted_status=[requests.codes.no_content],
         )
 
@@ -2625,5 +2699,5 @@ class _MSNodeUpdate:
                         "info": "HeartBeat received",
                     })
         for history_list in history.values():
-            history_list = sorted(history_list, key=lambda x: x["timestamp"])  # noqa PLW2901
+            history_list = sorted(history_list, key=lambda x: x["timestamp"])  # ruff:ignore[redefined-loop-name] PLW2901
         return history

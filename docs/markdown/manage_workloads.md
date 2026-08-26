@@ -29,7 +29,7 @@ Classes
 
     ### Methods
 
-    `control(self, workload_name: str, command: str, remove_images: bool = True) ‑> None`
+    `control(self, workload_name: str, command: str, remove_images: bool = True, service_name: str | None = None) ‑> None`
     :   Control the workload status.
         
         Parameters
@@ -37,7 +37,11 @@ Classes
         workload_name : str
             Workload to be controlled.
         command : str
-            Command can be one of START, STOP, SUSPEND, RESUME, RESTART, UNDEPLOY".
+            Command can be one of START, STOP, SUSPEND, RESUME, RESTART, UNDEPLOY.
+        remove_images : bool, optional
+            If command is UNDEPLOY, controls whether workload images are removed.
+        service_name : str | None, optional
+            If set, command is applied only to the specified docker-compose service.
 
     `deploy_workload(self, file_paths: list[str], deploy_timeout: int = 300) ‑> type`
     :   Deploy workload on node directly.

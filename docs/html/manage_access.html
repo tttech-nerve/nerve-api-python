@@ -1279,11 +1279,20 @@ node handle 'nerve_lib.general_utils.NodeHandle(&hellip;)'.</p></div>
 
     def get_permission_api(self, name_filter: str = &#34;&#34;):
         &#34;&#34;&#34;Get list of permissions for all classes (API).&#34;&#34;&#34;
-        return self.ms.get(
+        all_permissions = self.ms.get(
             &#34;/nerve/rbac/permissions&#34;,
             params={&#34;categories&#34;: [], &#34;filterBy&#34;: f&#39;{{&#34;name&#34;:&#34;{name_filter}&#34;}}&#39;},
             accepted_status=[requests.codes.ok],
         ).json()
+        ui_permissions = self.get_permission_ui(name_filter)
+        # remove ui_permissions from all_permissions
+        return {
+            &#34;data&#34;: [
+                perm
+                for perm in all_permissions[&#34;data&#34;]
+                if perm[&#34;_id&#34;] not in {p[&#34;_id&#34;] for p in ui_permissions[&#34;data&#34;]}
+            ],
+        }
 
     def add(self, name: str, permission_names: list, description: str = &#34;&#34;):
         &#34;&#34;&#34;Add a new role to the MS.&#34;&#34;&#34;
@@ -1542,11 +1551,20 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
 </summary>
 <pre><code class="python">def get_permission_api(self, name_filter: str = &#34;&#34;):
     &#34;&#34;&#34;Get list of permissions for all classes (API).&#34;&#34;&#34;
-    return self.ms.get(
+    all_permissions = self.ms.get(
         &#34;/nerve/rbac/permissions&#34;,
         params={&#34;categories&#34;: [], &#34;filterBy&#34;: f&#39;{{&#34;name&#34;:&#34;{name_filter}&#34;}}&#39;},
         accepted_status=[requests.codes.ok],
-    ).json()</code></pre>
+    ).json()
+    ui_permissions = self.get_permission_ui(name_filter)
+    # remove ui_permissions from all_permissions
+    return {
+        &#34;data&#34;: [
+            perm
+            for perm in all_permissions[&#34;data&#34;]
+            if perm[&#34;_id&#34;] not in {p[&#34;_id&#34;] for p in ui_permissions[&#34;data&#34;]}
+        ],
+    }</code></pre>
 </details>
 <div class="desc"><p>Get list of permissions for all classes (API).</p></div>
 </dd>
@@ -1724,7 +1742,230 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
             m_enc_data=m_enc_data,
             accepted_status=[requests.codes.ok],
         )
-        return response.json()</code></pre>
+        return response.json()
+
+    def get_current_user(self):
+        if self.ms.access_token:
+            raise RuntimeError(&#34;get_current_user() is not supported with token-based authentication&#34;)
+
+        users = self.get()
+        user_id = next(
+            (
+                user[&#34;_id&#34;]
+                for user in users[&#34;data&#34; if self.ms.version_smaller_than(&#34;3.2.0&#34;) else &#34;profiles&#34;]
+                if user[&#34;username&#34;] == self.ms.usr
+            ),
+            None,
+        )
+        if not user_id:
+            raise ValueError(f&#34;Current user &#39;{self.ms.usr}&#39; not found in MS&#34;)
+        return self.ms.get(f&#34;/crm/profile/{user_id}&#34;, accepted_status=[requests.codes.ok]).json()
+
+    def get_user_permissions(
+        self, email: str = &#34;&#34;, role_type: str = &#34;local&#34;, token_name: str = &#34;&#34;
+    ) -&gt; list[str]:
+        if token_name:
+            token_info = self.get_access_tokens(name=token_name)
+            if not token_info:
+                raise ValueError(f&#34;Access token &#39;{token_name}&#39; not found&#34;)
+            user_id = token_info.get(&#34;userId&#34;)
+            user_info = self.ms.get(f&#34;/crm/profile/{user_id}&#34;, accepted_status=[requests.codes.ok]).json()
+        elif email:
+            user_info = self.get(email=email, role_type=role_type)
+        else:
+            user_info = self.get_current_user()
+
+        role_permissions = self._role.get_permission_api()
+        permissions = []
+        for role in user_info.get(&#34;roles&#34;, []):
+            role_info = self._role.get(name=role[&#34;name&#34;], role_type=role[&#34;type&#34;])
+            role_permission_names = [
+                perm[&#34;name&#34;]
+                for perm in role_permissions[&#34;data&#34;]
+                if perm[&#34;_id&#34;] in role_info.get(&#34;permissions&#34;, [])
+            ]
+            permissions.extend(role_permission_names)
+
+        self._log.debug(&#34;User &#39;%s&#39; has the following permissions: %s&#34;, user_info[&#34;username&#34;], permissions)
+        return permissions
+
+    def _resolve_permission_ids(self, permissions: list[str]) -&gt; list[str]:
+        &#34;&#34;&#34;Resolve permission names or IDs to permission IDs.&#34;&#34;&#34;
+        available_permissions = self._role.get_permission_api().get(&#34;data&#34;, [])
+        permission_map = {permission[&#34;name&#34;]: permission[&#34;_id&#34;] for permission in available_permissions}
+        available_permission_ids = {permission[&#34;_id&#34;] for permission in available_permissions}
+
+        resolved_permission_ids = []
+        for permission in permissions:
+            if permission in permission_map:
+                resolved_permission_ids.append(permission_map[permission])
+            elif permission in available_permission_ids:
+                resolved_permission_ids.append(permission)
+            else:
+                user_available_permissions = self.get_user_permissions()
+                formatted_permissions = [
+                    permission_name
+                    if permission_name in user_available_permissions
+                    else f&#34;*{permission_name}&#34;
+                    for permission_name in permission_map
+                ]
+                msg = (
+                    f&#34;Permission &#39;{permission}&#39; not valid, use one of &#34;
+                    f&#34;({&#39;, &#39;.join(formatted_permissions)})&#34;
+                    &#34; (* not available for current user)&#34;
+                )
+                raise ValueError(msg)
+
+        # Remove duplicates while preserving original order.
+        return list(dict.fromkeys(resolved_permission_ids))
+
+    def get_access_tokens(self, name: str = &#34;&#34;, status: str = &#34;&#34;) -&gt; dict | list:
+        &#34;&#34;&#34;Get API access tokens for the authenticated user.
+
+        Parameters
+        ----------
+        name : str, optional
+            Token name to select a single access token. Default is &#34;&#34;.
+        status : str, optional
+            Filter tokens by status (&#39;active&#39;, &#39;revoked&#39;, &#39;expired&#39;). Default is &#34;&#34;.
+
+        Returns
+        -------
+        dict | list
+            Without filters: full response payload from MS.
+            With status only: list of filtered access tokens.
+            With name: single matching token.
+        &#34;&#34;&#34;
+        access_token_response = self.ms.get(
+            &#34;/crm/v1/access-tokens&#34;,
+            accepted_status=[requests.codes.ok],
+        ).json()
+
+        access_tokens = access_token_response.get(&#34;accessTokens&#34;, [])
+
+        if status:
+            access_tokens = [token for token in access_tokens if token.get(&#34;status&#34;) == status]
+
+        if not name:
+            return access_tokens if status else access_token_response
+
+        try:
+            return next(token for token in access_tokens if token.get(&#34;name&#34;) == name)
+        except StopIteration:
+            msg = f&#34;Access token &#39;{name}&#39; not found ({[token.get(&#39;name&#39;) for token in access_tokens]})&#34;
+            raise ValueError(msg)
+
+    def create_access_token(self, name: str, permissions: list[str], expiration_date: str = &#34;&#34;) -&gt; dict:
+        &#34;&#34;&#34;Create API access token for authenticated user.
+
+        Parameters
+        ----------
+        name : str
+            Display name of the access token.
+        permissions : list[str]
+            Permissions as names (e.g. &#39;NODE:VIEW&#39;) or permission IDs.
+        expiration_date : str, optional
+            Expiration date in ISO 8601 format, e.g. &#39;2027-01-01T00:00:00.000Z&#39;.
+
+        Returns
+        -------
+        dict
+            Created access token payload. Token secret is returned once.
+        &#34;&#34;&#34;
+        if not permissions:
+            msg = &#34;At least one permission must be provided&#34;
+            raise ValueError(msg)
+
+        payload = {
+            &#34;name&#34;: name,
+            &#34;permissions&#34;: self._resolve_permission_ids(permissions),
+        }
+        if expiration_date:
+            payload[&#34;expirationDate&#34;] = expiration_date
+
+        return self.ms.post(
+            &#34;/crm/v1/access-tokens&#34;,
+            json=payload,
+            accepted_status=[requests.codes.created],
+        ).json()
+
+    def revoke_access_token(self, token_id: str = &#34;&#34;, token_name: str = &#34;&#34;) -&gt; dict:
+        &#34;&#34;&#34;Revoke API access token for authenticated user.
+
+        Parameters
+        ----------
+        token_id : str, optional
+            Access token ID.
+        token_name : str, optional
+            Access token name. Used to resolve token ID if token_id is not provided.
+        &#34;&#34;&#34;
+        if not token_id and not token_name:
+            msg = &#34;token_id or token_name must be provided&#34;
+            raise ValueError(msg)
+
+        if not token_id:
+            token_id = self.get_access_tokens(name=token_name).get(&#34;_id&#34;)
+
+        return self.ms.patch(
+            f&#34;/crm/v1/access-tokens/{token_id}&#34;,
+            accepted_status=[requests.codes.ok],
+        ).json()
+
+    def unblock_access_token_brute_force(self, ip_address: str = &#34;&#34;, token_id: str = &#34;&#34;) -&gt; None:
+        &#34;&#34;&#34;Unblock access token brute-force state.
+
+        Removes brute-force block state for either an IP address or an access token identifier.
+        Exactly one of the two parameters must be provided.
+
+        Parameters
+        ----------
+        ip_address : str, optional
+            IPv4 address whose access-token brute-force block state should be removed.
+        token_id : str, optional
+            Access token identifier whose brute-force block state should be removed.
+        &#34;&#34;&#34;
+        if not ip_address and not token_id:
+            msg = &#34;ip_address or token_id must be provided&#34;
+            raise ValueError(msg)
+        if ip_address and token_id:
+            msg = &#34;Only one of ip_address or token_id may be provided&#34;
+            raise ValueError(msg)
+
+        payload = {&#34;ipAddress&#34;: ip_address} if ip_address else {&#34;tokenId&#34;: token_id}
+
+        self.ms.post(
+            &#34;/crm/v1/access-tokens/brute-force/unblock&#34;,
+            json=payload,
+            accepted_status=[requests.codes.no_content],
+        )
+
+    def delete_access_token(self, token_id: str = &#34;&#34;, token_name: str = &#34;&#34;) -&gt; bool:
+        &#34;&#34;&#34;Delete API access token for authenticated user.
+
+        Parameters
+        ----------
+        token_id : str, optional
+            Access token ID.
+        token_name : str, optional
+            Access token name. Used to resolve token ID if token_id is not provided.
+
+        Returns
+        -------
+        bool
+            True if token is deleted successfully.
+        &#34;&#34;&#34;
+        if not token_id and not token_name:
+            msg = &#34;token_id or token_name must be provided&#34;
+            raise ValueError(msg)
+
+        if not token_id:
+            token_id = self.get_access_tokens(name=token_name).get(&#34;_id&#34;)
+
+        self.ms.delete(
+            f&#34;/crm/v1/access-tokens/{token_id}&#34;,
+            accepted_status=[requests.codes.no_content],
+        )
+        return True</code></pre>
 </details>
 <div class="desc"><p>User management related functions from MS.</p>
 <h2 id="parameters">Parameters</h2>
@@ -1772,6 +2013,64 @@ handle to node 'nerve_lib.general_utils.NodeHandle(&hellip;)'.</p></div>
 </details>
 <div class="desc"><p>Add a new user to the MS.</p></div>
 </dd>
+<dt id="nerve_lib.manage_access.MSUser.create_access_token"><code class="name flex">
+<span>def <span class="ident">create_access_token</span></span>(<span>self, name: str, permissions: list[str], expiration_date: str = '') ‑> dict</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def create_access_token(self, name: str, permissions: list[str], expiration_date: str = &#34;&#34;) -&gt; dict:
+    &#34;&#34;&#34;Create API access token for authenticated user.
+
+    Parameters
+    ----------
+    name : str
+        Display name of the access token.
+    permissions : list[str]
+        Permissions as names (e.g. &#39;NODE:VIEW&#39;) or permission IDs.
+    expiration_date : str, optional
+        Expiration date in ISO 8601 format, e.g. &#39;2027-01-01T00:00:00.000Z&#39;.
+
+    Returns
+    -------
+    dict
+        Created access token payload. Token secret is returned once.
+    &#34;&#34;&#34;
+    if not permissions:
+        msg = &#34;At least one permission must be provided&#34;
+        raise ValueError(msg)
+
+    payload = {
+        &#34;name&#34;: name,
+        &#34;permissions&#34;: self._resolve_permission_ids(permissions),
+    }
+    if expiration_date:
+        payload[&#34;expirationDate&#34;] = expiration_date
+
+    return self.ms.post(
+        &#34;/crm/v1/access-tokens&#34;,
+        json=payload,
+        accepted_status=[requests.codes.created],
+    ).json()</code></pre>
+</details>
+<div class="desc"><p>Create API access token for authenticated user.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>name</code></strong> :&ensp;<code>str</code></dt>
+<dd>Display name of the access token.</dd>
+<dt><strong><code>permissions</code></strong> :&ensp;<code>list[str]</code></dt>
+<dd>Permissions as names (e.g. 'NODE:VIEW') or permission IDs.</dd>
+<dt><strong><code>expiration_date</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>Expiration date in ISO 8601 format, e.g. '2027-01-01T00:00:00.000Z'.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>dict</code></dt>
+<dd>Created access token payload. Token secret is returned once.</dd>
+</dl></div>
+</dd>
 <dt id="nerve_lib.manage_access.MSUser.delete"><code class="name flex">
 <span>def <span class="ident">delete</span></span>(<span>self, email)</span>
 </code></dt>
@@ -1786,6 +2085,56 @@ handle to node 'nerve_lib.general_utils.NodeHandle(&hellip;)'.</p></div>
     self.ms.delete(f&#34;/crm/profile/{user_id}&#34;)</code></pre>
 </details>
 <div class="desc"><p>Delete a user from the MS.</p></div>
+</dd>
+<dt id="nerve_lib.manage_access.MSUser.delete_access_token"><code class="name flex">
+<span>def <span class="ident">delete_access_token</span></span>(<span>self, token_id: str = '', token_name: str = '') ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def delete_access_token(self, token_id: str = &#34;&#34;, token_name: str = &#34;&#34;) -&gt; bool:
+    &#34;&#34;&#34;Delete API access token for authenticated user.
+
+    Parameters
+    ----------
+    token_id : str, optional
+        Access token ID.
+    token_name : str, optional
+        Access token name. Used to resolve token ID if token_id is not provided.
+
+    Returns
+    -------
+    bool
+        True if token is deleted successfully.
+    &#34;&#34;&#34;
+    if not token_id and not token_name:
+        msg = &#34;token_id or token_name must be provided&#34;
+        raise ValueError(msg)
+
+    if not token_id:
+        token_id = self.get_access_tokens(name=token_name).get(&#34;_id&#34;)
+
+    self.ms.delete(
+        f&#34;/crm/v1/access-tokens/{token_id}&#34;,
+        accepted_status=[requests.codes.no_content],
+    )
+    return True</code></pre>
+</details>
+<div class="desc"><p>Delete API access token for authenticated user.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>token_id</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>Access token ID.</dd>
+<dt><strong><code>token_name</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>Access token name. Used to resolve token ID if token_id is not provided.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>bool</code></dt>
+<dd>True if token is deleted successfully.</dd>
+</dl></div>
 </dd>
 <dt id="nerve_lib.manage_access.MSUser.edit"><code class="name flex">
 <span>def <span class="ident">edit</span></span>(<span>self,<br>email: str,<br>roles: list | None = None,<br>first_name='',<br>last_name='',<br>role_type='local')</span>
@@ -1864,6 +2213,131 @@ handle to node 'nerve_lib.general_utils.NodeHandle(&hellip;)'.</p></div>
 </details>
 <div class="desc"><p>Get a list of users.</p></div>
 </dd>
+<dt id="nerve_lib.manage_access.MSUser.get_access_tokens"><code class="name flex">
+<span>def <span class="ident">get_access_tokens</span></span>(<span>self, name: str = '', status: str = '') ‑> dict | list</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_access_tokens(self, name: str = &#34;&#34;, status: str = &#34;&#34;) -&gt; dict | list:
+    &#34;&#34;&#34;Get API access tokens for the authenticated user.
+
+    Parameters
+    ----------
+    name : str, optional
+        Token name to select a single access token. Default is &#34;&#34;.
+    status : str, optional
+        Filter tokens by status (&#39;active&#39;, &#39;revoked&#39;, &#39;expired&#39;). Default is &#34;&#34;.
+
+    Returns
+    -------
+    dict | list
+        Without filters: full response payload from MS.
+        With status only: list of filtered access tokens.
+        With name: single matching token.
+    &#34;&#34;&#34;
+    access_token_response = self.ms.get(
+        &#34;/crm/v1/access-tokens&#34;,
+        accepted_status=[requests.codes.ok],
+    ).json()
+
+    access_tokens = access_token_response.get(&#34;accessTokens&#34;, [])
+
+    if status:
+        access_tokens = [token for token in access_tokens if token.get(&#34;status&#34;) == status]
+
+    if not name:
+        return access_tokens if status else access_token_response
+
+    try:
+        return next(token for token in access_tokens if token.get(&#34;name&#34;) == name)
+    except StopIteration:
+        msg = f&#34;Access token &#39;{name}&#39; not found ({[token.get(&#39;name&#39;) for token in access_tokens]})&#34;
+        raise ValueError(msg)</code></pre>
+</details>
+<div class="desc"><p>Get API access tokens for the authenticated user.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>name</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>Token name to select a single access token. Default is "".</dd>
+<dt><strong><code>status</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>Filter tokens by status ('active', 'revoked', 'expired'). Default is "".</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>dict | list</code></dt>
+<dd>Without filters: full response payload from MS.
+With status only: list of filtered access tokens.
+With name: single matching token.</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.manage_access.MSUser.get_current_user"><code class="name flex">
+<span>def <span class="ident">get_current_user</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_current_user(self):
+    if self.ms.access_token:
+        raise RuntimeError(&#34;get_current_user() is not supported with token-based authentication&#34;)
+
+    users = self.get()
+    user_id = next(
+        (
+            user[&#34;_id&#34;]
+            for user in users[&#34;data&#34; if self.ms.version_smaller_than(&#34;3.2.0&#34;) else &#34;profiles&#34;]
+            if user[&#34;username&#34;] == self.ms.usr
+        ),
+        None,
+    )
+    if not user_id:
+        raise ValueError(f&#34;Current user &#39;{self.ms.usr}&#39; not found in MS&#34;)
+    return self.ms.get(f&#34;/crm/profile/{user_id}&#34;, accepted_status=[requests.codes.ok]).json()</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="nerve_lib.manage_access.MSUser.get_user_permissions"><code class="name flex">
+<span>def <span class="ident">get_user_permissions</span></span>(<span>self, email: str = '', role_type: str = 'local', token_name: str = '') ‑> list[str]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_user_permissions(
+    self, email: str = &#34;&#34;, role_type: str = &#34;local&#34;, token_name: str = &#34;&#34;
+) -&gt; list[str]:
+    if token_name:
+        token_info = self.get_access_tokens(name=token_name)
+        if not token_info:
+            raise ValueError(f&#34;Access token &#39;{token_name}&#39; not found&#34;)
+        user_id = token_info.get(&#34;userId&#34;)
+        user_info = self.ms.get(f&#34;/crm/profile/{user_id}&#34;, accepted_status=[requests.codes.ok]).json()
+    elif email:
+        user_info = self.get(email=email, role_type=role_type)
+    else:
+        user_info = self.get_current_user()
+
+    role_permissions = self._role.get_permission_api()
+    permissions = []
+    for role in user_info.get(&#34;roles&#34;, []):
+        role_info = self._role.get(name=role[&#34;name&#34;], role_type=role[&#34;type&#34;])
+        role_permission_names = [
+            perm[&#34;name&#34;]
+            for perm in role_permissions[&#34;data&#34;]
+            if perm[&#34;_id&#34;] in role_info.get(&#34;permissions&#34;, [])
+        ]
+        permissions.extend(role_permission_names)
+
+    self._log.debug(&#34;User &#39;%s&#39; has the following permissions: %s&#34;, user_info[&#34;username&#34;], permissions)
+    return permissions</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
 <dt id="nerve_lib.manage_access.MSUser.personal_edit"><code class="name flex">
 <span>def <span class="ident">personal_edit</span></span>(<span>self,<br>email: str,<br>first_name='',<br>last_name='',<br>old_password='',<br>new_password='',<br>confirm_new_password='',<br>user_id='')</span>
 </code></dt>
@@ -1914,6 +2388,92 @@ handle to node 'nerve_lib.general_utils.NodeHandle(&hellip;)'.</p></div>
     return response.json()</code></pre>
 </details>
 <div class="desc"><p>Edit an personal user.</p></div>
+</dd>
+<dt id="nerve_lib.manage_access.MSUser.revoke_access_token"><code class="name flex">
+<span>def <span class="ident">revoke_access_token</span></span>(<span>self, token_id: str = '', token_name: str = '') ‑> dict</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def revoke_access_token(self, token_id: str = &#34;&#34;, token_name: str = &#34;&#34;) -&gt; dict:
+    &#34;&#34;&#34;Revoke API access token for authenticated user.
+
+    Parameters
+    ----------
+    token_id : str, optional
+        Access token ID.
+    token_name : str, optional
+        Access token name. Used to resolve token ID if token_id is not provided.
+    &#34;&#34;&#34;
+    if not token_id and not token_name:
+        msg = &#34;token_id or token_name must be provided&#34;
+        raise ValueError(msg)
+
+    if not token_id:
+        token_id = self.get_access_tokens(name=token_name).get(&#34;_id&#34;)
+
+    return self.ms.patch(
+        f&#34;/crm/v1/access-tokens/{token_id}&#34;,
+        accepted_status=[requests.codes.ok],
+    ).json()</code></pre>
+</details>
+<div class="desc"><p>Revoke API access token for authenticated user.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>token_id</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>Access token ID.</dd>
+<dt><strong><code>token_name</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>Access token name. Used to resolve token ID if token_id is not provided.</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.manage_access.MSUser.unblock_access_token_brute_force"><code class="name flex">
+<span>def <span class="ident">unblock_access_token_brute_force</span></span>(<span>self, ip_address: str = '', token_id: str = '') ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def unblock_access_token_brute_force(self, ip_address: str = &#34;&#34;, token_id: str = &#34;&#34;) -&gt; None:
+    &#34;&#34;&#34;Unblock access token brute-force state.
+
+    Removes brute-force block state for either an IP address or an access token identifier.
+    Exactly one of the two parameters must be provided.
+
+    Parameters
+    ----------
+    ip_address : str, optional
+        IPv4 address whose access-token brute-force block state should be removed.
+    token_id : str, optional
+        Access token identifier whose brute-force block state should be removed.
+    &#34;&#34;&#34;
+    if not ip_address and not token_id:
+        msg = &#34;ip_address or token_id must be provided&#34;
+        raise ValueError(msg)
+    if ip_address and token_id:
+        msg = &#34;Only one of ip_address or token_id may be provided&#34;
+        raise ValueError(msg)
+
+    payload = {&#34;ipAddress&#34;: ip_address} if ip_address else {&#34;tokenId&#34;: token_id}
+
+    self.ms.post(
+        &#34;/crm/v1/access-tokens/brute-force/unblock&#34;,
+        json=payload,
+        accepted_status=[requests.codes.no_content],
+    )</code></pre>
+</details>
+<div class="desc"><p>Unblock access token brute-force state.</p>
+<p>Removes brute-force block state for either an IP address or an access token identifier.
+Exactly one of the two parameters must be provided.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>ip_address</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>IPv4 address whose access-token brute-force block state should be removed.</dd>
+<dt><strong><code>token_id</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>Access token identifier whose brute-force block state should be removed.</dd>
+</dl></div>
 </dd>
 </dl>
 </dd>
@@ -1976,10 +2536,17 @@ handle to node 'nerve_lib.general_utils.NodeHandle(&hellip;)'.</p></div>
 <h4><code><a title="nerve_lib.manage_access.MSUser" href="#nerve_lib.manage_access.MSUser">MSUser</a></code></h4>
 <ul class="">
 <li><code><a title="nerve_lib.manage_access.MSUser.add" href="#nerve_lib.manage_access.MSUser.add">add</a></code></li>
+<li><code><a title="nerve_lib.manage_access.MSUser.create_access_token" href="#nerve_lib.manage_access.MSUser.create_access_token">create_access_token</a></code></li>
 <li><code><a title="nerve_lib.manage_access.MSUser.delete" href="#nerve_lib.manage_access.MSUser.delete">delete</a></code></li>
+<li><code><a title="nerve_lib.manage_access.MSUser.delete_access_token" href="#nerve_lib.manage_access.MSUser.delete_access_token">delete_access_token</a></code></li>
 <li><code><a title="nerve_lib.manage_access.MSUser.edit" href="#nerve_lib.manage_access.MSUser.edit">edit</a></code></li>
 <li><code><a title="nerve_lib.manage_access.MSUser.get" href="#nerve_lib.manage_access.MSUser.get">get</a></code></li>
+<li><code><a title="nerve_lib.manage_access.MSUser.get_access_tokens" href="#nerve_lib.manage_access.MSUser.get_access_tokens">get_access_tokens</a></code></li>
+<li><code><a title="nerve_lib.manage_access.MSUser.get_current_user" href="#nerve_lib.manage_access.MSUser.get_current_user">get_current_user</a></code></li>
+<li><code><a title="nerve_lib.manage_access.MSUser.get_user_permissions" href="#nerve_lib.manage_access.MSUser.get_user_permissions">get_user_permissions</a></code></li>
 <li><code><a title="nerve_lib.manage_access.MSUser.personal_edit" href="#nerve_lib.manage_access.MSUser.personal_edit">personal_edit</a></code></li>
+<li><code><a title="nerve_lib.manage_access.MSUser.revoke_access_token" href="#nerve_lib.manage_access.MSUser.revoke_access_token">revoke_access_token</a></code></li>
+<li><code><a title="nerve_lib.manage_access.MSUser.unblock_access_token_brute_force" href="#nerve_lib.manage_access.MSUser.unblock_access_token_brute_force">unblock_access_token_brute_force</a></code></li>
 </ul>
 </li>
 </ul>

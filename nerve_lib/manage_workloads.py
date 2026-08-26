@@ -154,7 +154,13 @@ class LocalWorkloads:
             accepted_status=[requests.codes.ok],
         ).json()
 
-    def control(self, workload_name: str, command: str, remove_images: bool = True) -> None:
+    def control(
+        self,
+        workload_name: str,
+        command: str,
+        remove_images: bool = True,
+        service_name: str | None = None,
+    ) -> None:
         """Control the workload status.
 
         Parameters
@@ -162,7 +168,11 @@ class LocalWorkloads:
         workload_name : str
             Workload to be controlled.
         command : str
-            Command can be one of START, STOP, SUSPEND, RESUME, RESTART, UNDEPLOY".
+            Command can be one of START, STOP, SUSPEND, RESUME, RESTART, UNDEPLOY.
+        remove_images : bool, optional
+            If command is UNDEPLOY, controls whether workload images are removed.
+        service_name : str | None, optional
+            If set, command is applied only to the specified docker-compose service.
         """
         workloads_data = self.get_workload_list()
         workload = next(wrkld for wrkld in workloads_data["workloads"] if workload_name == wrkld.get("name"))
@@ -172,6 +182,8 @@ class LocalWorkloads:
         }
         if command.upper() == "UNDEPLOY":
             payload["removeImages"] = remove_images
+        if service_name:
+            payload["serviceName"] = service_name
 
         return self.node.put(f"/api/workloads/{device_id}/control/{command.upper()}", json=payload)
 
@@ -269,7 +281,7 @@ class MSWorkloads:
                 }
                 self._log.debug("Reformatted 'files' from list to dict with keys '0', '1', ...")
 
-        if api_version == self.API_V1:  # noqa: PLR1702
+        if api_version == self.API_V1:  # ruff:ignore[too-many-nested-blocks]
             self.__send_provision_workload("/nerve/workload", file_paths, payload, False)
         elif api_version in {self.API_V2, self.API_V3}:
             update_workload = False
@@ -630,7 +642,7 @@ class MSWorkloads:
             vm_memory = {"unit": memory[0][1], "value": int(memory[0][0])}
         return vm_memory
 
-    def gen_workload_configuration(  # noqa: PLR0913, PLR0915, PLR0917
+    def gen_workload_configuration(  # ruff:ignore[too-many-arguments, too-many-statements, too-many-positional-arguments]
         self,
         provision_type: str,
         file_paths: str | list[str] = "",
@@ -1205,7 +1217,7 @@ class MSWorkloads:
         return _WorkloadVersion(self, workload_name, version, release_version)
 
 
-class _WorkloadVersion:  # noqa: PLR0904
+class _WorkloadVersion:  # ruff:ignore[too-many-public-methods]
     """Handle to specific workload of a MS.
 
     Parameters
@@ -1524,7 +1536,7 @@ class _WorkloadVersion:  # noqa: PLR0904
         workload_id, version_id = self._get_ids()
 
         repo_tags = []
-        with tarfile.open(image_path, "r") as tar_file:  # noqa: PLR1702
+        with tarfile.open(image_path, "r") as tar_file:  # ruff:ignore[too-many-nested-blocks]
             for member in tar_file.getmembers():
                 if member.name == "manifest.json":
                     manifest = json.load(tar_file.extractfile(member))

@@ -73,11 +73,20 @@ class MSRole:
 
     def get_permission_api(self, name_filter: str = ""):
         """Get list of permissions for all classes (API)."""
-        return self.ms.get(
+        all_permissions = self.ms.get(
             "/nerve/rbac/permissions",
             params={"categories": [], "filterBy": f'{{"name":"{name_filter}"}}'},
             accepted_status=[requests.codes.ok],
         ).json()
+        ui_permissions = self.get_permission_ui(name_filter)
+        # remove ui_permissions from all_permissions
+        return {
+            "data": [
+                perm
+                for perm in all_permissions["data"]
+                if perm["_id"] not in {p["_id"] for p in ui_permissions["data"]}
+            ],
+        }
 
     def add(self, name: str, permission_names: list, description: str = ""):
         """Add a new role to the MS."""
@@ -319,6 +328,229 @@ class MSUser:
             accepted_status=[requests.codes.ok],
         )
         return response.json()
+
+    def get_current_user(self):
+        if self.ms.access_token:
+            raise RuntimeError("get_current_user() is not supported with token-based authentication")
+
+        users = self.get()
+        user_id = next(
+            (
+                user["_id"]
+                for user in users["data" if self.ms.version_smaller_than("3.2.0") else "profiles"]
+                if user["username"] == self.ms.usr
+            ),
+            None,
+        )
+        if not user_id:
+            raise ValueError(f"Current user '{self.ms.usr}' not found in MS")
+        return self.ms.get(f"/crm/profile/{user_id}", accepted_status=[requests.codes.ok]).json()
+
+    def get_user_permissions(
+        self, email: str = "", role_type: str = "local", token_name: str = ""
+    ) -> list[str]:
+        if token_name:
+            token_info = self.get_access_tokens(name=token_name)
+            if not token_info:
+                raise ValueError(f"Access token '{token_name}' not found")
+            user_id = token_info.get("userId")
+            user_info = self.ms.get(f"/crm/profile/{user_id}", accepted_status=[requests.codes.ok]).json()
+        elif email:
+            user_info = self.get(email=email, role_type=role_type)
+        else:
+            user_info = self.get_current_user()
+
+        role_permissions = self._role.get_permission_api()
+        permissions = []
+        for role in user_info.get("roles", []):
+            role_info = self._role.get(name=role["name"], role_type=role["type"])
+            role_permission_names = [
+                perm["name"]
+                for perm in role_permissions["data"]
+                if perm["_id"] in role_info.get("permissions", [])
+            ]
+            permissions.extend(role_permission_names)
+
+        self._log.debug("User '%s' has the following permissions: %s", user_info["username"], permissions)
+        return permissions
+
+    def _resolve_permission_ids(self, permissions: list[str]) -> list[str]:
+        """Resolve permission names or IDs to permission IDs."""
+        available_permissions = self._role.get_permission_api().get("data", [])
+        permission_map = {permission["name"]: permission["_id"] for permission in available_permissions}
+        available_permission_ids = {permission["_id"] for permission in available_permissions}
+
+        resolved_permission_ids = []
+        for permission in permissions:
+            if permission in permission_map:
+                resolved_permission_ids.append(permission_map[permission])
+            elif permission in available_permission_ids:
+                resolved_permission_ids.append(permission)
+            else:
+                user_available_permissions = self.get_user_permissions()
+                formatted_permissions = [
+                    permission_name
+                    if permission_name in user_available_permissions
+                    else f"*{permission_name}"
+                    for permission_name in permission_map
+                ]
+                msg = (
+                    f"Permission '{permission}' not valid, use one of "
+                    f"({', '.join(formatted_permissions)})"
+                    " (* not available for current user)"
+                )
+                raise ValueError(msg)
+
+        # Remove duplicates while preserving original order.
+        return list(dict.fromkeys(resolved_permission_ids))
+
+    def get_access_tokens(self, name: str = "", status: str = "") -> dict | list:
+        """Get API access tokens for the authenticated user.
+
+        Parameters
+        ----------
+        name : str, optional
+            Token name to select a single access token. Default is "".
+        status : str, optional
+            Filter tokens by status ('active', 'revoked', 'expired'). Default is "".
+
+        Returns
+        -------
+        dict | list
+            Without filters: full response payload from MS.
+            With status only: list of filtered access tokens.
+            With name: single matching token.
+        """
+        access_token_response = self.ms.get(
+            "/crm/v1/access-tokens",
+            accepted_status=[requests.codes.ok],
+        ).json()
+
+        access_tokens = access_token_response.get("accessTokens", [])
+
+        if status:
+            access_tokens = [token for token in access_tokens if token.get("status") == status]
+
+        if not name:
+            return access_tokens if status else access_token_response
+
+        try:
+            return next(token for token in access_tokens if token.get("name") == name)
+        except StopIteration:
+            msg = f"Access token '{name}' not found ({[token.get('name') for token in access_tokens]})"
+            raise ValueError(msg)
+
+    def create_access_token(self, name: str, permissions: list[str], expiration_date: str = "") -> dict:
+        """Create API access token for authenticated user.
+
+        Parameters
+        ----------
+        name : str
+            Display name of the access token.
+        permissions : list[str]
+            Permissions as names (e.g. 'NODE:VIEW') or permission IDs.
+        expiration_date : str, optional
+            Expiration date in ISO 8601 format, e.g. '2027-01-01T00:00:00.000Z'.
+
+        Returns
+        -------
+        dict
+            Created access token payload. Token secret is returned once.
+        """
+        if not permissions:
+            msg = "At least one permission must be provided"
+            raise ValueError(msg)
+
+        payload = {
+            "name": name,
+            "permissions": self._resolve_permission_ids(permissions),
+        }
+        if expiration_date:
+            payload["expirationDate"] = expiration_date
+
+        return self.ms.post(
+            "/crm/v1/access-tokens",
+            json=payload,
+            accepted_status=[requests.codes.created],
+        ).json()
+
+    def revoke_access_token(self, token_id: str = "", token_name: str = "") -> dict:
+        """Revoke API access token for authenticated user.
+
+        Parameters
+        ----------
+        token_id : str, optional
+            Access token ID.
+        token_name : str, optional
+            Access token name. Used to resolve token ID if token_id is not provided.
+        """
+        if not token_id and not token_name:
+            msg = "token_id or token_name must be provided"
+            raise ValueError(msg)
+
+        if not token_id:
+            token_id = self.get_access_tokens(name=token_name).get("_id")
+
+        return self.ms.patch(
+            f"/crm/v1/access-tokens/{token_id}",
+            accepted_status=[requests.codes.ok],
+        ).json()
+
+    def unblock_access_token_brute_force(self, ip_address: str = "", token_id: str = "") -> None:
+        """Unblock access token brute-force state.
+
+        Removes brute-force block state for either an IP address or an access token identifier.
+        Exactly one of the two parameters must be provided.
+
+        Parameters
+        ----------
+        ip_address : str, optional
+            IPv4 address whose access-token brute-force block state should be removed.
+        token_id : str, optional
+            Access token identifier whose brute-force block state should be removed.
+        """
+        if not ip_address and not token_id:
+            msg = "ip_address or token_id must be provided"
+            raise ValueError(msg)
+        if ip_address and token_id:
+            msg = "Only one of ip_address or token_id may be provided"
+            raise ValueError(msg)
+
+        payload = {"ipAddress": ip_address} if ip_address else {"tokenId": token_id}
+
+        self.ms.post(
+            "/crm/v1/access-tokens/brute-force/unblock",
+            json=payload,
+            accepted_status=[requests.codes.no_content],
+        )
+
+    def delete_access_token(self, token_id: str = "", token_name: str = "") -> bool:
+        """Delete API access token for authenticated user.
+
+        Parameters
+        ----------
+        token_id : str, optional
+            Access token ID.
+        token_name : str, optional
+            Access token name. Used to resolve token ID if token_id is not provided.
+
+        Returns
+        -------
+        bool
+            True if token is deleted successfully.
+        """
+        if not token_id and not token_name:
+            msg = "token_id or token_name must be provided"
+            raise ValueError(msg)
+
+        if not token_id:
+            token_id = self.get_access_tokens(name=token_name).get("_id")
+
+        self.ms.delete(
+            f"/crm/v1/access-tokens/{token_id}",
+            accepted_status=[requests.codes.no_content],
+        )
+        return True
 
 
 class LocalUser:

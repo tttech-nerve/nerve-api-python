@@ -539,7 +539,8 @@ class ManageSshTunnel:
 
     def __exit__(self, *args):
         """Exit function when using with statement."""
-        self._finalizer()
+        if hasattr(self, "_finalizer"):
+            self._finalizer()
 
     @staticmethod
     async def _drain_pending_tasks():
@@ -868,7 +869,7 @@ class RequestGeneral(requests.Session):
             url = urljoin(self.api_url, url)
         if m_enc_data:
             for field_name, file_tuple in m_enc_data.items():
-                if isinstance(file_tuple, tuple) and len(file_tuple) == 3:  # noqa: PLR2004
+                if isinstance(file_tuple, tuple) and len(file_tuple) == 3:  # ruff:ignore[magic-value-comparison]
                     filename, file_data, file_content_type = file_tuple
                     if hasattr(file_data, "seekable") and file_data.seekable():
                         file_data.seek(0, os.SEEK_SET)
@@ -1043,6 +1044,8 @@ class NodeHandle(RequestGeneral):
 
         self.ssh = SshGeneral(ip_addr, user=ssh_user, password=ssh_password, logger=self._log)
 
+        if isinstance(ip_addr, tuple):
+            ip_addr = ip_addr[0]
         if ip_addr not in {"127.0.0.1", local_ui_ip_addr}:
             self.ssh_tunnel = ManageSshTunnel(
                 user=ssh_user,
@@ -1070,11 +1073,13 @@ class NodeHandle(RequestGeneral):
 
     def __exit__(self, *args):
         """Exit function when using with statement."""
-        self._finalizer()
+        if hasattr(self, "_finalizer"):
+            self._finalizer()
 
     def __del__(self):
         """Destructor to ensure that finalizer is called."""
-        self._finalizer()
+        if hasattr(self, "_finalizer"):
+            self._finalizer()
 
     @staticmethod
     def _cleanup(handle_ref):
@@ -1280,9 +1285,12 @@ class MSHandle(RequestGeneral):
         username to login on MS. The default is ENV-var MS_USR.
     password : str, optional
         password to logon on MS. The default is ENV-var MS_PSW.
+    access_token : str, optional
+        access token to logon on MS. The default is ENV-var MS_ACCESS_TOKEN.
+        If an access token is provided, the user and password will be ignored.
     """
 
-    def __init__(self, ms_url: str, user: str = "", password: str = ""):  # nosec B107
+    def __init__(self, ms_url: str, user: str = "", password: str = "", access_token: str = ""):  # nosec B107
         if ms_url.startswith("http"):
             self.ms_url = ms_url.split("://")[1]
             super().__init__(url=ms_url, api_path="/", log=logging.getLogger(f"MS-{ms_url}"))
@@ -1297,8 +1305,12 @@ class MSHandle(RequestGeneral):
 
         self.usr = user or os.environ.get("MS_USR", "")
         self.psw = password or os.environ.get("MS_PSW", "")
+        self.access_token = access_token or os.environ.get("MS_ACCESS_TOKEN", "")
 
         self._is_logged_in = False
+        if self.access_token:
+            self._add_header["Authorization"] = f"Bearer {self.access_token}"
+            self._is_logged_in = True
 
         self.__ms_version = None
 
@@ -1308,11 +1320,13 @@ class MSHandle(RequestGeneral):
 
     def __exit__(self, *args):
         """Exit function when using with statement."""
-        self._finalizer()
+        if hasattr(self, "_finalizer"):
+            self._finalizer()
 
     def __del__(self):
         """Destructor to ensure cleanup."""
-        self._finalizer()
+        if hasattr(self, "_finalizer"):
+            self._finalizer()
 
     @staticmethod
     def _cleanup(handle_ref):
@@ -1365,9 +1379,9 @@ class MSHandle(RequestGeneral):
         current_version = self.version.split("-", maxsplit=1)[0].split(".")
         comp_version = version.split("-", maxsplit=1)[0].split(".")
 
-        if len(current_version) != 3:  # noqa: PLR2004
+        if len(current_version) != 3:  # ruff:ignore[magic-value-comparison]
             return False  # e.g integration, master
-        if len(comp_version) != 3:  # noqa: PLR2004
+        if len(comp_version) != 3:  # ruff:ignore[magic-value-comparison]
             return True  # e.g integration, master
 
         for i in range(3):
@@ -1443,6 +1457,10 @@ class MSHandle(RequestGeneral):
             **kwargs: Additional keyword arguments for future extensions
         """
 
+        if self.access_token:
+            self._log.debug("Access token provided, no login required")
+            return None
+
         if self._is_logged_in:
             self.logout()  # close old session before logging in again
 
@@ -1450,8 +1468,8 @@ class MSHandle(RequestGeneral):
         self.usr = user or self.usr
         self.psw = password or self.psw
 
-        if not self.usr or not self.psw:
-            msg = "No username/password provided for MS login"
+        if (not self.usr or not self.psw) and not self.access_token:
+            msg = "No username/password or access token provided for MS login"
             raise ValueError(msg)
 
         response = self.post(
@@ -1469,6 +1487,9 @@ class MSHandle(RequestGeneral):
 
     def logout(self):
         """Logout from MS."""
+        if self.access_token:
+            self._log.debug("Access token provided, no logout required")
+            return None
         self._log.debug("Logout from MS")
         if self.version_smaller_than("2.10.0"):
             response = self.get("/auth/logout", accepted_status=[requests.codes.ok, requests.codes.forbidden])
