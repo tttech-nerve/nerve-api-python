@@ -374,36 +374,6 @@ class MSUser:
         self._log.debug("User '%s' has the following permissions: %s", user_info["username"], permissions)
         return permissions
 
-    def _resolve_permission_ids(self, permissions: list[str]) -> list[str]:
-        """Resolve permission names or IDs to permission IDs."""
-        available_permissions = self._role.get_permission_api().get("data", [])
-        permission_map = {permission["name"]: permission["_id"] for permission in available_permissions}
-        available_permission_ids = {permission["_id"] for permission in available_permissions}
-
-        resolved_permission_ids = []
-        for permission in permissions:
-            if permission in permission_map:
-                resolved_permission_ids.append(permission_map[permission])
-            elif permission in available_permission_ids:
-                resolved_permission_ids.append(permission)
-            else:
-                user_available_permissions = self.get_user_permissions()
-                formatted_permissions = [
-                    permission_name
-                    if permission_name in user_available_permissions
-                    else f"*{permission_name}"
-                    for permission_name in permission_map
-                ]
-                msg = (
-                    f"Permission '{permission}' not valid, use one of "
-                    f"({', '.join(formatted_permissions)})"
-                    " (* not available for current user)"
-                )
-                raise ValueError(msg)
-
-        # Remove duplicates while preserving original order.
-        return list(dict.fromkeys(resolved_permission_ids))
-
     def get_access_tokens(self, name: str = "", status: str = "") -> dict | list:
         """Get API access tokens for the authenticated user.
 
@@ -440,6 +410,18 @@ class MSUser:
             msg = f"Access token '{name}' not found ({[token.get('name') for token in access_tokens]})"
             raise ValueError(msg)
 
+    def get_access_token_creation_permissions(self, name_only: bool = True) -> list[str]:
+        """Get the possible permissions to create an access_token."""
+        user_id = self.get_current_user().get("_id")
+
+        permissions = self.ms.get(
+            f"/nerve/rbac/users/{user_id}/permissions/detailed",
+            params={"type": "API", "usage": "access_token_creation"},
+        ).json()["permissions"]
+        if name_only:
+            return [perm["name"] for perm in permissions]
+        return permissions
+
     def create_access_token(self, name: str, permissions: list[str], expiration_date: str = "") -> dict:
         """Create API access token for authenticated user.
 
@@ -460,10 +442,25 @@ class MSUser:
         if not permissions:
             msg = "At least one permission must be provided"
             raise ValueError(msg)
+        # Resolve permission names to IDs using the user's available permissions.
+        permissions = self.get_access_token_creation_permissions(name_only=False)
+        permission_map = {perm["name"]: perm["_id"] for perm in permissions}
+        resolved_permission_ids = []
+        invalid_permission_names = []
+        for permission in permissions:
+            permission_name = permission if isinstance(permission, str) else permission.get("name")
+            if permission_name in permission_map:
+                resolved_permission_ids.append(permission_map[permission_name])
+            else:
+                invalid_permission_names.append(permission_name)
+
+        if invalid_permission_names:
+            msg = f"Permissions {invalid_permission_names} not valid, use one of {[perm['name'] for perm in permissions]}"
+            raise ValueError(msg)
 
         payload = {
             "name": name,
-            "permissions": self._resolve_permission_ids(permissions),
+            "permissions": resolved_permission_ids,
         }
         if expiration_date:
             payload["expirationDate"] = expiration_date

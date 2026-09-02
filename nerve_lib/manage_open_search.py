@@ -152,11 +152,17 @@ class MSOpenSearch:
 
     def get_audit(self, past_hours: int = 5, search_filters: list | None = None):
         """Get audit logs from open search."""
-        return self._get_index(index="audit-*,audit-ms-*", past_hours=past_hours, search_filters=search_filters)
+        return self._get_index(
+            index="audit-*,audit-ms-*", past_hours=past_hours, search_filters=search_filters
+        )
 
     def get_audit_node(self, past_hours: int = 5, search_filters: list | None = None):
         """Get audit logs node from open search."""
-        return self._get_index(index="audit-*,audit-node*",past_hours=past_hours,search_filters=search_filters,)
+        return self._get_index(
+            index="audit-*,audit-node*",
+            past_hours=past_hours,
+            search_filters=search_filters,
+        )
 
     def get_filebeat(self, past_hours: int = 5, search_filters: list | None = None):
         """Get filebeat logs from open search."""
@@ -256,7 +262,7 @@ class MSOpenSearch:
         message_level str, optional:
             one of "info", "warn", "error"
         """
-        all_filters = deepcopy(search_filters if search_filters else [])
+        all_filters = deepcopy(search_filters or [])
         if message_level:
             all_filters.append(self.create_filter_matchphrase("message", f"'level':'{message_level}'"))
         response_data = self.get_audit(past_hours, all_filters)
@@ -269,7 +275,7 @@ class MSOpenSearch:
 
         severtiy_level: one of ["Informational","Error","Warning"].
         """
-        all_filters = deepcopy(search_filters if search_filters else [])
+        all_filters = deepcopy(search_filters or [])
         if severity_level:
             all_filters.append(
                 self.create_filter_matchphrase("syslog.severity_label", severity_level.title()),
@@ -281,7 +287,7 @@ class MSOpenSearch:
         self, message_level: str = "", past_hours: int = 5, search_filters: list | None = None
     ):
         """Get messages from nerve logs."""
-        all_filters = deepcopy(search_filters if search_filters else [])
+        all_filters = deepcopy(search_filters or [])
         if message_level:
             all_filters.append(self.create_filter_matchphrase("message", f"'level':'{message_level}'"))
         response_data = self.get_nerve(past_hours, all_filters)

@@ -1926,7 +1926,7 @@ class _SelectedNode:  # ruff:ignore[too-many-public-methods]
         dict
             Compose restrictions file content.
         """
-        
+
         if source not in {"active", "default"}:
             raise ValueError("compose-restrictions source must be either 'active' or 'default'")
         return self.node.ms.get(

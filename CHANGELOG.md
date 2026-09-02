@@ -6,7 +6,8 @@
     over username/password and skips the regular login/logout flow.
 - Added access token management functions to `MSUser`: `create_access_token`, `delete_access_token`,
   `get_access_tokens`, and `unblock_access_token_brute_force` (to unblock the brute-force protection of a token).
-- Added `get_user_permissions` function to `MSUser` to list all permissions available to a user or access token.
+- Added `get_user_permissions` function to `MSUser` to list all permissions available to a user.
+- Added `get_access_token_creation_permissions` function to `MSUser` to list all possible permissions for creating an access token.
 - Added label management functions for nodes to `MSLabel`: `get_node_labels`, `add_node_label`,
   `del_node_label`, `edit_node_label`, `export_node_labels`, and `import_node_labels`.
 - Added compose-restrictions management functions for nodes to `MSNode`: `get_compose_restrictions`,

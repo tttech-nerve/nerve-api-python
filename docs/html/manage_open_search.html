@@ -178,11 +178,17 @@ el.replaceWith(d);
 
     def get_audit(self, past_hours: int = 5, search_filters: list | None = None):
         &#34;&#34;&#34;Get audit logs from open search.&#34;&#34;&#34;
-        return self._get_index(index=&#34;audit-*,audit-ms-*&#34;, past_hours=past_hours, search_filters=search_filters)
+        return self._get_index(
+            index=&#34;audit-*,audit-ms-*&#34;, past_hours=past_hours, search_filters=search_filters
+        )
 
     def get_audit_node(self, past_hours: int = 5, search_filters: list | None = None):
         &#34;&#34;&#34;Get audit logs node from open search.&#34;&#34;&#34;
-        return self._get_index(index=&#34;audit-*,audit-node*&#34;,past_hours=past_hours,search_filters=search_filters,)
+        return self._get_index(
+            index=&#34;audit-*,audit-node*&#34;,
+            past_hours=past_hours,
+            search_filters=search_filters,
+        )
 
     def get_filebeat(self, past_hours: int = 5, search_filters: list | None = None):
         &#34;&#34;&#34;Get filebeat logs from open search.&#34;&#34;&#34;
@@ -282,7 +288,7 @@ el.replaceWith(d);
         message_level str, optional:
             one of &#34;info&#34;, &#34;warn&#34;, &#34;error&#34;
         &#34;&#34;&#34;
-        all_filters = deepcopy(search_filters if search_filters else [])
+        all_filters = deepcopy(search_filters or [])
         if message_level:
             all_filters.append(self.create_filter_matchphrase(&#34;message&#34;, f&#34;&#39;level&#39;:&#39;{message_level}&#39;&#34;))
         response_data = self.get_audit(past_hours, all_filters)
@@ -295,7 +301,7 @@ el.replaceWith(d);
 
         severtiy_level: one of [&#34;Informational&#34;,&#34;Error&#34;,&#34;Warning&#34;].
         &#34;&#34;&#34;
-        all_filters = deepcopy(search_filters if search_filters else [])
+        all_filters = deepcopy(search_filters or [])
         if severity_level:
             all_filters.append(
                 self.create_filter_matchphrase(&#34;syslog.severity_label&#34;, severity_level.title()),
@@ -307,7 +313,7 @@ el.replaceWith(d);
         self, message_level: str = &#34;&#34;, past_hours: int = 5, search_filters: list | None = None
     ):
         &#34;&#34;&#34;Get messages from nerve logs.&#34;&#34;&#34;
-        all_filters = deepcopy(search_filters if search_filters else [])
+        all_filters = deepcopy(search_filters or [])
         if message_level:
             all_filters.append(self.create_filter_matchphrase(&#34;message&#34;, f&#34;&#39;level&#39;:&#39;{message_level}&#39;&#34;))
         response_data = self.get_nerve(past_hours, all_filters)
@@ -553,7 +559,9 @@ def create_search_multimatch_phrase(phrase):
 </summary>
 <pre><code class="python">def get_audit(self, past_hours: int = 5, search_filters: list | None = None):
     &#34;&#34;&#34;Get audit logs from open search.&#34;&#34;&#34;
-    return self._get_index(index=&#34;audit-*,audit-ms-*&#34;, past_hours=past_hours, search_filters=search_filters)</code></pre>
+    return self._get_index(
+        index=&#34;audit-*,audit-ms-*&#34;, past_hours=past_hours, search_filters=search_filters
+    )</code></pre>
 </details>
 <div class="desc"><p>Get audit logs from open search.</p></div>
 </dd>
@@ -583,7 +591,11 @@ def create_search_multimatch_phrase(phrase):
 </summary>
 <pre><code class="python">def get_audit_node(self, past_hours: int = 5, search_filters: list | None = None):
     &#34;&#34;&#34;Get audit logs node from open search.&#34;&#34;&#34;
-    return self._get_index(index=&#34;audit-*,audit-node*&#34;,past_hours=past_hours,search_filters=search_filters,)</code></pre>
+    return self._get_index(
+        index=&#34;audit-*,audit-node*&#34;,
+        past_hours=past_hours,
+        search_filters=search_filters,
+    )</code></pre>
 </details>
 <div class="desc"><p>Get audit logs node from open search.</p></div>
 </dd>
@@ -645,7 +657,7 @@ def create_search_multimatch_phrase(phrase):
     message_level str, optional:
         one of &#34;info&#34;, &#34;warn&#34;, &#34;error&#34;
     &#34;&#34;&#34;
-    all_filters = deepcopy(search_filters if search_filters else [])
+    all_filters = deepcopy(search_filters or [])
     if message_level:
         all_filters.append(self.create_filter_matchphrase(&#34;message&#34;, f&#34;&#39;level&#39;:&#39;{message_level}&#39;&#34;))
     response_data = self.get_audit(past_hours, all_filters)
@@ -670,7 +682,7 @@ one of "info", "warn", "error"</p></div>
 
     severtiy_level: one of [&#34;Informational&#34;,&#34;Error&#34;,&#34;Warning&#34;].
     &#34;&#34;&#34;
-    all_filters = deepcopy(search_filters if search_filters else [])
+    all_filters = deepcopy(search_filters or [])
     if severity_level:
         all_filters.append(
             self.create_filter_matchphrase(&#34;syslog.severity_label&#34;, severity_level.title()),
@@ -693,7 +705,7 @@ one of "info", "warn", "error"</p></div>
     self, message_level: str = &#34;&#34;, past_hours: int = 5, search_filters: list | None = None
 ):
     &#34;&#34;&#34;Get messages from nerve logs.&#34;&#34;&#34;
-    all_filters = deepcopy(search_filters if search_filters else [])
+    all_filters = deepcopy(search_filters or [])
     if message_level:
         all_filters.append(self.create_filter_matchphrase(&#34;message&#34;, f&#34;&#39;level&#39;:&#39;{message_level}&#39;&#34;))
     response_data = self.get_nerve(past_hours, all_filters)

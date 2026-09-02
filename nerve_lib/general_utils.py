@@ -411,7 +411,7 @@ class SshGeneral:
         if as_sudo:
             if sudo_psw is None:
                 sudo_psw = self._ssh_psw
-            cmd = f"echo {sudo_psw} | sudo -S {cmd}"
+            cmd = f'echo "{sudo_psw}" | sudo -S {cmd}'
         output = ""
         ssh_ = ssh or self.connect(timeout, compress=compress)
 
@@ -1029,7 +1029,7 @@ class NodeHandle(RequestGeneral):
             if ip_addr == local_ui_ip_addr
             else f"http://127.0.0.1:{local_bind_port}",
             api_path=api_path,
-            log=logger if logger else logging.getLogger("Node"),
+            log=logger or logging.getLogger("Node"),
         )
 
         self._is_logged_in = False

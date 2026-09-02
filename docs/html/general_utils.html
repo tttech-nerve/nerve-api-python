@@ -1238,7 +1238,7 @@ In case of a failed login, an error will be raised.</p>
             if ip_addr == local_ui_ip_addr
             else f&#34;http://127.0.0.1:{local_bind_port}&#34;,
             api_path=api_path,
-            log=logger if logger else logging.getLogger(&#34;Node&#34;),
+            log=logger or logging.getLogger(&#34;Node&#34;),
         )
 
         self._is_logged_in = False
@@ -2273,7 +2273,7 @@ The default is None.</dd>
         if as_sudo:
             if sudo_psw is None:
                 sudo_psw = self._ssh_psw
-            cmd = f&#34;echo {sudo_psw} | sudo -S {cmd}&#34;
+            cmd = f&#39;echo &#34;{sudo_psw}&#34; | sudo -S {cmd}&#39;
         output = &#34;&#34;
         ssh_ = ssh or self.connect(timeout, compress=compress)
 
@@ -2589,7 +2589,7 @@ The default is None.</dd>
     if as_sudo:
         if sudo_psw is None:
             sudo_psw = self._ssh_psw
-        cmd = f&#34;echo {sudo_psw} | sudo -S {cmd}&#34;
+        cmd = f&#39;echo &#34;{sudo_psw}&#34; | sudo -S {cmd}&#39;
     output = &#34;&#34;
     ssh_ = ssh or self.connect(timeout, compress=compress)
 

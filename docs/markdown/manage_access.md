@@ -363,6 +363,9 @@ Classes
     `get(self, email='', role_type='local')`
     :   Get a list of users.
 
+    `get_access_token_creation_permissions(self, name_only: bool = True) ‑> list[str]`
+    :   Get the possible permissions to create an access_token.
+
     `get_access_tokens(self, name: str = '', status: str = '') ‑> dict | list`
     :   Get API access tokens for the authenticated user.
         

@@ -1789,36 +1789,6 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
         self._log.debug(&#34;User &#39;%s&#39; has the following permissions: %s&#34;, user_info[&#34;username&#34;], permissions)
         return permissions
 
-    def _resolve_permission_ids(self, permissions: list[str]) -&gt; list[str]:
-        &#34;&#34;&#34;Resolve permission names or IDs to permission IDs.&#34;&#34;&#34;
-        available_permissions = self._role.get_permission_api().get(&#34;data&#34;, [])
-        permission_map = {permission[&#34;name&#34;]: permission[&#34;_id&#34;] for permission in available_permissions}
-        available_permission_ids = {permission[&#34;_id&#34;] for permission in available_permissions}
-
-        resolved_permission_ids = []
-        for permission in permissions:
-            if permission in permission_map:
-                resolved_permission_ids.append(permission_map[permission])
-            elif permission in available_permission_ids:
-                resolved_permission_ids.append(permission)
-            else:
-                user_available_permissions = self.get_user_permissions()
-                formatted_permissions = [
-                    permission_name
-                    if permission_name in user_available_permissions
-                    else f&#34;*{permission_name}&#34;
-                    for permission_name in permission_map
-                ]
-                msg = (
-                    f&#34;Permission &#39;{permission}&#39; not valid, use one of &#34;
-                    f&#34;({&#39;, &#39;.join(formatted_permissions)})&#34;
-                    &#34; (* not available for current user)&#34;
-                )
-                raise ValueError(msg)
-
-        # Remove duplicates while preserving original order.
-        return list(dict.fromkeys(resolved_permission_ids))
-
     def get_access_tokens(self, name: str = &#34;&#34;, status: str = &#34;&#34;) -&gt; dict | list:
         &#34;&#34;&#34;Get API access tokens for the authenticated user.
 
@@ -1855,6 +1825,18 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
             msg = f&#34;Access token &#39;{name}&#39; not found ({[token.get(&#39;name&#39;) for token in access_tokens]})&#34;
             raise ValueError(msg)
 
+    def get_access_token_creation_permissions(self, name_only: bool = True) -&gt; list[str]:
+        &#34;&#34;&#34;Get the possible permissions to create an access_token.&#34;&#34;&#34;
+        user_id = self.get_current_user().get(&#34;_id&#34;)
+
+        permissions = self.ms.get(
+            f&#34;/nerve/rbac/users/{user_id}/permissions/detailed&#34;,
+            params={&#34;type&#34;: &#34;API&#34;, &#34;usage&#34;: &#34;access_token_creation&#34;},
+        ).json()[&#34;permissions&#34;]
+        if name_only:
+            return [perm[&#34;name&#34;] for perm in permissions]
+        return permissions
+
     def create_access_token(self, name: str, permissions: list[str], expiration_date: str = &#34;&#34;) -&gt; dict:
         &#34;&#34;&#34;Create API access token for authenticated user.
 
@@ -1875,10 +1857,25 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
         if not permissions:
             msg = &#34;At least one permission must be provided&#34;
             raise ValueError(msg)
+        # Resolve permission names to IDs using the user&#39;s available permissions.
+        permissions = self.get_access_token_creation_permissions(name_only=False)
+        permission_map = {perm[&#34;name&#34;]: perm[&#34;_id&#34;] for perm in permissions}
+        resolved_permission_ids = []
+        invalid_permission_names = []
+        for permission in permissions:
+            permission_name = permission if isinstance(permission, str) else permission.get(&#34;name&#34;)
+            if permission_name in permission_map:
+                resolved_permission_ids.append(permission_map[permission_name])
+            else:
+                invalid_permission_names.append(permission_name)
+
+        if invalid_permission_names:
+            msg = f&#34;Permissions {invalid_permission_names} not valid, use one of {[perm[&#39;name&#39;] for perm in permissions]}&#34;
+            raise ValueError(msg)
 
         payload = {
             &#34;name&#34;: name,
-            &#34;permissions&#34;: self._resolve_permission_ids(permissions),
+            &#34;permissions&#34;: resolved_permission_ids,
         }
         if expiration_date:
             payload[&#34;expirationDate&#34;] = expiration_date
@@ -2041,10 +2038,25 @@ handle to node 'nerve_lib.general_utils.NodeHandle(&hellip;)'.</p></div>
     if not permissions:
         msg = &#34;At least one permission must be provided&#34;
         raise ValueError(msg)
+    # Resolve permission names to IDs using the user&#39;s available permissions.
+    permissions = self.get_access_token_creation_permissions(name_only=False)
+    permission_map = {perm[&#34;name&#34;]: perm[&#34;_id&#34;] for perm in permissions}
+    resolved_permission_ids = []
+    invalid_permission_names = []
+    for permission in permissions:
+        permission_name = permission if isinstance(permission, str) else permission.get(&#34;name&#34;)
+        if permission_name in permission_map:
+            resolved_permission_ids.append(permission_map[permission_name])
+        else:
+            invalid_permission_names.append(permission_name)
+
+    if invalid_permission_names:
+        msg = f&#34;Permissions {invalid_permission_names} not valid, use one of {[perm[&#39;name&#39;] for perm in permissions]}&#34;
+        raise ValueError(msg)
 
     payload = {
         &#34;name&#34;: name,
-        &#34;permissions&#34;: self._resolve_permission_ids(permissions),
+        &#34;permissions&#34;: resolved_permission_ids,
     }
     if expiration_date:
         payload[&#34;expirationDate&#34;] = expiration_date
@@ -2212,6 +2224,28 @@ handle to node 'nerve_lib.general_utils.NodeHandle(&hellip;)'.</p></div>
     return user_list</code></pre>
 </details>
 <div class="desc"><p>Get a list of users.</p></div>
+</dd>
+<dt id="nerve_lib.manage_access.MSUser.get_access_token_creation_permissions"><code class="name flex">
+<span>def <span class="ident">get_access_token_creation_permissions</span></span>(<span>self, name_only: bool = True) ‑> list[str]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_access_token_creation_permissions(self, name_only: bool = True) -&gt; list[str]:
+    &#34;&#34;&#34;Get the possible permissions to create an access_token.&#34;&#34;&#34;
+    user_id = self.get_current_user().get(&#34;_id&#34;)
+
+    permissions = self.ms.get(
+        f&#34;/nerve/rbac/users/{user_id}/permissions/detailed&#34;,
+        params={&#34;type&#34;: &#34;API&#34;, &#34;usage&#34;: &#34;access_token_creation&#34;},
+    ).json()[&#34;permissions&#34;]
+    if name_only:
+        return [perm[&#34;name&#34;] for perm in permissions]
+    return permissions</code></pre>
+</details>
+<div class="desc"><p>Get the possible permissions to create an access_token.</p></div>
 </dd>
 <dt id="nerve_lib.manage_access.MSUser.get_access_tokens"><code class="name flex">
 <span>def <span class="ident">get_access_tokens</span></span>(<span>self, name: str = '', status: str = '') ‑> dict | list</span>
@@ -2541,6 +2575,7 @@ Exactly one of the two parameters must be provided.</p>
 <li><code><a title="nerve_lib.manage_access.MSUser.delete_access_token" href="#nerve_lib.manage_access.MSUser.delete_access_token">delete_access_token</a></code></li>
 <li><code><a title="nerve_lib.manage_access.MSUser.edit" href="#nerve_lib.manage_access.MSUser.edit">edit</a></code></li>
 <li><code><a title="nerve_lib.manage_access.MSUser.get" href="#nerve_lib.manage_access.MSUser.get">get</a></code></li>
+<li><code><a title="nerve_lib.manage_access.MSUser.get_access_token_creation_permissions" href="#nerve_lib.manage_access.MSUser.get_access_token_creation_permissions">get_access_token_creation_permissions</a></code></li>
 <li><code><a title="nerve_lib.manage_access.MSUser.get_access_tokens" href="#nerve_lib.manage_access.MSUser.get_access_tokens">get_access_tokens</a></code></li>
 <li><code><a title="nerve_lib.manage_access.MSUser.get_current_user" href="#nerve_lib.manage_access.MSUser.get_current_user">get_current_user</a></code></li>
 <li><code><a title="nerve_lib.manage_access.MSUser.get_user_permissions" href="#nerve_lib.manage_access.MSUser.get_user_permissions">get_user_permissions</a></code></li>
