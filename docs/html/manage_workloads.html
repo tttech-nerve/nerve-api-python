@@ -161,7 +161,13 @@ el.replaceWith(d);
             accepted_status=[requests.codes.ok],
         ).json()
 
-    def control(self, workload_name: str, command: str, remove_images: bool = True) -&gt; None:
+    def control(
+        self,
+        workload_name: str,
+        command: str,
+        remove_images: bool = True,
+        service_name: str | None = None,
+    ) -&gt; None:
         &#34;&#34;&#34;Control the workload status.
 
         Parameters
@@ -169,7 +175,11 @@ el.replaceWith(d);
         workload_name : str
             Workload to be controlled.
         command : str
-            Command can be one of START, STOP, SUSPEND, RESUME, RESTART, UNDEPLOY&#34;.
+            Command can be one of START, STOP, SUSPEND, RESUME, RESTART, UNDEPLOY.
+        remove_images : bool, optional
+            If command is UNDEPLOY, controls whether workload images are removed.
+        service_name : str | None, optional
+            If set, command is applied only to the specified docker-compose service.
         &#34;&#34;&#34;
         workloads_data = self.get_workload_list()
         workload = next(wrkld for wrkld in workloads_data[&#34;workloads&#34;] if workload_name == wrkld.get(&#34;name&#34;))
@@ -179,6 +189,8 @@ el.replaceWith(d);
         }
         if command.upper() == &#34;UNDEPLOY&#34;:
             payload[&#34;removeImages&#34;] = remove_images
+        if service_name:
+            payload[&#34;serviceName&#34;] = service_name
 
         return self.node.put(f&#34;/api/workloads/{device_id}/control/{command.upper()}&#34;, json=payload)
 
@@ -233,14 +245,20 @@ el.replaceWith(d);
 <h3>Methods</h3>
 <dl>
 <dt id="nerve_lib.manage_workloads.LocalWorkloads.control"><code class="name flex">
-<span>def <span class="ident">control</span></span>(<span>self, workload_name: str, command: str, remove_images: bool = True) ‑> None</span>
+<span>def <span class="ident">control</span></span>(<span>self,<br>workload_name: str,<br>command: str,<br>remove_images: bool = True,<br>service_name: str | None = None) ‑> None</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def control(self, workload_name: str, command: str, remove_images: bool = True) -&gt; None:
+<pre><code class="python">def control(
+    self,
+    workload_name: str,
+    command: str,
+    remove_images: bool = True,
+    service_name: str | None = None,
+) -&gt; None:
     &#34;&#34;&#34;Control the workload status.
 
     Parameters
@@ -248,7 +266,11 @@ el.replaceWith(d);
     workload_name : str
         Workload to be controlled.
     command : str
-        Command can be one of START, STOP, SUSPEND, RESUME, RESTART, UNDEPLOY&#34;.
+        Command can be one of START, STOP, SUSPEND, RESUME, RESTART, UNDEPLOY.
+    remove_images : bool, optional
+        If command is UNDEPLOY, controls whether workload images are removed.
+    service_name : str | None, optional
+        If set, command is applied only to the specified docker-compose service.
     &#34;&#34;&#34;
     workloads_data = self.get_workload_list()
     workload = next(wrkld for wrkld in workloads_data[&#34;workloads&#34;] if workload_name == wrkld.get(&#34;name&#34;))
@@ -258,6 +280,8 @@ el.replaceWith(d);
     }
     if command.upper() == &#34;UNDEPLOY&#34;:
         payload[&#34;removeImages&#34;] = remove_images
+    if service_name:
+        payload[&#34;serviceName&#34;] = service_name
 
     return self.node.put(f&#34;/api/workloads/{device_id}/control/{command.upper()}&#34;, json=payload)</code></pre>
 </details>
@@ -267,7 +291,11 @@ el.replaceWith(d);
 <dt><strong><code>workload_name</code></strong> :&ensp;<code>str</code></dt>
 <dd>Workload to be controlled.</dd>
 <dt><strong><code>command</code></strong> :&ensp;<code>str</code></dt>
-<dd>Command can be one of START, STOP, SUSPEND, RESUME, RESTART, UNDEPLOY".</dd>
+<dd>Command can be one of START, STOP, SUSPEND, RESUME, RESTART, UNDEPLOY.</dd>
+<dt><strong><code>remove_images</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>If command is UNDEPLOY, controls whether workload images are removed.</dd>
+<dt><strong><code>service_name</code></strong> :&ensp;<code>str | None</code>, optional</dt>
+<dd>If set, command is applied only to the specified docker-compose service.</dd>
 </dl></div>
 </dd>
 <dt id="nerve_lib.manage_workloads.LocalWorkloads.deploy_workload"><code class="name flex">
@@ -534,7 +562,7 @@ specified Docker container.</p></div>
                 }
                 self._log.debug(&#34;Reformatted &#39;files&#39; from list to dict with keys &#39;0&#39;, &#39;1&#39;, ...&#34;)
 
-        if api_version == self.API_V1:  # noqa: PLR1702
+        if api_version == self.API_V1:  # ruff:ignore[too-many-nested-blocks]
             self.__send_provision_workload(&#34;/nerve/workload&#34;, file_paths, payload, False)
         elif api_version in {self.API_V2, self.API_V3}:
             update_workload = False
@@ -895,7 +923,7 @@ specified Docker container.</p></div>
             vm_memory = {&#34;unit&#34;: memory[0][1], &#34;value&#34;: int(memory[0][0])}
         return vm_memory
 
-    def gen_workload_configuration(  # noqa: PLR0913, PLR0915, PLR0917
+    def gen_workload_configuration(  # ruff:ignore[too-many-arguments, too-many-statements, too-many-positional-arguments]
         self,
         provision_type: str,
         file_paths: str | list[str] = &#34;&#34;,
@@ -1746,7 +1774,7 @@ if state = None, the current state will just be printed.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def gen_workload_configuration(  # noqa: PLR0913, PLR0915, PLR0917
+<pre><code class="python">def gen_workload_configuration(  # ruff:ignore[too-many-arguments, too-many-statements, too-many-positional-arguments]
     self,
     provision_type: str,
     file_paths: str | list[str] = &#34;&#34;,
@@ -2258,7 +2286,7 @@ default is disabled: {"enabled": False}</dd>
             }
             self._log.debug(&#34;Reformatted &#39;files&#39; from list to dict with keys &#39;0&#39;, &#39;1&#39;, ...&#34;)
 
-    if api_version == self.API_V1:  # noqa: PLR1702
+    if api_version == self.API_V1:  # ruff:ignore[too-many-nested-blocks]
         self.__send_provision_workload(&#34;/nerve/workload&#34;, file_paths, payload, False)
     elif api_version in {self.API_V2, self.API_V3}:
         update_workload = False

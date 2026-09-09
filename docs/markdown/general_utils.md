@@ -50,7 +50,7 @@ Classes
     * builtins.Exception
     * builtins.BaseException
 
-`MSHandle(ms_url: str, user: str = '', password: str = '')`
+`MSHandle(ms_url: str, user: str = '', password: str = '', access_token: str = '')`
 :   Connect to a MS and handle requests.
     
     Parameters
@@ -61,6 +61,9 @@ Classes
         username to login on MS. The default is ENV-var MS_USR.
     password : str, optional
         password to logon on MS. The default is ENV-var MS_PSW.
+    access_token : str, optional
+        access token to logon on MS. The default is ENV-var MS_ACCESS_TOKEN.
+        If an access token is provided, the user and password will be ignored.
 
     ### Ancestors (in MRO)
 
@@ -69,6 +72,9 @@ Classes
     * requests.sessions.SessionRedirectMixin
 
     ### Instance variables
+
+    `login_content`
+    :   Return the content of the last login response.
 
     `version: str`
     :   Get the version of the MS.

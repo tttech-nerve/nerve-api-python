@@ -152,11 +152,17 @@ class MSOpenSearch:
 
     def get_audit(self, past_hours: int = 5, search_filters: list | None = None):
         """Get audit logs from open search."""
-        return self._get_index(index="audit-ms*", past_hours=past_hours, search_filters=search_filters)
+        return self._get_index(
+            index="audit-*,audit-ms-*", past_hours=past_hours, search_filters=search_filters
+        )
 
     def get_audit_node(self, past_hours: int = 5, search_filters: list | None = None):
         """Get audit logs node from open search."""
-        return self._get_index(index="audit-node*", past_hours=past_hours, search_filters=search_filters)
+        return self._get_index(
+            index="audit-*,audit-node*",
+            past_hours=past_hours,
+            search_filters=search_filters,
+        )
 
     def get_filebeat(self, past_hours: int = 5, search_filters: list | None = None):
         """Get filebeat logs from open search."""
@@ -167,13 +173,16 @@ class MSOpenSearch:
         return self._get_index(index="nerve-ms-*", past_hours=past_hours, search_filters=search_filters)
 
     def get_fluentbit(self, past_hours: int = 5, search_filters: list | None = None):
-        """Get filebeat logs from open search."""
-        return self._get_index(index="docker-log*", past_hours=past_hours, search_filters=search_filters)
+        """Get fluentbit logs from open search."""
+        if self.ms.version_smaller_than("3.2.0"):
+            return self._get_index(index="docker-log*", past_hours=past_hours, search_filters=search_filters)
+        else:
+            return self._get_index(index="system-*, docker-log-*", past_hours=past_hours, search_filters=search_filters)
 
     def get_audit_docker(self, past_hours: int = 5, search_filters: list | None = None):
         """Get audit logs node from open search."""
         return self._get_index(
-            index="audit-docker-log*", past_hours=past_hours, search_filters=search_filters
+            index="audit-*,audit-docker-log-*", past_hours=past_hours, search_filters=search_filters
         )
 
     def filter_audit_hits(self, past_hours=5, node=False, docker=False, **kwargs):
@@ -189,15 +198,17 @@ class MSOpenSearch:
         else:
             response_data = self.get_audit(past_hours)
 
-        hits_indexs = [hits["_source"] for hits in response_data["rawResponse"]["hits"]["hits"]]
+        hits = response_data["rawResponse"]["hits"]["hits"]
 
         matching_hits = []
 
-        for hits_index in hits_indexs:
+        for hit in hits:
+            hits_index = hit.get("_source", {})
             add_match = True
             for name, value in kwargs.items():
                 if hits_index.get(name) != value:
                     add_match = False
+                    break
             if add_match:
                 matching_hits.append(hits_index)
         return matching_hits
@@ -254,7 +265,7 @@ class MSOpenSearch:
         message_level str, optional:
             one of "info", "warn", "error"
         """
-        all_filters = deepcopy(search_filters if search_filters else [])
+        all_filters = deepcopy(search_filters or [])
         if message_level:
             all_filters.append(self.create_filter_matchphrase("message", f"'level':'{message_level}'"))
         response_data = self.get_audit(past_hours, all_filters)
@@ -267,7 +278,7 @@ class MSOpenSearch:
 
         severtiy_level: one of ["Informational","Error","Warning"].
         """
-        all_filters = deepcopy(search_filters if search_filters else [])
+        all_filters = deepcopy(search_filters or [])
         if severity_level:
             all_filters.append(
                 self.create_filter_matchphrase("syslog.severity_label", severity_level.title()),
@@ -279,7 +290,7 @@ class MSOpenSearch:
         self, message_level: str = "", past_hours: int = 5, search_filters: list | None = None
     ):
         """Get messages from nerve logs."""
-        all_filters = deepcopy(search_filters if search_filters else [])
+        all_filters = deepcopy(search_filters or [])
         if message_level:
             all_filters.append(self.create_filter_matchphrase("message", f"'level':'{message_level}'"))
         response_data = self.get_nerve(past_hours, all_filters)

@@ -178,11 +178,17 @@ el.replaceWith(d);
 
     def get_audit(self, past_hours: int = 5, search_filters: list | None = None):
         &#34;&#34;&#34;Get audit logs from open search.&#34;&#34;&#34;
-        return self._get_index(index=&#34;audit-ms*&#34;, past_hours=past_hours, search_filters=search_filters)
+        return self._get_index(
+            index=&#34;audit-*,audit-ms-*&#34;, past_hours=past_hours, search_filters=search_filters
+        )
 
     def get_audit_node(self, past_hours: int = 5, search_filters: list | None = None):
         &#34;&#34;&#34;Get audit logs node from open search.&#34;&#34;&#34;
-        return self._get_index(index=&#34;audit-node*&#34;, past_hours=past_hours, search_filters=search_filters)
+        return self._get_index(
+            index=&#34;audit-*,audit-node*&#34;,
+            past_hours=past_hours,
+            search_filters=search_filters,
+        )
 
     def get_filebeat(self, past_hours: int = 5, search_filters: list | None = None):
         &#34;&#34;&#34;Get filebeat logs from open search.&#34;&#34;&#34;
@@ -193,13 +199,16 @@ el.replaceWith(d);
         return self._get_index(index=&#34;nerve-ms-*&#34;, past_hours=past_hours, search_filters=search_filters)
 
     def get_fluentbit(self, past_hours: int = 5, search_filters: list | None = None):
-        &#34;&#34;&#34;Get filebeat logs from open search.&#34;&#34;&#34;
-        return self._get_index(index=&#34;docker-log*&#34;, past_hours=past_hours, search_filters=search_filters)
+        &#34;&#34;&#34;Get fluentbit logs from open search.&#34;&#34;&#34;
+        if self.ms.version_smaller_than(&#34;3.2.0&#34;):
+            return self._get_index(index=&#34;docker-log*&#34;, past_hours=past_hours, search_filters=search_filters)
+        else:
+            return self._get_index(index=&#34;system-*, docker-log-*&#34;, past_hours=past_hours, search_filters=search_filters)
 
     def get_audit_docker(self, past_hours: int = 5, search_filters: list | None = None):
         &#34;&#34;&#34;Get audit logs node from open search.&#34;&#34;&#34;
         return self._get_index(
-            index=&#34;audit-docker-log*&#34;, past_hours=past_hours, search_filters=search_filters
+            index=&#34;audit-*,audit-docker-log-*&#34;, past_hours=past_hours, search_filters=search_filters
         )
 
     def filter_audit_hits(self, past_hours=5, node=False, docker=False, **kwargs):
@@ -215,15 +224,17 @@ el.replaceWith(d);
         else:
             response_data = self.get_audit(past_hours)
 
-        hits_indexs = [hits[&#34;_source&#34;] for hits in response_data[&#34;rawResponse&#34;][&#34;hits&#34;][&#34;hits&#34;]]
+        hits = response_data[&#34;rawResponse&#34;][&#34;hits&#34;][&#34;hits&#34;]
 
         matching_hits = []
 
-        for hits_index in hits_indexs:
+        for hit in hits:
+            hits_index = hit.get(&#34;_source&#34;, {})
             add_match = True
             for name, value in kwargs.items():
                 if hits_index.get(name) != value:
                     add_match = False
+                    break
             if add_match:
                 matching_hits.append(hits_index)
         return matching_hits
@@ -280,7 +291,7 @@ el.replaceWith(d);
         message_level str, optional:
             one of &#34;info&#34;, &#34;warn&#34;, &#34;error&#34;
         &#34;&#34;&#34;
-        all_filters = deepcopy(search_filters if search_filters else [])
+        all_filters = deepcopy(search_filters or [])
         if message_level:
             all_filters.append(self.create_filter_matchphrase(&#34;message&#34;, f&#34;&#39;level&#39;:&#39;{message_level}&#39;&#34;))
         response_data = self.get_audit(past_hours, all_filters)
@@ -293,7 +304,7 @@ el.replaceWith(d);
 
         severtiy_level: one of [&#34;Informational&#34;,&#34;Error&#34;,&#34;Warning&#34;].
         &#34;&#34;&#34;
-        all_filters = deepcopy(search_filters if search_filters else [])
+        all_filters = deepcopy(search_filters or [])
         if severity_level:
             all_filters.append(
                 self.create_filter_matchphrase(&#34;syslog.severity_label&#34;, severity_level.title()),
@@ -305,7 +316,7 @@ el.replaceWith(d);
         self, message_level: str = &#34;&#34;, past_hours: int = 5, search_filters: list | None = None
     ):
         &#34;&#34;&#34;Get messages from nerve logs.&#34;&#34;&#34;
-        all_filters = deepcopy(search_filters if search_filters else [])
+        all_filters = deepcopy(search_filters or [])
         if message_level:
             all_filters.append(self.create_filter_matchphrase(&#34;message&#34;, f&#34;&#39;level&#39;:&#39;{message_level}&#39;&#34;))
         response_data = self.get_nerve(past_hours, all_filters)
@@ -464,15 +475,17 @@ def create_search_multimatch_phrase(phrase):
     else:
         response_data = self.get_audit(past_hours)
 
-    hits_indexs = [hits[&#34;_source&#34;] for hits in response_data[&#34;rawResponse&#34;][&#34;hits&#34;][&#34;hits&#34;]]
+    hits = response_data[&#34;rawResponse&#34;][&#34;hits&#34;][&#34;hits&#34;]
 
     matching_hits = []
 
-    for hits_index in hits_indexs:
+    for hit in hits:
+        hits_index = hit.get(&#34;_source&#34;, {})
         add_match = True
         for name, value in kwargs.items():
             if hits_index.get(name) != value:
                 add_match = False
+                break
         if add_match:
             matching_hits.append(hits_index)
     return matching_hits</code></pre>
@@ -549,7 +562,9 @@ def create_search_multimatch_phrase(phrase):
 </summary>
 <pre><code class="python">def get_audit(self, past_hours: int = 5, search_filters: list | None = None):
     &#34;&#34;&#34;Get audit logs from open search.&#34;&#34;&#34;
-    return self._get_index(index=&#34;audit-ms*&#34;, past_hours=past_hours, search_filters=search_filters)</code></pre>
+    return self._get_index(
+        index=&#34;audit-*,audit-ms-*&#34;, past_hours=past_hours, search_filters=search_filters
+    )</code></pre>
 </details>
 <div class="desc"><p>Get audit logs from open search.</p></div>
 </dd>
@@ -564,7 +579,7 @@ def create_search_multimatch_phrase(phrase):
 <pre><code class="python">def get_audit_docker(self, past_hours: int = 5, search_filters: list | None = None):
     &#34;&#34;&#34;Get audit logs node from open search.&#34;&#34;&#34;
     return self._get_index(
-        index=&#34;audit-docker-log*&#34;, past_hours=past_hours, search_filters=search_filters
+        index=&#34;audit-*,audit-docker-log-*&#34;, past_hours=past_hours, search_filters=search_filters
     )</code></pre>
 </details>
 <div class="desc"><p>Get audit logs node from open search.</p></div>
@@ -579,7 +594,11 @@ def create_search_multimatch_phrase(phrase):
 </summary>
 <pre><code class="python">def get_audit_node(self, past_hours: int = 5, search_filters: list | None = None):
     &#34;&#34;&#34;Get audit logs node from open search.&#34;&#34;&#34;
-    return self._get_index(index=&#34;audit-node*&#34;, past_hours=past_hours, search_filters=search_filters)</code></pre>
+    return self._get_index(
+        index=&#34;audit-*,audit-node*&#34;,
+        past_hours=past_hours,
+        search_filters=search_filters,
+    )</code></pre>
 </details>
 <div class="desc"><p>Get audit logs node from open search.</p></div>
 </dd>
@@ -606,10 +625,13 @@ def create_search_multimatch_phrase(phrase):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def get_fluentbit(self, past_hours: int = 5, search_filters: list | None = None):
-    &#34;&#34;&#34;Get filebeat logs from open search.&#34;&#34;&#34;
-    return self._get_index(index=&#34;docker-log*&#34;, past_hours=past_hours, search_filters=search_filters)</code></pre>
+    &#34;&#34;&#34;Get fluentbit logs from open search.&#34;&#34;&#34;
+    if self.ms.version_smaller_than(&#34;3.2.0&#34;):
+        return self._get_index(index=&#34;docker-log*&#34;, past_hours=past_hours, search_filters=search_filters)
+    else:
+        return self._get_index(index=&#34;system-*, docker-log-*&#34;, past_hours=past_hours, search_filters=search_filters)</code></pre>
 </details>
-<div class="desc"><p>Get filebeat logs from open search.</p></div>
+<div class="desc"><p>Get fluentbit logs from open search.</p></div>
 </dd>
 <dt id="nerve_lib.manage_open_search.MSOpenSearch.get_nerve"><code class="name flex">
 <span>def <span class="ident">get_nerve</span></span>(<span>self, past_hours: int = 5, search_filters: list | None = None)</span>
@@ -641,7 +663,7 @@ def create_search_multimatch_phrase(phrase):
     message_level str, optional:
         one of &#34;info&#34;, &#34;warn&#34;, &#34;error&#34;
     &#34;&#34;&#34;
-    all_filters = deepcopy(search_filters if search_filters else [])
+    all_filters = deepcopy(search_filters or [])
     if message_level:
         all_filters.append(self.create_filter_matchphrase(&#34;message&#34;, f&#34;&#39;level&#39;:&#39;{message_level}&#39;&#34;))
     response_data = self.get_audit(past_hours, all_filters)
@@ -666,7 +688,7 @@ one of "info", "warn", "error"</p></div>
 
     severtiy_level: one of [&#34;Informational&#34;,&#34;Error&#34;,&#34;Warning&#34;].
     &#34;&#34;&#34;
-    all_filters = deepcopy(search_filters if search_filters else [])
+    all_filters = deepcopy(search_filters or [])
     if severity_level:
         all_filters.append(
             self.create_filter_matchphrase(&#34;syslog.severity_label&#34;, severity_level.title()),
@@ -689,7 +711,7 @@ one of "info", "warn", "error"</p></div>
     self, message_level: str = &#34;&#34;, past_hours: int = 5, search_filters: list | None = None
 ):
     &#34;&#34;&#34;Get messages from nerve logs.&#34;&#34;&#34;
-    all_filters = deepcopy(search_filters if search_filters else [])
+    all_filters = deepcopy(search_filters or [])
     if message_level:
         all_filters.append(self.create_filter_matchphrase(&#34;message&#34;, f&#34;&#39;level&#39;:&#39;{message_level}&#39;&#34;))
     response_data = self.get_nerve(past_hours, all_filters)

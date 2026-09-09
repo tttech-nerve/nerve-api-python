@@ -64,7 +64,7 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class LocalNode:  # noqa: PLR0904
+<pre><code class="python">class LocalNode:  # ruff:ignore[too-many-public-methods]
     &#34;&#34;&#34;Node related functions from LocalUI.&#34;&#34;&#34;
 
     def __init__(self, node_handle: type):
@@ -102,9 +102,9 @@ el.replaceWith(d);
         current_version = self.version.split(&#34;-&#34;, maxsplit=1)[0].split(&#34;.&#34;)
         comp_version = version.split(&#34;-&#34;, maxsplit=1)[0].split(&#34;.&#34;)
 
-        if len(current_version) != 3:  # noqa: PLR2004
+        if len(current_version) != 3:  # ruff:ignore[magic-value-comparison]
             return False  # e.g integration, master
-        if len(comp_version) != 3:  # noqa: PLR2004
+        if len(comp_version) != 3:  # ruff:ignore[magic-value-comparison]
             return True  # e.g integration, master
 
         for i in range(3):
@@ -2033,9 +2033,9 @@ Returns: response object</p></div>
     current_version = self.version.split(&#34;-&#34;, maxsplit=1)[0].split(&#34;.&#34;)
     comp_version = version.split(&#34;-&#34;, maxsplit=1)[0].split(&#34;.&#34;)
 
-    if len(current_version) != 3:  # noqa: PLR2004
+    if len(current_version) != 3:  # ruff:ignore[magic-value-comparison]
         return False  # e.g integration, master
-    if len(comp_version) != 3:  # noqa: PLR2004
+    if len(comp_version) != 3:  # ruff:ignore[magic-value-comparison]
         return True  # e.g integration, master
 
     for i in range(3):
@@ -2151,6 +2151,16 @@ Returns: response object</p></div>
             return {}
         # Return the entire node list
         return node_list
+
+    def get_nodes_info(self) -&gt; dict:
+        &#34;&#34;&#34;Read node list of MS with additional information.
+
+        Returns
+        -------
+        dict
+            Node list informatnion from MS API.
+        &#34;&#34;&#34;
+        return self.ms.get(&#34;/nerve/v2/nodes&#34;, accepted_status=[requests.codes.ok]).json()
 
     def get_nodes_filtered(self, node_name: str | None = None, serial_number: str | None = None) -&gt; dict:
         &#34;&#34;&#34;Read node list of MS filtered by name and/or serial number.&#34;&#34;&#34;
@@ -2756,6 +2766,31 @@ The default is None.</dd>
 </details>
 <div class="desc"><p>Read node list of MS filtered by name and/or serial number.</p></div>
 </dd>
+<dt id="nerve_lib.manage_node.MSNode.get_nodes_info"><code class="name flex">
+<span>def <span class="ident">get_nodes_info</span></span>(<span>self) ‑> dict</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_nodes_info(self) -&gt; dict:
+    &#34;&#34;&#34;Read node list of MS with additional information.
+
+    Returns
+    -------
+    dict
+        Node list informatnion from MS API.
+    &#34;&#34;&#34;
+    return self.ms.get(&#34;/nerve/v2/nodes&#34;, accepted_status=[requests.codes.ok]).json()</code></pre>
+</details>
+<div class="desc"><p>Read node list of MS with additional information.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>dict</code></dt>
+<dd>Node list informatnion from MS API.</dd>
+</dl></div>
+</dd>
 <dt id="nerve_lib.manage_node.MSNode.remove_active_remote_connections"><code class="name flex">
 <span>def <span class="ident">remove_active_remote_connections</span></span>(<span>self, remote_ids: list | None = None) ‑> type</span>
 </code></dt>
@@ -2901,6 +2936,7 @@ if parameter is None, all active connection will be removed</dd>
 <li><code><a title="nerve_lib.manage_node.MSNode.get_nodes" href="#nerve_lib.manage_node.MSNode.get_nodes">get_nodes</a></code></li>
 <li><code><a title="nerve_lib.manage_node.MSNode.get_nodes_by_name" href="#nerve_lib.manage_node.MSNode.get_nodes_by_name">get_nodes_by_name</a></code></li>
 <li><code><a title="nerve_lib.manage_node.MSNode.get_nodes_filtered" href="#nerve_lib.manage_node.MSNode.get_nodes_filtered">get_nodes_filtered</a></code></li>
+<li><code><a title="nerve_lib.manage_node.MSNode.get_nodes_info" href="#nerve_lib.manage_node.MSNode.get_nodes_info">get_nodes_info</a></code></li>
 <li><code><a title="nerve_lib.manage_node.MSNode.remove_active_remote_connections" href="#nerve_lib.manage_node.MSNode.remove_active_remote_connections">remove_active_remote_connections</a></code></li>
 </ul>
 </li>

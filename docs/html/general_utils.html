@@ -173,7 +173,7 @@ msg.value: string error message</p></div>
 </dd>
 <dt id="nerve_lib.general_utils.MSHandle"><code class="flex name class">
 <span>class <span class="ident">MSHandle</span></span>
-<span>(</span><span>ms_url: str, user: str = '', password: str = '')</span>
+<span>(</span><span>ms_url: str, user: str = '', password: str = '', access_token: str = '')</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -191,9 +191,12 @@ msg.value: string error message</p></div>
         username to login on MS. The default is ENV-var MS_USR.
     password : str, optional
         password to logon on MS. The default is ENV-var MS_PSW.
+    access_token : str, optional
+        access token to logon on MS. The default is ENV-var MS_ACCESS_TOKEN.
+        If an access token is provided, the user and password will be ignored.
     &#34;&#34;&#34;
 
-    def __init__(self, ms_url: str, user: str = &#34;&#34;, password: str = &#34;&#34;):  # nosec B107
+    def __init__(self, ms_url: str, user: str = &#34;&#34;, password: str = &#34;&#34;, access_token: str = &#34;&#34;):  # nosec B107
         if ms_url.startswith(&#34;http&#34;):
             self.ms_url = ms_url.split(&#34;://&#34;)[1]
             super().__init__(url=ms_url, api_path=&#34;/&#34;, log=logging.getLogger(f&#34;MS-{ms_url}&#34;))
@@ -208,8 +211,13 @@ msg.value: string error message</p></div>
 
         self.usr = user or os.environ.get(&#34;MS_USR&#34;, &#34;&#34;)
         self.psw = password or os.environ.get(&#34;MS_PSW&#34;, &#34;&#34;)
+        self.access_token = access_token or os.environ.get(&#34;MS_ACCESS_TOKEN&#34;, &#34;&#34;)
 
         self._is_logged_in = False
+        self.__login_content = None
+        if self.access_token:
+            self._add_header[&#34;Authorization&#34;] = f&#34;Bearer {self.access_token}&#34;
+            self._is_logged_in = True
 
         self.__ms_version = None
 
@@ -219,11 +227,13 @@ msg.value: string error message</p></div>
 
     def __exit__(self, *args):
         &#34;&#34;&#34;Exit function when using with statement.&#34;&#34;&#34;
-        self._finalizer()
+        if hasattr(self, &#34;_finalizer&#34;):
+            self._finalizer()
 
     def __del__(self):
         &#34;&#34;&#34;Destructor to ensure cleanup.&#34;&#34;&#34;
-        self._finalizer()
+        if hasattr(self, &#34;_finalizer&#34;):
+            self._finalizer()
 
     @staticmethod
     def _cleanup(handle_ref):
@@ -276,9 +286,9 @@ msg.value: string error message</p></div>
         current_version = self.version.split(&#34;-&#34;, maxsplit=1)[0].split(&#34;.&#34;)
         comp_version = version.split(&#34;-&#34;, maxsplit=1)[0].split(&#34;.&#34;)
 
-        if len(current_version) != 3:  # noqa: PLR2004
+        if len(current_version) != 3:  # ruff:ignore[magic-value-comparison]
             return False  # e.g integration, master
-        if len(comp_version) != 3:  # noqa: PLR2004
+        if len(comp_version) != 3:  # ruff:ignore[magic-value-comparison]
             return True  # e.g integration, master
 
         for i in range(3):
@@ -354,6 +364,10 @@ msg.value: string error message</p></div>
             **kwargs: Additional keyword arguments for future extensions
         &#34;&#34;&#34;
 
+        if self.access_token:
+            self._log.debug(&#34;Access token provided, no login required&#34;)
+            return None
+
         if self._is_logged_in:
             self.logout()  # close old session before logging in again
 
@@ -361,8 +375,8 @@ msg.value: string error message</p></div>
         self.usr = user or self.usr
         self.psw = password or self.psw
 
-        if not self.usr or not self.psw:
-            msg = &#34;No username/password provided for MS login&#34;
+        if (not self.usr or not self.psw) and not self.access_token:
+            msg = &#34;No username/password or access token provided for MS login&#34;
             raise ValueError(msg)
 
         response = self.post(
@@ -374,12 +388,28 @@ msg.value: string error message</p></div>
             self._is_logged_in = False
             super()._check_response(&#34;post&#34;, response, [requests.codes.ok])  # will raise error
         self._add_header[&#34;sessionid&#34;] = f&#34;{response.headers[&#39;sessionId&#39;]}&#34;
+        self.__login_content = response.json()
         self._is_logged_in = True
 
         return response
 
+    @property
+    def login_content(self):
+        &#34;&#34;&#34;Return the content of the last login response.&#34;&#34;&#34;
+        if self._is_logged_in and not self.access_token:
+            return self.__login_content
+
+        if not self.access_token:
+            self.login()
+            return self.__login_content
+
+        raise ValueError(&#34;Cannot get login-content for token-based authentication&#34;)
+
     def logout(self):
         &#34;&#34;&#34;Logout from MS.&#34;&#34;&#34;
+        if self.access_token:
+            self._log.debug(&#34;Access token provided, no logout required&#34;)
+            return None
         self._log.debug(&#34;Logout from MS&#34;)
         if self.version_smaller_than(&#34;2.10.0&#34;):
             response = self.get(&#34;/auth/logout&#34;, accepted_status=[requests.codes.ok, requests.codes.forbidden])
@@ -403,6 +433,9 @@ msg.value: string error message</p></div>
 <dd>username to login on MS. The default is ENV-var MS_USR.</dd>
 <dt><strong><code>password</code></strong> :&ensp;<code>str</code>, optional</dt>
 <dd>password to logon on MS. The default is ENV-var MS_PSW.</dd>
+<dt><strong><code>access_token</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>access token to logon on MS. The default is ENV-var MS_ACCESS_TOKEN.
+If an access token is provided, the user and password will be ignored.</dd>
 </dl></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -412,6 +445,26 @@ msg.value: string error message</p></div>
 </ul>
 <h3>Instance variables</h3>
 <dl>
+<dt id="nerve_lib.general_utils.MSHandle.login_content"><code class="name">prop <span class="ident">login_content</span></code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def login_content(self):
+    &#34;&#34;&#34;Return the content of the last login response.&#34;&#34;&#34;
+    if self._is_logged_in and not self.access_token:
+        return self.__login_content
+
+    if not self.access_token:
+        self.login()
+        return self.__login_content
+
+    raise ValueError(&#34;Cannot get login-content for token-based authentication&#34;)</code></pre>
+</details>
+<div class="desc"><p>Return the content of the last login response.</p></div>
+</dd>
 <dt id="nerve_lib.general_utils.MSHandle.version"><code class="name">prop <span class="ident">version</span> : str</code></dt>
 <dd>
 <details class="source">
@@ -461,6 +514,10 @@ def version(self) -&gt; str:
         **kwargs: Additional keyword arguments for future extensions
     &#34;&#34;&#34;
 
+    if self.access_token:
+        self._log.debug(&#34;Access token provided, no login required&#34;)
+        return None
+
     if self._is_logged_in:
         self.logout()  # close old session before logging in again
 
@@ -468,8 +525,8 @@ def version(self) -&gt; str:
     self.usr = user or self.usr
     self.psw = password or self.psw
 
-    if not self.usr or not self.psw:
-        msg = &#34;No username/password provided for MS login&#34;
+    if (not self.usr or not self.psw) and not self.access_token:
+        msg = &#34;No username/password or access token provided for MS login&#34;
         raise ValueError(msg)
 
     response = self.post(
@@ -481,6 +538,7 @@ def version(self) -&gt; str:
         self._is_logged_in = False
         super()._check_response(&#34;post&#34;, response, [requests.codes.ok])  # will raise error
     self._add_header[&#34;sessionid&#34;] = f&#34;{response.headers[&#39;sessionId&#39;]}&#34;
+    self.__login_content = response.json()
     self._is_logged_in = True
 
     return response</code></pre>
@@ -508,6 +566,9 @@ In case of a failed login, an error will be raised.</p>
 </summary>
 <pre><code class="python">def logout(self):
     &#34;&#34;&#34;Logout from MS.&#34;&#34;&#34;
+    if self.access_token:
+        self._log.debug(&#34;Access token provided, no logout required&#34;)
+        return None
     self._log.debug(&#34;Logout from MS&#34;)
     if self.version_smaller_than(&#34;2.10.0&#34;):
         response = self.get(&#34;/auth/logout&#34;, accepted_status=[requests.codes.ok, requests.codes.forbidden])
@@ -615,9 +676,9 @@ In case of a failed login, an error will be raised.</p>
     current_version = self.version.split(&#34;-&#34;, maxsplit=1)[0].split(&#34;.&#34;)
     comp_version = version.split(&#34;-&#34;, maxsplit=1)[0].split(&#34;.&#34;)
 
-    if len(current_version) != 3:  # noqa: PLR2004
+    if len(current_version) != 3:  # ruff:ignore[magic-value-comparison]
         return False  # e.g integration, master
-    if len(comp_version) != 3:  # noqa: PLR2004
+    if len(comp_version) != 3:  # ruff:ignore[magic-value-comparison]
         return True  # e.g integration, master
 
     for i in range(3):
@@ -696,7 +757,8 @@ In case of a failed login, an error will be raised.</p>
 
     def __exit__(self, *args):
         &#34;&#34;&#34;Exit function when using with statement.&#34;&#34;&#34;
-        self._finalizer()
+        if hasattr(self, &#34;_finalizer&#34;):
+            self._finalizer()
 
     @staticmethod
     async def _drain_pending_tasks():
@@ -1211,7 +1273,7 @@ In case of a failed login, an error will be raised.</p>
             if ip_addr == local_ui_ip_addr
             else f&#34;http://127.0.0.1:{local_bind_port}&#34;,
             api_path=api_path,
-            log=logger if logger else logging.getLogger(&#34;Node&#34;),
+            log=logger or logging.getLogger(&#34;Node&#34;),
         )
 
         self._is_logged_in = False
@@ -1226,6 +1288,8 @@ In case of a failed login, an error will be raised.</p>
 
         self.ssh = SshGeneral(ip_addr, user=ssh_user, password=ssh_password, logger=self._log)
 
+        if isinstance(ip_addr, tuple):
+            ip_addr = ip_addr[0]
         if ip_addr not in {&#34;127.0.0.1&#34;, local_ui_ip_addr}:
             self.ssh_tunnel = ManageSshTunnel(
                 user=ssh_user,
@@ -1253,11 +1317,13 @@ In case of a failed login, an error will be raised.</p>
 
     def __exit__(self, *args):
         &#34;&#34;&#34;Exit function when using with statement.&#34;&#34;&#34;
-        self._finalizer()
+        if hasattr(self, &#34;_finalizer&#34;):
+            self._finalizer()
 
     def __del__(self):
         &#34;&#34;&#34;Destructor to ensure that finalizer is called.&#34;&#34;&#34;
-        self._finalizer()
+        if hasattr(self, &#34;_finalizer&#34;):
+            self._finalizer()
 
     @staticmethod
     def _cleanup(handle_ref):
@@ -1825,7 +1891,7 @@ In case of a login error, e.g. max retry exceeded, the function will wait for 5 
             url = urljoin(self.api_url, url)
         if m_enc_data:
             for field_name, file_tuple in m_enc_data.items():
-                if isinstance(file_tuple, tuple) and len(file_tuple) == 3:  # noqa: PLR2004
+                if isinstance(file_tuple, tuple) and len(file_tuple) == 3:  # ruff:ignore[magic-value-comparison]
                     filename, file_data, file_content_type = file_tuple
                     if hasattr(file_data, &#34;seekable&#34;) and file_data.seekable():
                         file_data.seek(0, os.SEEK_SET)
@@ -2007,7 +2073,7 @@ Creating a request with url "path" will create a request on /api_path/path.</dd>
         url = urljoin(self.api_url, url)
     if m_enc_data:
         for field_name, file_tuple in m_enc_data.items():
-            if isinstance(file_tuple, tuple) and len(file_tuple) == 3:  # noqa: PLR2004
+            if isinstance(file_tuple, tuple) and len(file_tuple) == 3:  # ruff:ignore[magic-value-comparison]
                 filename, file_data, file_content_type = file_tuple
                 if hasattr(file_data, &#34;seekable&#34;) and file_data.seekable():
                     file_data.seek(0, os.SEEK_SET)
@@ -2242,7 +2308,7 @@ The default is None.</dd>
         if as_sudo:
             if sudo_psw is None:
                 sudo_psw = self._ssh_psw
-            cmd = f&#34;echo {sudo_psw} | sudo -S {cmd}&#34;
+            cmd = f&#39;echo &#34;{sudo_psw}&#34; | sudo -S {cmd}&#39;
         output = &#34;&#34;
         ssh_ = ssh or self.connect(timeout, compress=compress)
 
@@ -2558,7 +2624,7 @@ The default is None.</dd>
     if as_sudo:
         if sudo_psw is None:
             sudo_psw = self._ssh_psw
-        cmd = f&#34;echo {sudo_psw} | sudo -S {cmd}&#34;
+        cmd = f&#39;echo &#34;{sudo_psw}&#34; | sudo -S {cmd}&#39;
     output = &#34;&#34;
     ssh_ = ssh or self.connect(timeout, compress=compress)
 
@@ -2634,6 +2700,7 @@ The default is None.</dd>
 <h4><code><a title="nerve_lib.general_utils.MSHandle" href="#nerve_lib.general_utils.MSHandle">MSHandle</a></code></h4>
 <ul class="">
 <li><code><a title="nerve_lib.general_utils.MSHandle.login" href="#nerve_lib.general_utils.MSHandle.login">login</a></code></li>
+<li><code><a title="nerve_lib.general_utils.MSHandle.login_content" href="#nerve_lib.general_utils.MSHandle.login_content">login_content</a></code></li>
 <li><code><a title="nerve_lib.general_utils.MSHandle.logout" href="#nerve_lib.general_utils.MSHandle.logout">logout</a></code></li>
 <li><code><a title="nerve_lib.general_utils.MSHandle.request" href="#nerve_lib.general_utils.MSHandle.request">request</a></code></li>
 <li><code><a title="nerve_lib.general_utils.MSHandle.version" href="#nerve_lib.general_utils.MSHandle.version">version</a></code></li>

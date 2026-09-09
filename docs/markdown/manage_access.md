@@ -322,8 +322,40 @@ Classes
     `add(self, email: str, roles: list, first_name: str = '', last_name: str = '', role_type: str = 'local') ‑> dict`
     :   Add a new user to the MS.
 
+    `create_access_token(self, name: str, permissions: list[str], expiration_date: str = '') ‑> dict`
+    :   Create API access token for authenticated user.
+        
+        Parameters
+        ----------
+        name : str
+            Display name of the access token.
+        permissions : list[str]
+            Permissions as names (e.g. 'NODE:VIEW') or permission IDs.
+        expiration_date : str, optional
+            Expiration date in ISO 8601 format, e.g. '2027-01-01T00:00:00.000Z'.
+        
+        Returns
+        -------
+        dict
+            Created access token payload. Token secret is returned once.
+
     `delete(self, email)`
     :   Delete a user from the MS.
+
+    `delete_access_token(self, token_id: str = '', token_name: str = '') ‑> bool`
+    :   Delete API access token for authenticated user.
+        
+        Parameters
+        ----------
+        token_id : str, optional
+            Access token ID.
+        token_name : str, optional
+            Access token name. Used to resolve token ID if token_id is not provided.
+        
+        Returns
+        -------
+        bool
+            True if token is deleted successfully.
 
     `edit(self, email: str, roles: list | None = None, first_name='', last_name='', role_type='local')`
     :   Edit an existing user.
@@ -331,5 +363,54 @@ Classes
     `get(self, email='', role_type='local')`
     :   Get a list of users.
 
+    `get_access_token_creation_permissions(self, name_only: bool = True) ‑> list[str]`
+    :   Get the possible permissions to create an access_token.
+
+    `get_access_tokens(self, name: str = '', status: str = '') ‑> dict | list`
+    :   Get API access tokens for the authenticated user.
+        
+        Parameters
+        ----------
+        name : str, optional
+            Token name to select a single access token. Default is "".
+        status : str, optional
+            Filter tokens by status ('active', 'revoked', 'expired'). Default is "".
+        
+        Returns
+        -------
+        dict | list
+            Without filters: full response payload from MS.
+            With status only: list of filtered access tokens.
+            With name: single matching token.
+
+    `get_current_user(self)`
+    :
+
+    `get_user_permissions(self, email: str = '', role_type: str = 'local', token_name: str = '') ‑> list[str]`
+    :
+
     `personal_edit(self, email: str, first_name='', last_name='', old_password='', new_password='', confirm_new_password='', user_id='')`
     :   Edit an personal user.
+
+    `revoke_access_token(self, token_id: str = '', token_name: str = '') ‑> dict`
+    :   Revoke API access token for authenticated user.
+        
+        Parameters
+        ----------
+        token_id : str, optional
+            Access token ID.
+        token_name : str, optional
+            Access token name. Used to resolve token ID if token_id is not provided.
+
+    `unblock_access_token_brute_force(self, ip_address: str = '', token_id: str = '') ‑> None`
+    :   Unblock access token brute-force state.
+        
+        Removes brute-force block state for either an IP address or an access token identifier.
+        Exactly one of the two parameters must be provided.
+        
+        Parameters
+        ----------
+        ip_address : str, optional
+            IPv4 address whose access-token brute-force block state should be removed.
+        token_id : str, optional
+            Access token identifier whose brute-force block state should be removed.

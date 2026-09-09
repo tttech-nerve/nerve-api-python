@@ -2,7 +2,7 @@
     <img src="./img/logo-nerve-black.svg" alt="Nerve"/><b>&nbsp;LIB</b><br><br>
     <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg"/></a>
     <a href="https://docs.python.org/3/"><img src="https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue.svg"/></a>
-    <a href="https://docs.nerve.cloud"><img src="https://img.shields.io/badge/nerve-2.9%20%7C%202.10%20%7C%203.0%20%7C%203.1.1-blue.svg"/></a>
+    <a href="https://docs.nerve.cloud"><img src="https://img.shields.io/badge/nerve-2.9%20%7C%202.10%20%7C%203.0%20%7C%203.1.1%20%7C%203.2.0-blue.svg"/></a>
 </p>
 
 The *nerve_lib* provides an interface to the REST API of a [Nerve Management System](https://docs.nerve.cloud/) in python. It implements authentication, and management of nodes and workloads. The *nerve_lib* can be used to integrate Nerve related tasks into a build pipeline (e.g. automatically creating a workload and deploying it on a test node when a new version of an application image is built).
