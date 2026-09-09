@@ -1595,11 +1595,12 @@ class _SelectedNode:  # ruff:ignore[too-many-public-methods]
         payload = {
             "command": command.upper(),
             "serialNumber": self.serial_number,
-            "sessionToken": self.node.ms._add_header.get("sessionid"),
             "deviceId": workload.get("id"),
             "workloadId": workload_id,
             "versionId": version_id,
         }
+        if self.node.ms.version_smaller_than("3.2.0"):
+            payload["sessionToken"] = self.node.ms._add_header.get("sessionid")
         if command.upper() == "UNDEPLOY":
             payload["removeImages"] = remove_images
         if service_name:

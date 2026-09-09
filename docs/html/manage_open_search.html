@@ -199,8 +199,11 @@ el.replaceWith(d);
         return self._get_index(index=&#34;nerve-ms-*&#34;, past_hours=past_hours, search_filters=search_filters)
 
     def get_fluentbit(self, past_hours: int = 5, search_filters: list | None = None):
-        &#34;&#34;&#34;Get filebeat logs from open search.&#34;&#34;&#34;
-        return self._get_index(index=&#34;docker-log*&#34;, past_hours=past_hours, search_filters=search_filters)
+        &#34;&#34;&#34;Get fluentbit logs from open search.&#34;&#34;&#34;
+        if self.ms.version_smaller_than(&#34;3.2.0&#34;):
+            return self._get_index(index=&#34;docker-log*&#34;, past_hours=past_hours, search_filters=search_filters)
+        else:
+            return self._get_index(index=&#34;system-*, docker-log-*&#34;, past_hours=past_hours, search_filters=search_filters)
 
     def get_audit_docker(self, past_hours: int = 5, search_filters: list | None = None):
         &#34;&#34;&#34;Get audit logs node from open search.&#34;&#34;&#34;
@@ -622,10 +625,13 @@ def create_search_multimatch_phrase(phrase):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def get_fluentbit(self, past_hours: int = 5, search_filters: list | None = None):
-    &#34;&#34;&#34;Get filebeat logs from open search.&#34;&#34;&#34;
-    return self._get_index(index=&#34;docker-log*&#34;, past_hours=past_hours, search_filters=search_filters)</code></pre>
+    &#34;&#34;&#34;Get fluentbit logs from open search.&#34;&#34;&#34;
+    if self.ms.version_smaller_than(&#34;3.2.0&#34;):
+        return self._get_index(index=&#34;docker-log*&#34;, past_hours=past_hours, search_filters=search_filters)
+    else:
+        return self._get_index(index=&#34;system-*, docker-log-*&#34;, past_hours=past_hours, search_filters=search_filters)</code></pre>
 </details>
-<div class="desc"><p>Get filebeat logs from open search.</p></div>
+<div class="desc"><p>Get fluentbit logs from open search.</p></div>
 </dd>
 <dt id="nerve_lib.manage_open_search.MSOpenSearch.get_nerve"><code class="name flex">
 <span>def <span class="ident">get_nerve</span></span>(<span>self, past_hours: int = 5, search_filters: list | None = None)</span>

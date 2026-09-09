@@ -90,17 +90,19 @@ class MSRole:
 
     def add(self, name: str, permission_names: list, description: str = ""):
         """Add a new role to the MS."""
-        available_permissions = self.get_permission_api()
+        available_permissions = self.get_permission_api()["data"]
+        # Add UI permissions
+        available_permissions.extend(self.get_permission_ui()["data"])
         permission_ids = []
         for perm_name in permission_names:
             try:
                 permission_ids.append(
-                    next(perm["_id"] for perm in available_permissions["data"] if perm["name"] == perm_name),
+                    next(perm["_id"] for perm in available_permissions if perm["name"] == perm_name),
                 )
             except StopIteration:
                 msg = (
                     f"Permission '{perm_name}' not valid, use one of "
-                    f"({[perm['name'] for perm in available_permissions['data']]}"
+                    f"({[perm['name'] for perm in available_permissions]}"
                 )
                 raise ValueError(msg)
         payload = {
@@ -143,20 +145,19 @@ class MSRole:
             existing_role = self.get(role_name)
 
         # Get available permissions
-        available_permissions = self.get_permission_api()
+        available_permissions = self.get_permission_api()["data"]
+        available_permissions.extend(self.get_permission_ui()["data"])
 
         # Convert permission names to IDs
         permission_ids = []
         for perm_name in permission_names:
             try:
-                perm_id = next(
-                    perm["_id"] for perm in available_permissions["data"] if perm["name"] == perm_name
-                )
+                perm_id = next(perm["_id"] for perm in available_permissions if perm["name"] == perm_name)
                 permission_ids.append(perm_id)
             except StopIteration:
                 msg = (
                     f"Permission '{perm_name}' not valid, use one of "
-                    f"({[perm['name'] for perm in available_permissions['data']]}"
+                    f"({[perm['name'] for perm in available_permissions]}"
                 )
                 raise ValueError(msg)
 
@@ -333,17 +334,7 @@ class MSUser:
         if self.ms.access_token:
             raise RuntimeError("get_current_user() is not supported with token-based authentication")
 
-        users = self.get()
-        user_id = next(
-            (
-                user["_id"]
-                for user in users["data" if self.ms.version_smaller_than("3.2.0") else "profiles"]
-                if user["username"] == self.ms.usr
-            ),
-            None,
-        )
-        if not user_id:
-            raise ValueError(f"Current user '{self.ms.usr}' not found in MS")
+        user_id = self.ms.login_content["user"]["_id"]
         return self.ms.get(f"/crm/profile/{user_id}", accepted_status=[requests.codes.ok]).json()
 
     def get_user_permissions(
@@ -360,14 +351,13 @@ class MSUser:
         else:
             user_info = self.get_current_user()
 
-        role_permissions = self._role.get_permission_api()
+        role_permissions = self._role.get_permission_api()["data"]
+        role_permissions.extend(self._role.get_permission_ui()["data"])
         permissions = []
         for role in user_info.get("roles", []):
             role_info = self._role.get(name=role["name"], role_type=role["type"])
             role_permission_names = [
-                perm["name"]
-                for perm in role_permissions["data"]
-                if perm["_id"] in role_info.get("permissions", [])
+                perm["name"] for perm in role_permissions if perm["_id"] in role_info.get("permissions", [])
             ]
             permissions.extend(role_permission_names)
 
@@ -412,7 +402,7 @@ class MSUser:
 
     def get_access_token_creation_permissions(self, name_only: bool = True) -> list[str]:
         """Get the possible permissions to create an access_token."""
-        user_id = self.get_current_user().get("_id")
+        user_id = self.ms.login_content["user"]["_id"]
 
         permissions = self.ms.get(
             f"/nerve/rbac/users/{user_id}/permissions/detailed",
@@ -443,8 +433,9 @@ class MSUser:
             msg = "At least one permission must be provided"
             raise ValueError(msg)
         # Resolve permission names to IDs using the user's available permissions.
-        permissions = self.get_access_token_creation_permissions(name_only=False)
-        permission_map = {perm["name"]: perm["_id"] for perm in permissions}
+        permission_map = {
+            perm["name"]: perm["_id"] for perm in self.get_access_token_creation_permissions(name_only=False)
+        }
         resolved_permission_ids = []
         invalid_permission_names = []
         for permission in permissions:
@@ -455,7 +446,7 @@ class MSUser:
                 invalid_permission_names.append(permission_name)
 
         if invalid_permission_names:
-            msg = f"Permissions {invalid_permission_names} not valid, use one of {[perm['name'] for perm in permissions]}"
+            msg = f"Permissions {invalid_permission_names} not valid"
             raise ValueError(msg)
 
         payload = {

@@ -173,8 +173,11 @@ class MSOpenSearch:
         return self._get_index(index="nerve-ms-*", past_hours=past_hours, search_filters=search_filters)
 
     def get_fluentbit(self, past_hours: int = 5, search_filters: list | None = None):
-        """Get filebeat logs from open search."""
-        return self._get_index(index="docker-log*", past_hours=past_hours, search_filters=search_filters)
+        """Get fluentbit logs from open search."""
+        if self.ms.version_smaller_than("3.2.0"):
+            return self._get_index(index="docker-log*", past_hours=past_hours, search_filters=search_filters)
+        else:
+            return self._get_index(index="system-*, docker-log-*", past_hours=past_hours, search_filters=search_filters)
 
     def get_audit_docker(self, past_hours: int = 5, search_filters: list | None = None):
         """Get audit logs node from open search."""

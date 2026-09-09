@@ -1296,17 +1296,19 @@ node handle 'nerve_lib.general_utils.NodeHandle(&hellip;)'.</p></div>
 
     def add(self, name: str, permission_names: list, description: str = &#34;&#34;):
         &#34;&#34;&#34;Add a new role to the MS.&#34;&#34;&#34;
-        available_permissions = self.get_permission_api()
+        available_permissions = self.get_permission_api()[&#34;data&#34;]
+        # Add UI permissions
+        available_permissions.extend(self.get_permission_ui()[&#34;data&#34;])
         permission_ids = []
         for perm_name in permission_names:
             try:
                 permission_ids.append(
-                    next(perm[&#34;_id&#34;] for perm in available_permissions[&#34;data&#34;] if perm[&#34;name&#34;] == perm_name),
+                    next(perm[&#34;_id&#34;] for perm in available_permissions if perm[&#34;name&#34;] == perm_name),
                 )
             except StopIteration:
                 msg = (
                     f&#34;Permission &#39;{perm_name}&#39; not valid, use one of &#34;
-                    f&#34;({[perm[&#39;name&#39;] for perm in available_permissions[&#39;data&#39;]]}&#34;
+                    f&#34;({[perm[&#39;name&#39;] for perm in available_permissions]}&#34;
                 )
                 raise ValueError(msg)
         payload = {
@@ -1349,20 +1351,19 @@ node handle 'nerve_lib.general_utils.NodeHandle(&hellip;)'.</p></div>
             existing_role = self.get(role_name)
 
         # Get available permissions
-        available_permissions = self.get_permission_api()
+        available_permissions = self.get_permission_api()[&#34;data&#34;]
+        available_permissions.extend(self.get_permission_ui()[&#34;data&#34;])
 
         # Convert permission names to IDs
         permission_ids = []
         for perm_name in permission_names:
             try:
-                perm_id = next(
-                    perm[&#34;_id&#34;] for perm in available_permissions[&#34;data&#34;] if perm[&#34;name&#34;] == perm_name
-                )
+                perm_id = next(perm[&#34;_id&#34;] for perm in available_permissions if perm[&#34;name&#34;] == perm_name)
                 permission_ids.append(perm_id)
             except StopIteration:
                 msg = (
                     f&#34;Permission &#39;{perm_name}&#39; not valid, use one of &#34;
-                    f&#34;({[perm[&#39;name&#39;] for perm in available_permissions[&#39;data&#39;]]}&#34;
+                    f&#34;({[perm[&#39;name&#39;] for perm in available_permissions]}&#34;
                 )
                 raise ValueError(msg)
 
@@ -1403,17 +1404,19 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
 </summary>
 <pre><code class="python">def add(self, name: str, permission_names: list, description: str = &#34;&#34;):
     &#34;&#34;&#34;Add a new role to the MS.&#34;&#34;&#34;
-    available_permissions = self.get_permission_api()
+    available_permissions = self.get_permission_api()[&#34;data&#34;]
+    # Add UI permissions
+    available_permissions.extend(self.get_permission_ui()[&#34;data&#34;])
     permission_ids = []
     for perm_name in permission_names:
         try:
             permission_ids.append(
-                next(perm[&#34;_id&#34;] for perm in available_permissions[&#34;data&#34;] if perm[&#34;name&#34;] == perm_name),
+                next(perm[&#34;_id&#34;] for perm in available_permissions if perm[&#34;name&#34;] == perm_name),
             )
         except StopIteration:
             msg = (
                 f&#34;Permission &#39;{perm_name}&#39; not valid, use one of &#34;
-                f&#34;({[perm[&#39;name&#39;] for perm in available_permissions[&#39;data&#39;]]}&#34;
+                f&#34;({[perm[&#39;name&#39;] for perm in available_permissions]}&#34;
             )
             raise ValueError(msg)
     payload = {
@@ -1476,20 +1479,19 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
         existing_role = self.get(role_name)
 
     # Get available permissions
-    available_permissions = self.get_permission_api()
+    available_permissions = self.get_permission_api()[&#34;data&#34;]
+    available_permissions.extend(self.get_permission_ui()[&#34;data&#34;])
 
     # Convert permission names to IDs
     permission_ids = []
     for perm_name in permission_names:
         try:
-            perm_id = next(
-                perm[&#34;_id&#34;] for perm in available_permissions[&#34;data&#34;] if perm[&#34;name&#34;] == perm_name
-            )
+            perm_id = next(perm[&#34;_id&#34;] for perm in available_permissions if perm[&#34;name&#34;] == perm_name)
             permission_ids.append(perm_id)
         except StopIteration:
             msg = (
                 f&#34;Permission &#39;{perm_name}&#39; not valid, use one of &#34;
-                f&#34;({[perm[&#39;name&#39;] for perm in available_permissions[&#39;data&#39;]]}&#34;
+                f&#34;({[perm[&#39;name&#39;] for perm in available_permissions]}&#34;
             )
             raise ValueError(msg)
 
@@ -1748,17 +1750,7 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
         if self.ms.access_token:
             raise RuntimeError(&#34;get_current_user() is not supported with token-based authentication&#34;)
 
-        users = self.get()
-        user_id = next(
-            (
-                user[&#34;_id&#34;]
-                for user in users[&#34;data&#34; if self.ms.version_smaller_than(&#34;3.2.0&#34;) else &#34;profiles&#34;]
-                if user[&#34;username&#34;] == self.ms.usr
-            ),
-            None,
-        )
-        if not user_id:
-            raise ValueError(f&#34;Current user &#39;{self.ms.usr}&#39; not found in MS&#34;)
+        user_id = self.ms.login_content[&#34;user&#34;][&#34;_id&#34;]
         return self.ms.get(f&#34;/crm/profile/{user_id}&#34;, accepted_status=[requests.codes.ok]).json()
 
     def get_user_permissions(
@@ -1775,14 +1767,13 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
         else:
             user_info = self.get_current_user()
 
-        role_permissions = self._role.get_permission_api()
+        role_permissions = self._role.get_permission_api()[&#34;data&#34;]
+        role_permissions.extend(self._role.get_permission_ui()[&#34;data&#34;])
         permissions = []
         for role in user_info.get(&#34;roles&#34;, []):
             role_info = self._role.get(name=role[&#34;name&#34;], role_type=role[&#34;type&#34;])
             role_permission_names = [
-                perm[&#34;name&#34;]
-                for perm in role_permissions[&#34;data&#34;]
-                if perm[&#34;_id&#34;] in role_info.get(&#34;permissions&#34;, [])
+                perm[&#34;name&#34;] for perm in role_permissions if perm[&#34;_id&#34;] in role_info.get(&#34;permissions&#34;, [])
             ]
             permissions.extend(role_permission_names)
 
@@ -1827,7 +1818,7 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
 
     def get_access_token_creation_permissions(self, name_only: bool = True) -&gt; list[str]:
         &#34;&#34;&#34;Get the possible permissions to create an access_token.&#34;&#34;&#34;
-        user_id = self.get_current_user().get(&#34;_id&#34;)
+        user_id = self.ms.login_content[&#34;user&#34;][&#34;_id&#34;]
 
         permissions = self.ms.get(
             f&#34;/nerve/rbac/users/{user_id}/permissions/detailed&#34;,
@@ -1858,8 +1849,9 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
             msg = &#34;At least one permission must be provided&#34;
             raise ValueError(msg)
         # Resolve permission names to IDs using the user&#39;s available permissions.
-        permissions = self.get_access_token_creation_permissions(name_only=False)
-        permission_map = {perm[&#34;name&#34;]: perm[&#34;_id&#34;] for perm in permissions}
+        permission_map = {
+            perm[&#34;name&#34;]: perm[&#34;_id&#34;] for perm in self.get_access_token_creation_permissions(name_only=False)
+        }
         resolved_permission_ids = []
         invalid_permission_names = []
         for permission in permissions:
@@ -1870,7 +1862,7 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
                 invalid_permission_names.append(permission_name)
 
         if invalid_permission_names:
-            msg = f&#34;Permissions {invalid_permission_names} not valid, use one of {[perm[&#39;name&#39;] for perm in permissions]}&#34;
+            msg = f&#34;Permissions {invalid_permission_names} not valid&#34;
             raise ValueError(msg)
 
         payload = {
@@ -2039,8 +2031,9 @@ handle to node 'nerve_lib.general_utils.NodeHandle(&hellip;)'.</p></div>
         msg = &#34;At least one permission must be provided&#34;
         raise ValueError(msg)
     # Resolve permission names to IDs using the user&#39;s available permissions.
-    permissions = self.get_access_token_creation_permissions(name_only=False)
-    permission_map = {perm[&#34;name&#34;]: perm[&#34;_id&#34;] for perm in permissions}
+    permission_map = {
+        perm[&#34;name&#34;]: perm[&#34;_id&#34;] for perm in self.get_access_token_creation_permissions(name_only=False)
+    }
     resolved_permission_ids = []
     invalid_permission_names = []
     for permission in permissions:
@@ -2051,7 +2044,7 @@ handle to node 'nerve_lib.general_utils.NodeHandle(&hellip;)'.</p></div>
             invalid_permission_names.append(permission_name)
 
     if invalid_permission_names:
-        msg = f&#34;Permissions {invalid_permission_names} not valid, use one of {[perm[&#39;name&#39;] for perm in permissions]}&#34;
+        msg = f&#34;Permissions {invalid_permission_names} not valid&#34;
         raise ValueError(msg)
 
     payload = {
@@ -2235,7 +2228,7 @@ handle to node 'nerve_lib.general_utils.NodeHandle(&hellip;)'.</p></div>
 </summary>
 <pre><code class="python">def get_access_token_creation_permissions(self, name_only: bool = True) -&gt; list[str]:
     &#34;&#34;&#34;Get the possible permissions to create an access_token.&#34;&#34;&#34;
-    user_id = self.get_current_user().get(&#34;_id&#34;)
+    user_id = self.ms.login_content[&#34;user&#34;][&#34;_id&#34;]
 
     permissions = self.ms.get(
         f&#34;/nerve/rbac/users/{user_id}/permissions/detailed&#34;,
@@ -2319,17 +2312,7 @@ With name: single matching token.</dd>
     if self.ms.access_token:
         raise RuntimeError(&#34;get_current_user() is not supported with token-based authentication&#34;)
 
-    users = self.get()
-    user_id = next(
-        (
-            user[&#34;_id&#34;]
-            for user in users[&#34;data&#34; if self.ms.version_smaller_than(&#34;3.2.0&#34;) else &#34;profiles&#34;]
-            if user[&#34;username&#34;] == self.ms.usr
-        ),
-        None,
-    )
-    if not user_id:
-        raise ValueError(f&#34;Current user &#39;{self.ms.usr}&#39; not found in MS&#34;)
+    user_id = self.ms.login_content[&#34;user&#34;][&#34;_id&#34;]
     return self.ms.get(f&#34;/crm/profile/{user_id}&#34;, accepted_status=[requests.codes.ok]).json()</code></pre>
 </details>
 <div class="desc"></div>
@@ -2356,14 +2339,13 @@ With name: single matching token.</dd>
     else:
         user_info = self.get_current_user()
 
-    role_permissions = self._role.get_permission_api()
+    role_permissions = self._role.get_permission_api()[&#34;data&#34;]
+    role_permissions.extend(self._role.get_permission_ui()[&#34;data&#34;])
     permissions = []
     for role in user_info.get(&#34;roles&#34;, []):
         role_info = self._role.get(name=role[&#34;name&#34;], role_type=role[&#34;type&#34;])
         role_permission_names = [
-            perm[&#34;name&#34;]
-            for perm in role_permissions[&#34;data&#34;]
-            if perm[&#34;_id&#34;] in role_info.get(&#34;permissions&#34;, [])
+            perm[&#34;name&#34;] for perm in role_permissions if perm[&#34;_id&#34;] in role_info.get(&#34;permissions&#34;, [])
         ]
         permissions.extend(role_permission_names)
 

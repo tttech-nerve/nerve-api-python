@@ -73,6 +73,9 @@ Classes
 
     ### Instance variables
 
+    `login_content`
+    :   Return the content of the last login response.
+
     `version: str`
     :   Get the version of the MS.
         

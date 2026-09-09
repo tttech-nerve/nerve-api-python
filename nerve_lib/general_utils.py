@@ -1308,6 +1308,7 @@ class MSHandle(RequestGeneral):
         self.access_token = access_token or os.environ.get("MS_ACCESS_TOKEN", "")
 
         self._is_logged_in = False
+        self.__login_content = None
         if self.access_token:
             self._add_header["Authorization"] = f"Bearer {self.access_token}"
             self._is_logged_in = True
@@ -1481,9 +1482,22 @@ class MSHandle(RequestGeneral):
             self._is_logged_in = False
             super()._check_response("post", response, [requests.codes.ok])  # will raise error
         self._add_header["sessionid"] = f"{response.headers['sessionId']}"
+        self.__login_content = response.json()
         self._is_logged_in = True
 
         return response
+
+    @property
+    def login_content(self):
+        """Return the content of the last login response."""
+        if self._is_logged_in and not self.access_token:
+            return self.__login_content
+
+        if not self.access_token:
+            self.login()
+            return self.__login_content
+
+        raise ValueError("Cannot get login-content for token-based authentication")
 
     def logout(self):
         """Logout from MS."""

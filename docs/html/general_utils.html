@@ -214,6 +214,7 @@ msg.value: string error message</p></div>
         self.access_token = access_token or os.environ.get(&#34;MS_ACCESS_TOKEN&#34;, &#34;&#34;)
 
         self._is_logged_in = False
+        self.__login_content = None
         if self.access_token:
             self._add_header[&#34;Authorization&#34;] = f&#34;Bearer {self.access_token}&#34;
             self._is_logged_in = True
@@ -387,9 +388,22 @@ msg.value: string error message</p></div>
             self._is_logged_in = False
             super()._check_response(&#34;post&#34;, response, [requests.codes.ok])  # will raise error
         self._add_header[&#34;sessionid&#34;] = f&#34;{response.headers[&#39;sessionId&#39;]}&#34;
+        self.__login_content = response.json()
         self._is_logged_in = True
 
         return response
+
+    @property
+    def login_content(self):
+        &#34;&#34;&#34;Return the content of the last login response.&#34;&#34;&#34;
+        if self._is_logged_in and not self.access_token:
+            return self.__login_content
+
+        if not self.access_token:
+            self.login()
+            return self.__login_content
+
+        raise ValueError(&#34;Cannot get login-content for token-based authentication&#34;)
 
     def logout(self):
         &#34;&#34;&#34;Logout from MS.&#34;&#34;&#34;
@@ -431,6 +445,26 @@ If an access token is provided, the user and password will be ignored.</dd>
 </ul>
 <h3>Instance variables</h3>
 <dl>
+<dt id="nerve_lib.general_utils.MSHandle.login_content"><code class="name">prop <span class="ident">login_content</span></code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def login_content(self):
+    &#34;&#34;&#34;Return the content of the last login response.&#34;&#34;&#34;
+    if self._is_logged_in and not self.access_token:
+        return self.__login_content
+
+    if not self.access_token:
+        self.login()
+        return self.__login_content
+
+    raise ValueError(&#34;Cannot get login-content for token-based authentication&#34;)</code></pre>
+</details>
+<div class="desc"><p>Return the content of the last login response.</p></div>
+</dd>
 <dt id="nerve_lib.general_utils.MSHandle.version"><code class="name">prop <span class="ident">version</span> : str</code></dt>
 <dd>
 <details class="source">
@@ -504,6 +538,7 @@ def version(self) -&gt; str:
         self._is_logged_in = False
         super()._check_response(&#34;post&#34;, response, [requests.codes.ok])  # will raise error
     self._add_header[&#34;sessionid&#34;] = f&#34;{response.headers[&#39;sessionId&#39;]}&#34;
+    self.__login_content = response.json()
     self._is_logged_in = True
 
     return response</code></pre>
@@ -2665,6 +2700,7 @@ The default is None.</dd>
 <h4><code><a title="nerve_lib.general_utils.MSHandle" href="#nerve_lib.general_utils.MSHandle">MSHandle</a></code></h4>
 <ul class="">
 <li><code><a title="nerve_lib.general_utils.MSHandle.login" href="#nerve_lib.general_utils.MSHandle.login">login</a></code></li>
+<li><code><a title="nerve_lib.general_utils.MSHandle.login_content" href="#nerve_lib.general_utils.MSHandle.login_content">login_content</a></code></li>
 <li><code><a title="nerve_lib.general_utils.MSHandle.logout" href="#nerve_lib.general_utils.MSHandle.logout">logout</a></code></li>
 <li><code><a title="nerve_lib.general_utils.MSHandle.request" href="#nerve_lib.general_utils.MSHandle.request">request</a></code></li>
 <li><code><a title="nerve_lib.general_utils.MSHandle.version" href="#nerve_lib.general_utils.MSHandle.version">version</a></code></li>
