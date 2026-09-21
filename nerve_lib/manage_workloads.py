@@ -394,7 +394,7 @@ class MSWorkloads:
 
                 # Step4: Upload image file(s)
                 for file_path in file_paths:
-                    if type(file_path) is str and os.path.splitext(file_path)[-1] == ".tar":
+                    if type(file_path) is str and file_path.endswith((".tar", ".gz")):
                         wl_version.set_compose_image(file_path, patch_version, image_names)
                     elif type(file_path) is dict:
                         wl_version.set_compose_repo(
@@ -1522,6 +1522,30 @@ class _WorkloadVersion:  # ruff:ignore[too-many-public-methods]
             ).text
         )
 
+    def __detect_tar_upload_name(self, image_path: str) -> str:
+        """Detect actual tar compression (like the `file` command) and return a matching file name.
+
+        The file extension of `image_path` does not always match the actual content (e.g. a gzip
+        compressed archive named "*.tar"). Since the MS relies on the uploaded file name's extension
+        to decide how to decompress it, the name is corrected here based on the real file content.
+        """
+        with open(image_path, "rb") as fh:
+            magic = fh.read(2)
+        is_gzip = magic == b"\x1f\x8b"
+
+        base_name = os.path.basename(image_path)
+        name_without_ext = re.sub(r"\.(tar\.gz|tgz|tar|gz)$", "", base_name, flags=re.IGNORECASE)
+        correct_name = f"{name_without_ext}.tar.gz" if is_gzip else f"{name_without_ext}.tar"
+
+        if correct_name != base_name:
+            self._log.warning(
+                "File '%s' extension does not match its actual content (%s), uploading as '%s'",
+                base_name,
+                "gzip-compressed tar" if is_gzip else "plain tar",
+                correct_name,
+            )
+        return correct_name
+
     def set_compose_image(self, image_path: str, patch_version=True, image_names: list | None = None) -> None:
         """Upload an compose image.
 
@@ -1535,6 +1559,7 @@ class _WorkloadVersion:  # ruff:ignore[too-many-public-methods]
         self._get_workload_type("docker-compose")  # check if the workload type is a docker-compose workload
         workload_id, version_id = self._get_ids()
 
+        upload_name = self.__detect_tar_upload_name(image_path)
         repo_tags = []
         with tarfile.open(image_path, "r") as tar_file:  # ruff:ignore[too-many-nested-blocks]
             for member in tar_file.getmembers():
@@ -1576,7 +1601,7 @@ class _WorkloadVersion:  # ruff:ignore[too-many-public-methods]
                 "type": "docker-image",
                 "origin": "upload",
                 "source": f"file;{source_tag}",
-                "file": (os.path.split(image_path)[-1], bin_file, "form-data"),
+                "file": (upload_name, bin_file, "form-data"),
             }
 
             if file_id:

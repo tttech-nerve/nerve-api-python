@@ -112,8 +112,6 @@ loading the module, or by changing the level of the root logger, e.g.
         logging.getLogger(&#34;paramiko.transport&#34;).setLevel(logging.CRITICAL)  # Suppress paramiko debug messages
         logging.getLogger(&#34;pykeepass&#34;).setLevel(logging.WARNING)
         logging.getLogger(&#34;urllib3&#34;).setLevel(logging.WARNING)
-        logging.getLogger(&#34;asyncssh&#34;).setLevel(logging.WARNING)
-
     # add file handler
     if os.environ.get(&#34;DEBUG_LOG_FILE&#34;, &#34;&#34;):
         file_handler_configured = any(
@@ -382,9 +380,18 @@ msg.value: string error message</p></div>
         response = self.post(
             url=&#34;/auth/login&#34;,
             json={&#34;identity&#34;: self.usr, &#34;secret&#34;: self.psw},
-            accepted_status=[requests.codes.ok, requests.codes.forbidden, requests.codes.unauthorized],
+            accepted_status=[
+                requests.codes.ok,
+                requests.codes.forbidden,
+                requests.codes.unauthorized,
+                requests.codes.not_acceptable,
+            ],
         )
-        if response.status_code in {requests.codes.forbidden, requests.codes.unauthorized}:
+        if response.status_code in {
+            requests.codes.forbidden,
+            requests.codes.unauthorized,
+            requests.codes.not_acceptable,
+        }:
             self._is_logged_in = False
             super()._check_response(&#34;post&#34;, response, [requests.codes.ok])  # will raise error
         self._add_header[&#34;sessionid&#34;] = f&#34;{response.headers[&#39;sessionId&#39;]}&#34;
@@ -532,9 +539,18 @@ def version(self) -&gt; str:
     response = self.post(
         url=&#34;/auth/login&#34;,
         json={&#34;identity&#34;: self.usr, &#34;secret&#34;: self.psw},
-        accepted_status=[requests.codes.ok, requests.codes.forbidden, requests.codes.unauthorized],
+        accepted_status=[
+            requests.codes.ok,
+            requests.codes.forbidden,
+            requests.codes.unauthorized,
+            requests.codes.not_acceptable,
+        ],
     )
-    if response.status_code in {requests.codes.forbidden, requests.codes.unauthorized}:
+    if response.status_code in {
+        requests.codes.forbidden,
+        requests.codes.unauthorized,
+        requests.codes.not_acceptable,
+    }:
         self._is_logged_in = False
         super()._check_response(&#34;post&#34;, response, [requests.codes.ok])  # will raise error
     self._add_header[&#34;sessionid&#34;] = f&#34;{response.headers[&#39;sessionId&#39;]}&#34;
@@ -724,6 +740,9 @@ In case of a failed login, an error will be raised.</p>
         handle of logging.getLogger(...). The default is None.
     &#34;&#34;&#34;
 
+    _shared_instance: &#34;ManageSshTunnel | None&#34; = None
+    _shared_instance_lock = threading.Lock()
+
     def __init__(
         self, user: str | None = None, password: str | None = None, log: logging.Logger | None = None
     ):
@@ -731,23 +750,14 @@ In case of a failed login, an error will be raised.</p>
         self._log = log.getChild(&#34;SSH-Tunnel&#34;) if log else logging.getLogger(&#34;SSH-Tunnel&#34;)
         self._ssh_usr = user or os.environ.get(&#34;SSH_USR&#34;)
         self._ssh_psw = password or os.environ.get(&#34;SSH_PSW&#34;)
-
-        # asyncssh uses the LOGNAME environment variable to determine the
-        # default username for authentication if no username is provided.
-        os.environ.setdefault(&#34;LOGNAME&#34;, self._ssh_usr or &#34;nerve&#34;)
-
         self._tunnels = {}
-        self._loop = asyncio.new_event_loop()
-        self._loop_thread = threading.Thread(target=self._run_loop, name=&#34;ManageSshTunnelLoop&#34;, daemon=True)
-        self._loop_thread.start()
+        self._tunnel_refs = {}
         self._lock = threading.Lock()
         self._finalizer_handle = weakref.finalize(
             self,
             self._cleanup,
             self._log,
             self._tunnels,
-            self._loop,
-            self._loop_thread,
         )
         self._finalizer = self._manual_cleanup
 
@@ -760,15 +770,26 @@ In case of a failed login, an error will be raised.</p>
         if hasattr(self, &#34;_finalizer&#34;):
             self._finalizer()
 
-    @staticmethod
-    async def _drain_pending_tasks():
-        current_task = asyncio.current_task()
-        pending = [task for task in asyncio.all_tasks() if task is not current_task and not task.done()]
-        if pending:
-            await asyncio.gather(*pending, return_exceptions=True)
+    @classmethod
+    def get_shared(
+        cls,
+        user: str | None = None,
+        password: str | None = None,
+        log: logging.Logger | None = None,
+    ) -&gt; &#34;ManageSshTunnel&#34;:
+        &#34;&#34;&#34;Return a process-wide shared tunnel manager.
+
+        Multiple node handles reuse a single manager so that tunnels sharing the
+        same connection path are reference-counted and only closed once every
+        user has released them.
+        &#34;&#34;&#34;
+        with cls._shared_instance_lock:
+            if cls._shared_instance is None:
+                cls._shared_instance = cls(user=user, password=password, log=log)
+            return cls._shared_instance
 
     @staticmethod
-    def _cleanup(log, tunnels, loop, loop_thread):
+    def _cleanup(log, tunnels):
         &#34;&#34;&#34;Safely cleanup class.
 
         If the class shall be manually cleaned, call this function:
@@ -779,102 +800,243 @@ In case of a failed login, an error will be raised.</p>
             log.debug(&#34;Closing Tunnel %s&#34;, tunnel_key)
             try:
                 tunnel.close()
-            except (SSHTunnelError, RuntimeError, OSError, asyncssh.Error):
+            except (SSHTunnelError, RuntimeError, OSError, paramiko.SSHException):
                 log.warning(&#34;Could not close tunnel %s cleanly&#34;, tunnel_key)
         tunnels.clear()
-        if loop.is_running() and not loop.is_closed():
-            drain_coro = ManageSshTunnel._drain_pending_tasks()
-            try:
-                asyncio.run_coroutine_threadsafe(
-                    drain_coro,
-                    loop,
-                ).result(timeout=10)
-            except (
-                concurrent.futures.TimeoutError,
-                concurrent.futures.CancelledError,
-                RuntimeError,
-            ) as drain_error:
-                drain_coro.close()
-                log.debug(&#34;Could not drain tunnel loop cleanly: %s&#34;, drain_error)
-        try:
-            if loop.is_running():
-                loop.call_soon_threadsafe(loop.stop)
-        except RuntimeError:
-            log.debug(&#34;Could not stop tunnel loop cleanly&#34;)
-        if loop_thread.is_alive():
-            loop_thread.join(timeout=5)
 
-    def _restart_loop(self):
-        self._loop = asyncio.new_event_loop()
-        self._loop_thread = threading.Thread(
-            target=self._run_loop,
-            name=&#34;ManageSshTunnelLoop&#34;,
-            daemon=True,
-        )
-        self._loop_thread.start()
+    def _reset_finalizer(self):
         self._finalizer_handle = weakref.finalize(
             self,
             self._cleanup,
             self._log,
             self._tunnels,
-            self._loop,
-            self._loop_thread,
         )
         self._finalizer = self._manual_cleanup
 
     def _manual_cleanup(self):
         if self._finalizer_handle.alive:
             self._finalizer_handle()
-        self._restart_loop()
+        self._reset_finalizer()
 
-    def _run_loop(self):
-        asyncio.set_event_loop(self._loop)
-        self._loop.run_forever()
+    @staticmethod
+    def _is_port_open(host: str, port: int, timeout: float = 3.0) -&gt; bool:
+        &#34;&#34;&#34;Check whether a TCP endpoint accepts connections.
 
-    def _run_coroutine(self, coro, timeout: int = 30):
-        future = asyncio.run_coroutine_threadsafe(coro, self._loop)
-        return future.result(timeout=timeout)
+        Used as a fast pre-flight probe before opening an ssh-tunnel so that an
+        unreachable node (e.g. SSH port closed/refused) can be reported clearly.
 
-    async def _open_tunnel(
+        Parameters
+        ----------
+        host : str
+            target ip-address or hostname.
+        port : int
+            target tcp port.
+        timeout : float, optional
+            connection timeout in seconds. The default is 3.0.
+
+        Returns
+        -------
+        bool
+            True if the port accepts a connection, False otherwise.
+        &#34;&#34;&#34;
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+        try:
+            sock.connect((host, int(port)))
+            sock.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            return False
+        finally:
+            sock.close()
+        return True
+
+    # keepalive interval (seconds) to keep the ssh-tunnel connection open through idle periods
+    _KEEPALIVE_INTERVAL = 15
+
+    def _connect_ssh(
+        self, ssh_host: str, ssh_port: int, user: str | None = None, password: str | None = None
+    ) -&gt; paramiko.SSHClient:
+        &#34;&#34;&#34;Open a dedicated Paramiko connection for a tunnel with keepalive enabled.
+
+        The connection is owned by the tunnel handle, so it must not be created via a
+        throwaway wrapper whose destructor would close it again.
+
+        Parameters
+        ----------
+        ssh_host : str
+            target ip-address or hostname.
+        ssh_port : int
+            target ssh port.
+        user : str, optional
+            ssh username. Defaults to the manager default when not provided.
+        password : str, optional
+            ssh password. Defaults to the manager default when not provided.
+
+        Returns
+        -------
+        paramiko.SSHClient
+            a connected client with an active transport and keepalive enabled.
+        &#34;&#34;&#34;
+        ssh_client = paramiko.SSHClient()
+        ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        try:
+            ssh_client.connect(
+                ssh_host,
+                port=ssh_port,
+                username=user if user is not None else self._ssh_usr,
+                password=password if password is not None else self._ssh_psw,
+                timeout=10,
+                banner_timeout=10,
+                auth_timeout=10,
+                look_for_keys=False,
+                allow_agent=False,
+            )
+        except (OSError, paramiko.SSHException) as ex_msg:
+            ssh_client.close()
+            msg = f&#34;Could not open ssh connection to {ssh_host}:{ssh_port}: {ex_msg}&#34;
+            raise SSHTunnelError(msg) from ex_msg
+
+        transport = ssh_client.get_transport()
+        if transport is None or not transport.is_active():
+            ssh_client.close()
+            msg = f&#34;SSH connection to {ssh_host}:{ssh_port} is not active&#34;
+            raise SSHTunnelError(msg)
+        transport.set_keepalive(self._KEEPALIVE_INTERVAL)
+        return ssh_client
+
+    def _open_tunnel(
         self,
         ssh_host: str,
         ssh_port: int,
         remote_bind: tuple[str, int],
         local_bind: tuple[str, int],
+        user: str | None = None,
+        password: str | None = None,
     ):
-        connection = await asyncssh.connect(
-            ssh_host,
-            port=ssh_port,
-            username=self._ssh_usr,
-            password=self._ssh_psw,
-            known_hosts=None,
-            client_keys=None,
-            connect_timeout=10,
-            login_timeout=10,
-            keepalive_interval=30,
+        ssh_user = user if user is not None else self._ssh_usr
+        ssh_password = password if password is not None else self._ssh_psw
+        ssh_client = self._connect_ssh(ssh_host, ssh_port, ssh_user, ssh_password)
+        transport = ssh_client.get_transport()
+
+        handler = type(
+            &#34;ParamikoForwardHandler&#34;,
+            (_ParamikoForwardHandler,),
+            {
+                &#34;ssh_transport&#34;: transport,
+                &#34;remote_bind_address&#34;: remote_bind,
+                &#34;log&#34;: self._log,
+            },
         )
-        forwarder = await connection.forward_local_port(
-            local_bind[0],
-            local_bind[1],
-            remote_bind[0],
-            remote_bind[1],
+        try:
+            forwarder = _ParamikoForwardServer(local_bind, handler)
+        except OSError as ex_msg:
+            ssh_client.close()
+            msg = f&#34;Could not bind local forward socket on {local_bind[0]}:{local_bind[1]}: {ex_msg}&#34;
+            raise SSHTunnelError(msg) from ex_msg
+        forwarder_thread = threading.Thread(
+            target=forwarder.serve_forever,
+            name=f&#34;ParamikoTunnel-{local_bind[1]}&#34;,
+            daemon=True,
         )
-        return _AsyncTunnelHandle(
+        forwarder_thread.start()
+        return _ParamikoTunnelHandle(
             ssh_host,
             ssh_port,
             remote_bind,
             local_bind,
-            connection,
+            ssh_client,
             forwarder,
-            self._loop,
+            forwarder_thread,
             self._log,
+            ssh_user,
+            ssh_password,
         )
+
+    @staticmethod
+    def _build_endpoints(
+        ip_address, remote_bind: tuple[str, int], local_port: int | None
+    ) -&gt; tuple[str, str, int, tuple[str, int], tuple[str, int]]:
+        &#34;&#34;&#34;Normalize connection parameters and build the unique tunnel key.
+
+        Returns
+        -------
+        tuple
+            (tunnel_key, ssh_host, ssh_port, remote_bind, local_bind).
+        &#34;&#34;&#34;
+        if not local_port:
+            local_port = remote_bind[1]
+        if isinstance(ip_address, tuple):
+            ssh_host = str(ip_address[0])
+            ssh_port = int(ip_address[1])
+        else:
+            ssh_host = str(ip_address)
+            ssh_port = 22
+        remote_bind = (str(remote_bind[0]), int(remote_bind[1]))
+        local_bind = (&#34;127.0.0.1&#34;, int(local_port))
+        tunnel_key = f&#34;{ssh_host}:{ssh_port}:: {remote_bind[0]}:{remote_bind[1]} -&gt; {local_bind[1]}&#34;
+        return tunnel_key, ssh_host, ssh_port, remote_bind, local_bind
+
+    def _ensure_tunnel(
+        self,
+        tunnel_key: str,
+        ssh_host: str,
+        ssh_port: int,
+        remote_bind: tuple[str, int],
+        local_bind: tuple[str, int],
+        user: str | None = None,
+        password: str | None = None,
+    ):
+        &#34;&#34;&#34;Return an alive tunnel for the given path, creating it if necessary.
+
+        This does not modify the reference count; it only guarantees that an open
+        tunnel handle is stored for the connection path.
+        &#34;&#34;&#34;
+        with self._lock:
+            existing_tunnel = self._tunnels.get(tunnel_key)
+            if existing_tunnel and existing_tunnel.is_alive:
+                self._log.debug(&#34;Tunnel %s existed, nothing todo&#34;, tunnel_key)
+                return existing_tunnel
+        self._log.debug(&#34;Creating ssh tunnel for %s&#34;, tunnel_key)
+
+        # Pre-flight probe: if the node&#39;s SSH port is not reachable, report it clearly.
+        if not self._is_port_open(ssh_host, ssh_port):
+            self._log.error(
+                &#34;Could not establish tunnel %s: SSH port %s on %s is not reachable &#34;
+                &#34;(node offline, SSH service down, or blocked by firewall)&#34;,
+                tunnel_key,
+                ssh_port,
+                ssh_host,
+            )
+            return None
+
+        try:
+            tunnel = self._open_tunnel(ssh_host, ssh_port, remote_bind, local_bind, user, password)
+        except (RuntimeError, OSError, SSHTunnelError, paramiko.SSHException) as ex_msg:
+            self._log.error(
+                &#34;Could not establish tunnel %s (SSH %s:%s): %s&#34;,
+                tunnel_key,
+                ssh_host,
+                ssh_port,
+                ex_msg,
+            )
+            return None
+
+        with self._lock:
+            self._tunnels[tunnel_key] = tunnel
+        self._log.debug(&#34;- is ssh tunnel alive?: %s&#34;, tunnel.is_alive)
+        if tunnel.is_alive:
+            return tunnel
+
+        self._log.error(&#34;Could not establish tunnel %s, health probe failed&#34;, tunnel_key)
+        return None
 
     def create_tunnel(
         self,
         ip_address,
         remote_bind: tuple[str, int],
         local_port: int | None = None,
+        user: str | None = None,
+        password: str | None = None,
     ) -&gt; type:
         &#34;&#34;&#34;Create a specific ssh-tunnel to a node.
 
@@ -899,51 +1061,21 @@ In case of a failed login, an error will be raised.</p>
             SSHTunnel handle.
 
         &#34;&#34;&#34;
-        if not local_port:
-            local_port = remote_bind[1]
+        tunnel_key, ssh_host, ssh_port, remote_bind, local_bind = self._build_endpoints(
+            ip_address, remote_bind, local_port
+        )
 
-        # ensure that IP is a string and port is an integer
-        if isinstance(ip_address, tuple):
-            ssh_host = str(ip_address[0])
-            ssh_port = int(ip_address[1])
-        else:
-            ssh_host = str(ip_address)
-            ssh_port = 22
+        tunnel = self._ensure_tunnel(tunnel_key, ssh_host, ssh_port, remote_bind, local_bind, user, password)
+        if tunnel is None:
+            return None
 
-        remote_bind = (str(remote_bind[0]), int(remote_bind[1]))
-        local_bind = (&#34;127.0.0.1&#34;, int(local_port))
-
-        tunnel_key = f&#34;{ssh_host}:{ssh_port}:: {remote_bind[0]}:{remote_bind[1]} -&gt; {local_bind[1]}&#34;
-
+        # reference-count the connection path so shared tunnels stay open until
+        # every acquirer released them again
         with self._lock:
-            existing_tunnel = self._tunnels.get(tunnel_key)
-            if existing_tunnel and existing_tunnel.is_alive:
-                self._log.debug(&#34;Tunnel %s existed, nothing todo&#34;, tunnel_key)
-                return existing_tunnel
-        self._log.debug(&#34;Creating ssh tunnel for %s&#34;, tunnel_key)
-
-        try:
-            tunnel = self._run_coroutine(self._open_tunnel(ssh_host, ssh_port, remote_bind, local_bind))
-            with self._lock:
-                self._tunnels[tunnel_key] = tunnel
-            self._log.debug(
-                &#34;- is ssh tunnel alive?: %s&#34;,
-                tunnel.is_alive,
-            )
-            if tunnel.is_alive:
-                return tunnel
-
-            self._log.error(&#34;Could not establish tunnel, health probe failed&#34;)
-        except (
-            concurrent.futures.TimeoutError,
-            concurrent.futures.CancelledError,
-            RuntimeError,
-            OSError,
-            SSHTunnelError,
-            asyncssh.Error,
-        ) as ex_msg:
-            self._log.error(&#34;Could not establish tunnel: %s&#34;, ex_msg)
-        return None
+            self._tunnel_refs[tunnel_key] = self._tunnel_refs.get(tunnel_key, 0) + 1
+            ref_count = self._tunnel_refs[tunnel_key]
+        self._log.debug(&#34;Tunnel %s acquired, reference count is now %d&#34;, tunnel_key, ref_count)
+        return tunnel
 
     def remove_tunnel(self, local_port: int) -&gt; None:
         &#34;&#34;&#34;Remove a tunnel and close the connection.
@@ -960,12 +1092,50 @@ In case of a failed login, an error will be raised.</p>
                 self._log.info(&#34;Removing tunnel %s&#34;, tunnel_key)
                 try:
                     tunnel.close()
-                except (SSHTunnelError, RuntimeError, OSError, asyncssh.Error):
+                except (SSHTunnelError, RuntimeError, OSError, paramiko.SSHException):
                     self._log.warning(&#34;Could not stop tunnel before removing&#34;)
                 with self._lock:
                     self._tunnels.pop(tunnel_key, None)
+                    self._tunnel_refs.pop(tunnel_key, None)
                 return
         self._log.warning(&#34;Tunnel with local port %s does not exist&#34;, local_port)
+
+    def release_tunnel(self, ip_address, remote_bind: tuple[str, int], local_port: int | None = None) -&gt; None:
+        &#34;&#34;&#34;Release one reference to a tunnel and close it when unreferenced.
+
+        Multiple node handles can share the same tunnel path. The tunnel is only
+        closed once every handle that acquired it via ``create_tunnel`` has
+        released it again.
+
+        Parameters
+        ----------
+        ip_address : str | tuple[str, int]
+            ip-address (or (ip, port) tuple) of the node the tunnel connects to.
+        remote_bind : tuple[str, int]
+            remote bind information (ip-address, port).
+        local_port : int, optional
+            local bind port. Defaults to the remote port when not provided.
+        &#34;&#34;&#34;
+        tunnel_key, *_ = self._build_endpoints(ip_address, remote_bind, local_port)
+        tunnel_to_close = None
+        with self._lock:
+            ref_count = self._tunnel_refs.get(tunnel_key, 0)
+            if ref_count &lt;= 1:
+                self._tunnel_refs.pop(tunnel_key, None)
+                tunnel_to_close = self._tunnels.pop(tunnel_key, None)
+                remaining = 0
+            else:
+                remaining = ref_count - 1
+                self._tunnel_refs[tunnel_key] = remaining
+
+        if tunnel_to_close is not None:
+            self._log.debug(&#34;Closing tunnel %s, last reference released&#34;, tunnel_key)
+            try:
+                tunnel_to_close.close()
+            except (SSHTunnelError, RuntimeError, OSError, paramiko.SSHException):
+                self._log.warning(&#34;Could not close tunnel %s cleanly on release&#34;, tunnel_key)
+        else:
+            self._log.debug(&#34;Tunnel %s still referenced (%d remaining)&#34;, tunnel_key, remaining)
 
     def refresh_tunnels(self) -&gt; bool:
         &#34;&#34;&#34;Check if created tunnels are active and stop/start them in case they are not running.
@@ -987,13 +1157,18 @@ In case of a failed login, an error will be raised.</p>
             self._log.info(&#34;Refreshing tunnel %s&#34;, tunnel_key)
             try:
                 tunnel.close()
-            except (SSHTunnelError, RuntimeError, OSError, asyncssh.Error):
+            except (SSHTunnelError, RuntimeError, OSError, paramiko.SSHException):
                 self._log.warning(&#34;Could not stop tunnel before refresh&#34;)
-            # keep tunnel metadata so subsequent refresh attempts can try again
-            recreated = self.create_tunnel(
-                (tunnel.ssh_host, tunnel.ssh_port),
+            # keep tunnel metadata so subsequent refresh attempts can try again;
+            # recreate without changing the reference count of the tunnel
+            recreated = self._ensure_tunnel(
+                tunnel_key,
+                tunnel.ssh_host,
+                tunnel.ssh_port,
                 tunnel.remote_bind_address,
-                tunnel.local_bind_address[1],
+                tunnel.local_bind_address,
+                tunnel.ssh_user,
+                tunnel.ssh_password,
             )
             if recreated is None:
                 self._log.warning(&#34;Could not refresh tunnel %s, device may be unreachable&#34;, tunnel_key)
@@ -1010,10 +1185,22 @@ In case of a failed login, an error will be raised.</p>
 <dt><strong><code>log</code></strong> :&ensp;<code>logging.Logger</code>, optional</dt>
 <dd>handle of logging.getLogger(&hellip;). The default is None.</dd>
 </dl></div>
+<h3>Static methods</h3>
+<dl>
+<dt id="nerve_lib.general_utils.ManageSshTunnel.get_shared"><code class="name flex">
+<span>def <span class="ident">get_shared</span></span>(<span>user: str | None = None,<br>password: str | None = None,<br>log: logging.Logger | None = None) ‑> <a title="nerve_lib.general_utils.ManageSshTunnel" href="#nerve_lib.general_utils.ManageSshTunnel">ManageSshTunnel</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Return a process-wide shared tunnel manager.</p>
+<p>Multiple node handles reuse a single manager so that tunnels sharing the
+same connection path are reference-counted and only closed once every
+user has released them.</p></div>
+</dd>
+</dl>
 <h3>Methods</h3>
 <dl>
 <dt id="nerve_lib.general_utils.ManageSshTunnel.create_tunnel"><code class="name flex">
-<span>def <span class="ident">create_tunnel</span></span>(<span>self, ip_address, remote_bind: tuple[str, int], local_port: int | None = None) ‑> type</span>
+<span>def <span class="ident">create_tunnel</span></span>(<span>self,<br>ip_address,<br>remote_bind: tuple[str, int],<br>local_port: int | None = None,<br>user: str | None = None,<br>password: str | None = None) ‑> type</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1025,6 +1212,8 @@ In case of a failed login, an error will be raised.</p>
     ip_address,
     remote_bind: tuple[str, int],
     local_port: int | None = None,
+    user: str | None = None,
+    password: str | None = None,
 ) -&gt; type:
     &#34;&#34;&#34;Create a specific ssh-tunnel to a node.
 
@@ -1049,51 +1238,21 @@ In case of a failed login, an error will be raised.</p>
         SSHTunnel handle.
 
     &#34;&#34;&#34;
-    if not local_port:
-        local_port = remote_bind[1]
+    tunnel_key, ssh_host, ssh_port, remote_bind, local_bind = self._build_endpoints(
+        ip_address, remote_bind, local_port
+    )
 
-    # ensure that IP is a string and port is an integer
-    if isinstance(ip_address, tuple):
-        ssh_host = str(ip_address[0])
-        ssh_port = int(ip_address[1])
-    else:
-        ssh_host = str(ip_address)
-        ssh_port = 22
+    tunnel = self._ensure_tunnel(tunnel_key, ssh_host, ssh_port, remote_bind, local_bind, user, password)
+    if tunnel is None:
+        return None
 
-    remote_bind = (str(remote_bind[0]), int(remote_bind[1]))
-    local_bind = (&#34;127.0.0.1&#34;, int(local_port))
-
-    tunnel_key = f&#34;{ssh_host}:{ssh_port}:: {remote_bind[0]}:{remote_bind[1]} -&gt; {local_bind[1]}&#34;
-
+    # reference-count the connection path so shared tunnels stay open until
+    # every acquirer released them again
     with self._lock:
-        existing_tunnel = self._tunnels.get(tunnel_key)
-        if existing_tunnel and existing_tunnel.is_alive:
-            self._log.debug(&#34;Tunnel %s existed, nothing todo&#34;, tunnel_key)
-            return existing_tunnel
-    self._log.debug(&#34;Creating ssh tunnel for %s&#34;, tunnel_key)
-
-    try:
-        tunnel = self._run_coroutine(self._open_tunnel(ssh_host, ssh_port, remote_bind, local_bind))
-        with self._lock:
-            self._tunnels[tunnel_key] = tunnel
-        self._log.debug(
-            &#34;- is ssh tunnel alive?: %s&#34;,
-            tunnel.is_alive,
-        )
-        if tunnel.is_alive:
-            return tunnel
-
-        self._log.error(&#34;Could not establish tunnel, health probe failed&#34;)
-    except (
-        concurrent.futures.TimeoutError,
-        concurrent.futures.CancelledError,
-        RuntimeError,
-        OSError,
-        SSHTunnelError,
-        asyncssh.Error,
-    ) as ex_msg:
-        self._log.error(&#34;Could not establish tunnel: %s&#34;, ex_msg)
-    return None</code></pre>
+        self._tunnel_refs[tunnel_key] = self._tunnel_refs.get(tunnel_key, 0) + 1
+        ref_count = self._tunnel_refs[tunnel_key]
+    self._log.debug(&#34;Tunnel %s acquired, reference count is now %d&#34;, tunnel_key, ref_count)
+    return tunnel</code></pre>
 </details>
 <div class="desc"><p>Create a specific ssh-tunnel to a node.</p>
 <p>Example:</p>
@@ -1144,13 +1303,18 @@ In case of a failed login, an error will be raised.</p>
         self._log.info(&#34;Refreshing tunnel %s&#34;, tunnel_key)
         try:
             tunnel.close()
-        except (SSHTunnelError, RuntimeError, OSError, asyncssh.Error):
+        except (SSHTunnelError, RuntimeError, OSError, paramiko.SSHException):
             self._log.warning(&#34;Could not stop tunnel before refresh&#34;)
-        # keep tunnel metadata so subsequent refresh attempts can try again
-        recreated = self.create_tunnel(
-            (tunnel.ssh_host, tunnel.ssh_port),
+        # keep tunnel metadata so subsequent refresh attempts can try again;
+        # recreate without changing the reference count of the tunnel
+        recreated = self._ensure_tunnel(
+            tunnel_key,
+            tunnel.ssh_host,
+            tunnel.ssh_port,
             tunnel.remote_bind_address,
-            tunnel.local_bind_address[1],
+            tunnel.local_bind_address,
+            tunnel.ssh_user,
+            tunnel.ssh_password,
         )
         if recreated is None:
             self._log.warning(&#34;Could not refresh tunnel %s, device may be unreachable&#34;, tunnel_key)
@@ -1162,6 +1326,65 @@ In case of a failed login, an error will be raised.</p>
 <dl>
 <dt><code>bool</code></dt>
 <dd>If false: Refreshing tunnel failed, a warning is printed in addition.</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.general_utils.ManageSshTunnel.release_tunnel"><code class="name flex">
+<span>def <span class="ident">release_tunnel</span></span>(<span>self, ip_address, remote_bind: tuple[str, int], local_port: int | None = None) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def release_tunnel(self, ip_address, remote_bind: tuple[str, int], local_port: int | None = None) -&gt; None:
+    &#34;&#34;&#34;Release one reference to a tunnel and close it when unreferenced.
+
+    Multiple node handles can share the same tunnel path. The tunnel is only
+    closed once every handle that acquired it via ``create_tunnel`` has
+    released it again.
+
+    Parameters
+    ----------
+    ip_address : str | tuple[str, int]
+        ip-address (or (ip, port) tuple) of the node the tunnel connects to.
+    remote_bind : tuple[str, int]
+        remote bind information (ip-address, port).
+    local_port : int, optional
+        local bind port. Defaults to the remote port when not provided.
+    &#34;&#34;&#34;
+    tunnel_key, *_ = self._build_endpoints(ip_address, remote_bind, local_port)
+    tunnel_to_close = None
+    with self._lock:
+        ref_count = self._tunnel_refs.get(tunnel_key, 0)
+        if ref_count &lt;= 1:
+            self._tunnel_refs.pop(tunnel_key, None)
+            tunnel_to_close = self._tunnels.pop(tunnel_key, None)
+            remaining = 0
+        else:
+            remaining = ref_count - 1
+            self._tunnel_refs[tunnel_key] = remaining
+
+    if tunnel_to_close is not None:
+        self._log.debug(&#34;Closing tunnel %s, last reference released&#34;, tunnel_key)
+        try:
+            tunnel_to_close.close()
+        except (SSHTunnelError, RuntimeError, OSError, paramiko.SSHException):
+            self._log.warning(&#34;Could not close tunnel %s cleanly on release&#34;, tunnel_key)
+    else:
+        self._log.debug(&#34;Tunnel %s still referenced (%d remaining)&#34;, tunnel_key, remaining)</code></pre>
+</details>
+<div class="desc"><p>Release one reference to a tunnel and close it when unreferenced.</p>
+<p>Multiple node handles can share the same tunnel path. The tunnel is only
+closed once every handle that acquired it via <code>create_tunnel</code> has
+released it again.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>ip_address</code></strong> :&ensp;<code>str | tuple[str, int]</code></dt>
+<dd>ip-address (or (ip, port) tuple) of the node the tunnel connects to.</dd>
+<dt><strong><code>remote_bind</code></strong> :&ensp;<code>tuple[str, int]</code></dt>
+<dd>remote bind information (ip-address, port).</dd>
+<dt><strong><code>local_port</code></strong> :&ensp;<code>int</code>, optional</dt>
+<dd>local bind port. Defaults to the remote port when not provided.</dd>
 </dl></div>
 </dd>
 <dt id="nerve_lib.general_utils.ManageSshTunnel.remove_tunnel"><code class="name flex">
@@ -1187,10 +1410,11 @@ In case of a failed login, an error will be raised.</p>
             self._log.info(&#34;Removing tunnel %s&#34;, tunnel_key)
             try:
                 tunnel.close()
-            except (SSHTunnelError, RuntimeError, OSError, asyncssh.Error):
+            except (SSHTunnelError, RuntimeError, OSError, paramiko.SSHException):
                 self._log.warning(&#34;Could not stop tunnel before removing&#34;)
             with self._lock:
                 self._tunnels.pop(tunnel_key, None)
+                self._tunnel_refs.pop(tunnel_key, None)
             return
     self._log.warning(&#34;Tunnel with local port %s does not exist&#34;, local_port)</code></pre>
 </details>
@@ -1291,7 +1515,9 @@ In case of a failed login, an error will be raised.</p>
         if isinstance(ip_addr, tuple):
             ip_addr = ip_addr[0]
         if ip_addr not in {&#34;127.0.0.1&#34;, local_ui_ip_addr}:
-            self.ssh_tunnel = ManageSshTunnel(
+            # share one tunnel manager across all node handles so tunnels using
+            # the same connection path are reference-counted, not duplicated
+            self.ssh_tunnel = ManageSshTunnel.get_shared(
                 user=ssh_user,
                 password=ssh_password,
                 log=self._log,
@@ -1308,6 +1534,8 @@ In case of a failed login, an error will be raised.</p>
             self.tunnel_node_created = (
                 True  # if node is local, no tunnel needs to be created, so we set this to true directly
             )
+
+        self.__tunnels_created = []
 
         self._finalizer = weakref.finalize(self, self._cleanup, weakref.ref(self))
 
@@ -1346,14 +1574,44 @@ In case of a failed login, an error will be raised.</p>
                     node._log.warning(
                         &#34;Could not logout cleanly during cleanup as tunnel to node cannot be established&#34;
                     )
-            if hasattr(node, &#34;ssh_tunnel&#34;) and node.ssh_tunnel:
-                node.ssh_tunnel._finalizer()
+            node.release_tunnels()
+
+    def create_tunnel(self, remote_bind=None, local_port=None):
+        &#34;&#34;&#34;Create a tunnel to a service of the node.&#34;&#34;&#34;
+
+        tunnel = self.ssh_tunnel.create_tunnel(
+            self.ip_addr,
+            remote_bind,
+            local_port,
+            user=self.ssh._ssh_usr,
+            password=self.ssh._ssh_psw,
+        )
+        if tunnel is not None:
+            self.__tunnels_created.append(tunnel)
+        return tunnel
+
+    def release_tunnels(self):
+        &#34;&#34;&#34;Release all tunnels which had been created by this node.
+
+        After releasing, the localUI tunnel state is reset so a subsequent
+        request re-establishes a fresh tunnel of the same kind.
+        &#34;&#34;&#34;
+        for tunnel in self.__tunnels_created:
+            self.ssh_tunnel.release_tunnel(
+                self.ip_addr, tunnel.remote_bind_address, tunnel.local_bind_address[1]
+            )
+        self.__tunnels_created.clear()
+        # only remote nodes use a tunnel; local nodes have no ssh_tunnel and must
+        # keep tunnel_node_created=True so requests skip tunnel creation
+        if hasattr(self, &#34;ssh_tunnel&#34;):
+            self.tunnel_node_created = False
 
     def create_tunnel_node(self):
         &#34;&#34;&#34;Create a ssh-tunnel to the localUI of a node.&#34;&#34;&#34;
         if not self.tunnel_node_created:
             remote_bind = (self.local_ui_ip_addr, self.local_ui_port)
-            if self.ssh_tunnel.create_tunnel(self.ip_addr, remote_bind, self.local_bind_port) is not None:
+            tunnel = self.create_tunnel(remote_bind, self.local_bind_port)
+            if tunnel is not None:
                 self.tunnel_node_created = True
         return self.tunnel_node_created
 
@@ -1445,8 +1703,6 @@ In case of a failed login, an error will be raised.</p>
         password : str
             ssh password.
         &#34;&#34;&#34;
-        self.ssh_tunnel._ssh_usr = user
-        self.ssh_tunnel._ssh_psw = password
         self.ssh._ssh_usr = user
         self.ssh._ssh_psw = password
 
@@ -1505,7 +1761,8 @@ In case of a failed login, an error will be raised.</p>
         self._log.debug(&#34;Logout from Node&#34;)
         try:
             response = self.get(
-                &#34;/api/auth/logout&#34;, accepted_status=[requests.codes.no_content, requests.codes.unauthorized]
+                &#34;/api/auth/logout&#34;,
+                accepted_status=[requests.codes.ok, requests.codes.no_content, requests.codes.unauthorized],
             )
         except urllib3.exceptions.MaxRetryError:
             self._log.error(&#34;Logout failed, max retry exceeded&#34;)
@@ -1558,6 +1815,30 @@ In case of a failed login, an error will be raised.</p>
 </ul>
 <h3>Methods</h3>
 <dl>
+<dt id="nerve_lib.general_utils.NodeHandle.create_tunnel"><code class="name flex">
+<span>def <span class="ident">create_tunnel</span></span>(<span>self, remote_bind=None, local_port=None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def create_tunnel(self, remote_bind=None, local_port=None):
+    &#34;&#34;&#34;Create a tunnel to a service of the node.&#34;&#34;&#34;
+
+    tunnel = self.ssh_tunnel.create_tunnel(
+        self.ip_addr,
+        remote_bind,
+        local_port,
+        user=self.ssh._ssh_usr,
+        password=self.ssh._ssh_psw,
+    )
+    if tunnel is not None:
+        self.__tunnels_created.append(tunnel)
+    return tunnel</code></pre>
+</details>
+<div class="desc"><p>Create a tunnel to a service of the node.</p></div>
+</dd>
 <dt id="nerve_lib.general_utils.NodeHandle.create_tunnel_node"><code class="name flex">
 <span>def <span class="ident">create_tunnel_node</span></span>(<span>self)</span>
 </code></dt>
@@ -1570,7 +1851,8 @@ In case of a failed login, an error will be raised.</p>
     &#34;&#34;&#34;Create a ssh-tunnel to the localUI of a node.&#34;&#34;&#34;
     if not self.tunnel_node_created:
         remote_bind = (self.local_ui_ip_addr, self.local_ui_port)
-        if self.ssh_tunnel.create_tunnel(self.ip_addr, remote_bind, self.local_bind_port) is not None:
+        tunnel = self.create_tunnel(remote_bind, self.local_bind_port)
+        if tunnel is not None:
             self.tunnel_node_created = True
     return self.tunnel_node_created</code></pre>
 </details>
@@ -1660,7 +1942,8 @@ In case of a login error, e.g. max retry exceeded, the function will wait for 5 
     self._log.debug(&#34;Logout from Node&#34;)
     try:
         response = self.get(
-            &#34;/api/auth/logout&#34;, accepted_status=[requests.codes.no_content, requests.codes.unauthorized]
+            &#34;/api/auth/logout&#34;,
+            accepted_status=[requests.codes.ok, requests.codes.no_content, requests.codes.unauthorized],
         )
     except urllib3.exceptions.MaxRetryError:
         self._log.error(&#34;Logout failed, max retry exceeded&#34;)
@@ -1673,6 +1956,34 @@ In case of a login error, e.g. max retry exceeded, the function will wait for 5 
         return response</code></pre>
 </details>
 <div class="desc"><p>Logout from Node.</p></div>
+</dd>
+<dt id="nerve_lib.general_utils.NodeHandle.release_tunnels"><code class="name flex">
+<span>def <span class="ident">release_tunnels</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def release_tunnels(self):
+    &#34;&#34;&#34;Release all tunnels which had been created by this node.
+
+    After releasing, the localUI tunnel state is reset so a subsequent
+    request re-establishes a fresh tunnel of the same kind.
+    &#34;&#34;&#34;
+    for tunnel in self.__tunnels_created:
+        self.ssh_tunnel.release_tunnel(
+            self.ip_addr, tunnel.remote_bind_address, tunnel.local_bind_address[1]
+        )
+    self.__tunnels_created.clear()
+    # only remote nodes use a tunnel; local nodes have no ssh_tunnel and must
+    # keep tunnel_node_created=True so requests skip tunnel creation
+    if hasattr(self, &#34;ssh_tunnel&#34;):
+        self.tunnel_node_created = False</code></pre>
+</details>
+<div class="desc"><p>Release all tunnels which had been created by this node.</p>
+<p>After releasing, the localUI tunnel state is reset so a subsequent
+request re-establishes a fresh tunnel of the same kind.</p></div>
 </dd>
 <dt id="nerve_lib.general_utils.NodeHandle.request"><code class="name flex">
 <span>def <span class="ident">request</span></span>(<span>self, method, url, *args, **kwargs) ‑> type</span>
@@ -1780,8 +2091,6 @@ In case of a login error, e.g. max retry exceeded, the function will wait for 5 
     password : str
         ssh password.
     &#34;&#34;&#34;
-    self.ssh_tunnel._ssh_usr = user
-    self.ssh_tunnel._ssh_psw = password
     self.ssh._ssh_usr = user
     self.ssh._ssh_psw = password</code></pre>
 </details>
@@ -2711,16 +3020,20 @@ The default is None.</dd>
 <h4><code><a title="nerve_lib.general_utils.ManageSshTunnel" href="#nerve_lib.general_utils.ManageSshTunnel">ManageSshTunnel</a></code></h4>
 <ul class="">
 <li><code><a title="nerve_lib.general_utils.ManageSshTunnel.create_tunnel" href="#nerve_lib.general_utils.ManageSshTunnel.create_tunnel">create_tunnel</a></code></li>
+<li><code><a title="nerve_lib.general_utils.ManageSshTunnel.get_shared" href="#nerve_lib.general_utils.ManageSshTunnel.get_shared">get_shared</a></code></li>
 <li><code><a title="nerve_lib.general_utils.ManageSshTunnel.refresh_tunnels" href="#nerve_lib.general_utils.ManageSshTunnel.refresh_tunnels">refresh_tunnels</a></code></li>
+<li><code><a title="nerve_lib.general_utils.ManageSshTunnel.release_tunnel" href="#nerve_lib.general_utils.ManageSshTunnel.release_tunnel">release_tunnel</a></code></li>
 <li><code><a title="nerve_lib.general_utils.ManageSshTunnel.remove_tunnel" href="#nerve_lib.general_utils.ManageSshTunnel.remove_tunnel">remove_tunnel</a></code></li>
 </ul>
 </li>
 <li>
 <h4><code><a title="nerve_lib.general_utils.NodeHandle" href="#nerve_lib.general_utils.NodeHandle">NodeHandle</a></code></h4>
-<ul class="">
+<ul class="two-column">
+<li><code><a title="nerve_lib.general_utils.NodeHandle.create_tunnel" href="#nerve_lib.general_utils.NodeHandle.create_tunnel">create_tunnel</a></code></li>
 <li><code><a title="nerve_lib.general_utils.NodeHandle.create_tunnel_node" href="#nerve_lib.general_utils.NodeHandle.create_tunnel_node">create_tunnel_node</a></code></li>
 <li><code><a title="nerve_lib.general_utils.NodeHandle.login" href="#nerve_lib.general_utils.NodeHandle.login">login</a></code></li>
 <li><code><a title="nerve_lib.general_utils.NodeHandle.logout" href="#nerve_lib.general_utils.NodeHandle.logout">logout</a></code></li>
+<li><code><a title="nerve_lib.general_utils.NodeHandle.release_tunnels" href="#nerve_lib.general_utils.NodeHandle.release_tunnels">release_tunnels</a></code></li>
 <li><code><a title="nerve_lib.general_utils.NodeHandle.request" href="#nerve_lib.general_utils.NodeHandle.request">request</a></code></li>
 <li><code><a title="nerve_lib.general_utils.NodeHandle.set_ssh_credentials" href="#nerve_lib.general_utils.NodeHandle.set_ssh_credentials">set_ssh_credentials</a></code></li>
 </ul>

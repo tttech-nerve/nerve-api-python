@@ -171,9 +171,15 @@ el.replaceWith(d);
         Returns
         -------
         dict
-            matching notification item.
+            matching notification item, or None if &#39;active&#39;/&#39;activeNoAuth&#39; has no active notification.
         &#34;&#34;&#34;
-        return self.ms.get(f&#34;/nerve/notifications/{read_item}&#34;, accepted_status=[requests.codes.ok]).json()
+        response = self.ms.get(
+            f&#34;/nerve/notifications/{read_item}&#34;,
+            accepted_status=[requests.codes.ok, requests.codes.no_content],
+        )
+        if response.status_code == requests.codes.no_content:
+            return None
+        return response.json()
 
     def delete(self, notification_id=None):
         &#34;&#34;&#34;Delete a notification item(s).&#34;&#34;&#34;
@@ -457,9 +463,15 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
     Returns
     -------
     dict
-        matching notification item.
+        matching notification item, or None if &#39;active&#39;/&#39;activeNoAuth&#39; has no active notification.
     &#34;&#34;&#34;
-    return self.ms.get(f&#34;/nerve/notifications/{read_item}&#34;, accepted_status=[requests.codes.ok]).json()</code></pre>
+    response = self.ms.get(
+        f&#34;/nerve/notifications/{read_item}&#34;,
+        accepted_status=[requests.codes.ok, requests.codes.no_content],
+    )
+    if response.status_code == requests.codes.no_content:
+        return None
+    return response.json()</code></pre>
 </details>
 <div class="desc"><p>Read notification details regarding one element.</p>
 <h2 id="parameters">Parameters</h2>
@@ -470,7 +482,7 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
 <h2 id="returns">Returns</h2>
 <dl>
 <dt><code>dict</code></dt>
-<dd>matching notification item.</dd>
+<dd>matching notification item, or None if 'active'/'activeNoAuth' has no active notification.</dd>
 </dl></div>
 </dd>
 </dl>

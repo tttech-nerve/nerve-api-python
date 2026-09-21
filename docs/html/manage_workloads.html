@@ -675,7 +675,7 @@ specified Docker container.</p></div>
 
                 # Step4: Upload image file(s)
                 for file_path in file_paths:
-                    if type(file_path) is str and os.path.splitext(file_path)[-1] == &#34;.tar&#34;:
+                    if type(file_path) is str and file_path.endswith((&#34;.tar&#34;, &#34;.gz&#34;)):
                         wl_version.set_compose_image(file_path, patch_version, image_names)
                     elif type(file_path) is dict:
                         wl_version.set_compose_repo(
@@ -2399,7 +2399,7 @@ default is disabled: {"enabled": False}</dd>
 
             # Step4: Upload image file(s)
             for file_path in file_paths:
-                if type(file_path) is str and os.path.splitext(file_path)[-1] == &#34;.tar&#34;:
+                if type(file_path) is str and file_path.endswith((&#34;.tar&#34;, &#34;.gz&#34;)):
                     wl_version.set_compose_image(file_path, patch_version, image_names)
                 elif type(file_path) is dict:
                     wl_version.set_compose_repo(

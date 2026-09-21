@@ -1,6 +1,7 @@
 # Changelog
 
 ## 1.5.0
+- refactored ssh-tunnel creation
 - Added support for logging in to the Management System with an access token instead of username/password:
   - `MSHandle` now accepts an `access_token` argument (or `MS_ACCESS_TOKEN` env-var), which takes priority
     over username/password and skips the regular login/logout flow.

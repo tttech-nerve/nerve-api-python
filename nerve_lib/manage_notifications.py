@@ -141,9 +141,15 @@ class MSNotifications:
         Returns
         -------
         dict
-            matching notification item.
+            matching notification item, or None if 'active'/'activeNoAuth' has no active notification.
         """
-        return self.ms.get(f"/nerve/notifications/{read_item}", accepted_status=[requests.codes.ok]).json()
+        response = self.ms.get(
+            f"/nerve/notifications/{read_item}",
+            accepted_status=[requests.codes.ok, requests.codes.no_content],
+        )
+        if response.status_code == requests.codes.no_content:
+            return None
+        return response.json()
 
     def delete(self, notification_id=None):
         """Delete a notification item(s)."""

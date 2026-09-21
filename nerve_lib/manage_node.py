@@ -2153,7 +2153,7 @@ class _NodeVMSnapshot:
         if interval_hours == -1:
             payload = {"workloadId": workload.get("workloadId"), "versionId": workload.get("versionId")}
             return self.owner.node.ms.delete(
-                f"/nerve/workload/node/{self.owner.serial_number}/s/schedule/{workload['id']}",
+                f"/nerve/workload/node/{self.owner.serial_number}/snapshots/schedule/{workload['id']}",
                 json=payload,
                 accepted_status=[requests.codes.ok],
             )

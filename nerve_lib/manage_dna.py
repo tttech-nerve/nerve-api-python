@@ -294,6 +294,23 @@ class LocalDNA(DNACommon):
         )
 
     def put_target(self, config_file, **kwargs) -> dict:
+        """Put new target configuration to the device.
+
+        Parameters
+        ----------
+        config_file : Tuple[str, IO[bytes]] or dict
+            Configuration file to be loaded to the device, either as tuple (filename, file-io stream) or
+            as dictionary containing the configuration string (file-content).
+        continue_after_restart : bool, optional
+            If set to True, the configuration will continue to load after a device restart. The default is False.
+        restart_all_wl : bool, optional
+            If set to True, the configuration will restart all already deployed workloads. The default is False.
+
+        Returns
+        -------
+        dict
+            Configuration response from the device.
+        """
         if not self.handle._is_logged_in:
             self._log.debug("Not logged in, performing login and retrying put_target")
             self.handle.login()
@@ -365,6 +382,18 @@ class LocalUIDNAServiceOS(ServiceOSDNACommon):
         )
 
     def put_target(self, config_file, **kwargs) -> dict:
+        """Apply target node dna configuration using a configuration dict.
+
+        Parameters
+        ----------
+        config_dict : dict
+            Configuration dictionary to upload as YAML.
+
+        Returns
+        -------
+        dict
+            Response from the device.
+        """
         if not self.handle._is_logged_in:
             self._log.debug("Not logged in, performing login and executing put_target")
             self.handle.login()

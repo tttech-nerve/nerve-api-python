@@ -176,8 +176,9 @@ class MSOpenSearch:
         """Get fluentbit logs from open search."""
         if self.ms.version_smaller_than("3.2.0"):
             return self._get_index(index="docker-log*", past_hours=past_hours, search_filters=search_filters)
-        else:
-            return self._get_index(index="system-*, docker-log-*", past_hours=past_hours, search_filters=search_filters)
+        return self._get_index(
+            index="system-*, docker-log-*", past_hours=past_hours, search_filters=search_filters
+        )
 
     def get_audit_docker(self, past_hours: int = 5, search_filters: list | None = None):
         """Get audit logs node from open search."""

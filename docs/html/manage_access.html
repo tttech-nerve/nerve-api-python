@@ -458,10 +458,15 @@ el.replaceWith(d);
             # Send the POST request
             return self.ms.post(&#34;/nerve/ldap&#34;, json=ldap_payload, accepted_status=[requests.codes.ok]).json()
         if action == &#34;update&#34;:
-            # Send the PUT request
-            return self.ms.put(
-                f&#34;/nerve/ldap/{file_name}&#34;, json=ldap_payload, accepted_status=[requests.codes.ok]
-            ).json()
+            # Send the PUT request; spec documents 204 (no_content) but keep 200 for backward-compatibility
+            response = self.ms.put(
+                f&#34;/nerve/ldap/{file_name}&#34;,
+                json=ldap_payload,
+                accepted_status=[requests.codes.ok, requests.codes.no_content],
+            )
+            if response.status_code == requests.codes.no_content:
+                return None
+            return response.json()
         if action == &#34;sync&#34;:
             # Send the POST request
             return self.ms.post(
@@ -931,10 +936,15 @@ management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</p></div>
         # Send the POST request
         return self.ms.post(&#34;/nerve/ldap&#34;, json=ldap_payload, accepted_status=[requests.codes.ok]).json()
     if action == &#34;update&#34;:
-        # Send the PUT request
-        return self.ms.put(
-            f&#34;/nerve/ldap/{file_name}&#34;, json=ldap_payload, accepted_status=[requests.codes.ok]
-        ).json()
+        # Send the PUT request; spec documents 204 (no_content) but keep 200 for backward-compatibility
+        response = self.ms.put(
+            f&#34;/nerve/ldap/{file_name}&#34;,
+            json=ldap_payload,
+            accepted_status=[requests.codes.ok, requests.codes.no_content],
+        )
+        if response.status_code == requests.codes.no_content:
+            return None
+        return response.json()
     if action == &#34;sync&#34;:
         # Send the POST request
         return self.ms.post(

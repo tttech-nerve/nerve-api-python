@@ -991,10 +991,15 @@ class LDAP:
             # Send the POST request
             return self.ms.post("/nerve/ldap", json=ldap_payload, accepted_status=[requests.codes.ok]).json()
         if action == "update":
-            # Send the PUT request
-            return self.ms.put(
-                f"/nerve/ldap/{file_name}", json=ldap_payload, accepted_status=[requests.codes.ok]
-            ).json()
+            # Send the PUT request; spec documents 204 (no_content) but keep 200 for backward-compatibility
+            response = self.ms.put(
+                f"/nerve/ldap/{file_name}",
+                json=ldap_payload,
+                accepted_status=[requests.codes.ok, requests.codes.no_content],
+            )
+            if response.status_code == requests.codes.no_content:
+                return None
+            return response.json()
         if action == "sync":
             # Send the POST request
             return self.ms.post(

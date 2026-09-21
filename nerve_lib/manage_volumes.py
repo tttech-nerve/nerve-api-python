@@ -176,7 +176,7 @@ class DockerVolumes:
                 return self.ms.post(
                     url=f"/nerve/v2/node/{dut_serial}/docker-resources/volumes/{volume_name}/import",
                     m_enc_data=m_enc_data,
-                    accepted_status=[requests.codes.ok],
+                    accepted_status=[requests.codes.accepted],
                     timeout=(7.5, import_timeout),
                 )
         except FileNotFoundError:

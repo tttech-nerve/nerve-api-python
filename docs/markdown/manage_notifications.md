@@ -78,4 +78,4 @@ Classes
         Returns
         -------
         dict
-            matching notification item.
+            matching notification item, or None if 'active'/'activeNoAuth' has no active notification.
