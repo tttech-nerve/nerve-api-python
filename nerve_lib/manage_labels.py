@@ -16,6 +16,7 @@
 # Contact Information:
 # support@tttech-industrial.com
 # TTTech Industrial Automation AG, Schoenbrunnerstrasse 7, 1040 Vienna, Austria
+import yaml
 
 """Manage Labels on Node, MS and workloads.
 
@@ -43,6 +44,7 @@ class MSLabel:
 
     def __init__(self, ms_handle: type):
         self.ms = ms_handle
+        self._log = ms_handle._log.getChild("MSLabel")
 
     def fetch_labels(self) -> dict:
         """Fetch labels from labels list.
@@ -116,7 +118,7 @@ class MSLabel:
             json={"key": key, "value": value},
             accepted_status=[requests.codes.ok, requests.codes.conflict],
         )
-        self.ms._log.info(
+        self._log.info(
             "Label %s:%s created"
             if response.status_code == requests.codes.ok
             else "Label %s:%s already created",
@@ -156,7 +158,7 @@ class MSLabel:
         if self.ms.version_smaller_than("2.10.0"):
             payload["secureId"] = node_list_info.get("secureId")
         self.ms.patch("/nerve/node", json=payload)
-        self.ms._log.info(
+        self._log.info(
             "Labels %s set on node %s",
             [f"{label['key']}:{label['value']}" for label in labels],
             node_list_info.get("name"),
@@ -206,10 +208,10 @@ class MSLabel:
             response = self.get_label(label_key, label_value)
             label_id = response["_id"]
 
-            self.ms._log.info("Deleting Label %s:%s", response["key"], response["value"])
+            self._log.info("Deleting Label %s:%s", response["key"], response["value"])
             self.ms.delete(f"/nerve/labels/{label_id}", accepted_status=[requests.codes.ok])
         except ValueError as ex_msg:
-            self.ms._log.warning("Label with %s:%s does not exist: %s", label_key, label_value, ex_msg)
+            self._log.warning("Label with %s:%s does not exist: %s", label_key, label_value, ex_msg)
 
     def merge(self, keys: list, new_key_name: str):
         """
@@ -238,5 +240,135 @@ class MSLabel:
         labels = self.fetch_labels()
         for label in labels.get("data", []):
             self.delete(label.get("key"), label.get("value"))
-        self.ms._log.info("All labels deleted")
+        self._log.info("All labels deleted")
         return True
+
+    @classmethod
+    def get_node_labels(cls, node):
+        """Get all labels from a node.
+
+        Parameters
+        ----------
+        node : TYPE
+            node handle.
+
+        Returns
+        -------
+        list
+            list of labels on the node.
+        """
+        node_info = node.get_details()
+        return node_info.get("labels", [])
+
+    def add_node_label(self, node, key: str, value: str, suppress_log: bool = False):
+        """Add a label to a node.
+
+        Parameters
+        ----------
+        node : TYPE
+            node handle.
+        key : str
+            key of the label.
+        value : str
+            value of the label.
+        """
+        node_info = node.get_details()
+        label_id = None
+        try:
+            label_id = self.get_label(key, value)["_id"]
+        except ValueError:
+            pass
+        labels_add = {"key": key, "value": value}
+        if label_id:
+            labels_add = {"_id": label_id, "key": key, "value": value}
+            if next((label for label in node_info.get("labels", []) if label["_id"] == label_id), None):
+                self._log.info(
+                    "Label '%s=%s' already exists on node %s", key, value, node_info["serialNumber"]
+                )
+                return
+        self.ms.patch(
+            f"/nerve/node/{node_info['serialNumber']}/labels/assign",
+            json={"labels": [labels_add]},
+            accepted_status=[requests.codes.ok],
+        )
+        if not suppress_log:
+            self._log.info("Label '%s=%s' added to node %s", key, value, node_info["serialNumber"])
+
+    def del_node_label(self, node, key: str, suppress_log: bool = False):
+        """Delete a label from a node.
+
+        Parameters
+        ----------
+        node : TYPE
+            node handle.
+        key : str
+            key of the label.
+        """
+        node_info = node.get_details()
+        label_id = next((label["_id"] for label in node_info.get("labels", []) if label["key"] == key), None)
+        if label_id:
+            self.ms.patch(
+                f"/nerve/node/{node_info['serialNumber']}/labels/unassign",
+                json={"labels": [label_id]},
+                accepted_status=[requests.codes.ok],
+            )
+            if not suppress_log:
+                self._log.info("Label '%s' deleted from node %s", key, node_info["serialNumber"])
+        else:
+            raise ValueError(f"Label '{key}' does not exist on node {node_info['serialNumber']}")
+
+    def edit_node_label(self, node, key: str, value: str):
+        """Edit a label on a node.
+
+        Parameters
+        ----------
+        node : TYPE
+            node handle.
+        key : str
+            key of the label.
+        value : str
+            value of the label.
+        """
+        self.del_node_label(node, key, suppress_log=True)
+        self.add_node_label(node, key, value, suppress_log=True)
+        self._log.info("Label '%s' edited to '%s' on node %s", key, value, node.get_details()["serialNumber"])
+
+    def export_node_labels(self, node) -> dict:
+        """Export all labels from a node.
+
+        Parameters
+        ----------
+        node : TYPE
+            node handle.
+
+        Returns
+        -------
+        dict
+            Exported labels as a dictionary.
+        """
+        node_info = node.get_details()
+        response = self.ms.get(
+            f"/nerve/node/{node_info['serialNumber']}/labels/export", accepted_status=[requests.codes.ok]
+        )
+        self._log.info("Labels exported from node %s", node_info["serialNumber"])
+        return yaml.safe_load(response.content.decode("utf-8"))
+
+    def import_node_labels(self, node, labels: dict):
+        """Import labels to a node.
+
+        Parameters
+        ----------
+        node : TYPE
+            node handle.
+        labels : dict
+            Labels as a dictionary to be imported.
+        """
+        node_info = node.get_details()
+
+        m_enc_data = {"data": ("file.yaml", yaml.dump(labels), "application/x-yaml")}
+        self.ms.patch(
+            f"/nerve/node/{node_info['serialNumber']}/labels/import",
+            m_enc_data=m_enc_data,
+            accepted_status=[requests.codes.ok],
+        )
+        self._log.info("Labels imported to node %s", node_info["serialNumber"])

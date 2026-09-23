@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
 <title>nerve_lib.manage_labels API documentation</title>
-<meta name="description" content="Manage Labels on Node, MS and workloads …">
+<meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
@@ -36,15 +36,6 @@ el.replaceWith(d);
 <h1 class="title">Module <code>nerve_lib.manage_labels</code></h1>
 </header>
 <section id="section-intro">
-<p>Manage Labels on Node, MS and workloads.</p>
-<h2 id="example">Example:</h2>
-<pre><code>&gt;&gt;&gt; from nerve_lib import MSHandle
-&gt;&gt;&gt; from nerve_lib import MSLabel
-&gt;&gt;&gt; with MSHandle("testms.nerve.cloud") as ms_handle:
-&gt;&gt;&gt;     labels = MSLabel(ms_handle)
-&gt;&gt;&gt;     labels.get_label("key", "value")
-&lt;dict label item of MS&gt;
-</code></pre>
 </section>
 <section>
 </section>
@@ -75,6 +66,7 @@ el.replaceWith(d);
 
     def __init__(self, ms_handle: type):
         self.ms = ms_handle
+        self._log = ms_handle._log.getChild(&#34;MSLabel&#34;)
 
     def fetch_labels(self) -&gt; dict:
         &#34;&#34;&#34;Fetch labels from labels list.
@@ -148,7 +140,7 @@ el.replaceWith(d);
             json={&#34;key&#34;: key, &#34;value&#34;: value},
             accepted_status=[requests.codes.ok, requests.codes.conflict],
         )
-        self.ms._log.info(
+        self._log.info(
             &#34;Label %s:%s created&#34;
             if response.status_code == requests.codes.ok
             else &#34;Label %s:%s already created&#34;,
@@ -188,7 +180,7 @@ el.replaceWith(d);
         if self.ms.version_smaller_than(&#34;2.10.0&#34;):
             payload[&#34;secureId&#34;] = node_list_info.get(&#34;secureId&#34;)
         self.ms.patch(&#34;/nerve/node&#34;, json=payload)
-        self.ms._log.info(
+        self._log.info(
             &#34;Labels %s set on node %s&#34;,
             [f&#34;{label[&#39;key&#39;]}:{label[&#39;value&#39;]}&#34; for label in labels],
             node_list_info.get(&#34;name&#34;),
@@ -238,10 +230,10 @@ el.replaceWith(d);
             response = self.get_label(label_key, label_value)
             label_id = response[&#34;_id&#34;]
 
-            self.ms._log.info(&#34;Deleting Label %s:%s&#34;, response[&#34;key&#34;], response[&#34;value&#34;])
+            self._log.info(&#34;Deleting Label %s:%s&#34;, response[&#34;key&#34;], response[&#34;value&#34;])
             self.ms.delete(f&#34;/nerve/labels/{label_id}&#34;, accepted_status=[requests.codes.ok])
         except ValueError as ex_msg:
-            self.ms._log.warning(&#34;Label with %s:%s does not exist: %s&#34;, label_key, label_value, ex_msg)
+            self._log.warning(&#34;Label with %s:%s does not exist: %s&#34;, label_key, label_value, ex_msg)
 
     def merge(self, keys: list, new_key_name: str):
         &#34;&#34;&#34;
@@ -270,8 +262,138 @@ el.replaceWith(d);
         labels = self.fetch_labels()
         for label in labels.get(&#34;data&#34;, []):
             self.delete(label.get(&#34;key&#34;), label.get(&#34;value&#34;))
-        self.ms._log.info(&#34;All labels deleted&#34;)
-        return True</code></pre>
+        self._log.info(&#34;All labels deleted&#34;)
+        return True
+
+    @classmethod
+    def get_node_labels(cls, node):
+        &#34;&#34;&#34;Get all labels from a node.
+
+        Parameters
+        ----------
+        node : TYPE
+            node handle.
+
+        Returns
+        -------
+        list
+            list of labels on the node.
+        &#34;&#34;&#34;
+        node_info = node.get_details()
+        return node_info.get(&#34;labels&#34;, [])
+
+    def add_node_label(self, node, key: str, value: str, suppress_log: bool = False):
+        &#34;&#34;&#34;Add a label to a node.
+
+        Parameters
+        ----------
+        node : TYPE
+            node handle.
+        key : str
+            key of the label.
+        value : str
+            value of the label.
+        &#34;&#34;&#34;
+        node_info = node.get_details()
+        label_id = None
+        try:
+            label_id = self.get_label(key, value)[&#34;_id&#34;]
+        except ValueError:
+            pass
+        labels_add = {&#34;key&#34;: key, &#34;value&#34;: value}
+        if label_id:
+            labels_add = {&#34;_id&#34;: label_id, &#34;key&#34;: key, &#34;value&#34;: value}
+            if next((label for label in node_info.get(&#34;labels&#34;, []) if label[&#34;_id&#34;] == label_id), None):
+                self._log.info(
+                    &#34;Label &#39;%s=%s&#39; already exists on node %s&#34;, key, value, node_info[&#34;serialNumber&#34;]
+                )
+                return
+        self.ms.patch(
+            f&#34;/nerve/node/{node_info[&#39;serialNumber&#39;]}/labels/assign&#34;,
+            json={&#34;labels&#34;: [labels_add]},
+            accepted_status=[requests.codes.ok],
+        )
+        if not suppress_log:
+            self._log.info(&#34;Label &#39;%s=%s&#39; added to node %s&#34;, key, value, node_info[&#34;serialNumber&#34;])
+
+    def del_node_label(self, node, key: str, suppress_log: bool = False):
+        &#34;&#34;&#34;Delete a label from a node.
+
+        Parameters
+        ----------
+        node : TYPE
+            node handle.
+        key : str
+            key of the label.
+        &#34;&#34;&#34;
+        node_info = node.get_details()
+        label_id = next((label[&#34;_id&#34;] for label in node_info.get(&#34;labels&#34;, []) if label[&#34;key&#34;] == key), None)
+        if label_id:
+            self.ms.patch(
+                f&#34;/nerve/node/{node_info[&#39;serialNumber&#39;]}/labels/unassign&#34;,
+                json={&#34;labels&#34;: [label_id]},
+                accepted_status=[requests.codes.ok],
+            )
+            if not suppress_log:
+                self._log.info(&#34;Label &#39;%s&#39; deleted from node %s&#34;, key, node_info[&#34;serialNumber&#34;])
+        else:
+            raise ValueError(f&#34;Label &#39;{key}&#39; does not exist on node {node_info[&#39;serialNumber&#39;]}&#34;)
+
+    def edit_node_label(self, node, key: str, value: str):
+        &#34;&#34;&#34;Edit a label on a node.
+
+        Parameters
+        ----------
+        node : TYPE
+            node handle.
+        key : str
+            key of the label.
+        value : str
+            value of the label.
+        &#34;&#34;&#34;
+        self.del_node_label(node, key, suppress_log=True)
+        self.add_node_label(node, key, value, suppress_log=True)
+        self._log.info(&#34;Label &#39;%s&#39; edited to &#39;%s&#39; on node %s&#34;, key, value, node.get_details()[&#34;serialNumber&#34;])
+
+    def export_node_labels(self, node) -&gt; dict:
+        &#34;&#34;&#34;Export all labels from a node.
+
+        Parameters
+        ----------
+        node : TYPE
+            node handle.
+
+        Returns
+        -------
+        dict
+            Exported labels as a dictionary.
+        &#34;&#34;&#34;
+        node_info = node.get_details()
+        response = self.ms.get(
+            f&#34;/nerve/node/{node_info[&#39;serialNumber&#39;]}/labels/export&#34;, accepted_status=[requests.codes.ok]
+        )
+        self._log.info(&#34;Labels exported from node %s&#34;, node_info[&#34;serialNumber&#34;])
+        return yaml.safe_load(response.content.decode(&#34;utf-8&#34;))
+
+    def import_node_labels(self, node, labels: dict):
+        &#34;&#34;&#34;Import labels to a node.
+
+        Parameters
+        ----------
+        node : TYPE
+            node handle.
+        labels : dict
+            Labels as a dictionary to be imported.
+        &#34;&#34;&#34;
+        node_info = node.get_details()
+
+        m_enc_data = {&#34;data&#34;: (&#34;file.yaml&#34;, yaml.dump(labels), &#34;application/x-yaml&#34;)}
+        self.ms.patch(
+            f&#34;/nerve/node/{node_info[&#39;serialNumber&#39;]}/labels/import&#34;,
+            m_enc_data=m_enc_data,
+            accepted_status=[requests.codes.ok],
+        )
+        self._log.info(&#34;Labels imported to node %s&#34;, node_info[&#34;serialNumber&#34;])</code></pre>
 </details>
 <div class="desc"><p>Label creation and manipulation functions.</p>
 <h2 id="parameters">Parameters</h2>
@@ -279,6 +401,25 @@ el.replaceWith(d);
 <dt><strong><code>ms_handle</code></strong> :&ensp;<code>type</code></dt>
 <dd>management system handle 'nerve_lib.general_utils.MSHandle(&hellip;)'.</dd>
 </dl></div>
+<h3>Static methods</h3>
+<dl>
+<dt id="nerve_lib.manage_labels.MSLabel.get_node_labels"><code class="name flex">
+<span>def <span class="ident">get_node_labels</span></span>(<span>node)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Get all labels from a node.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>node</code></strong> :&ensp;<code>TYPE</code></dt>
+<dd>node handle.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>list</code></dt>
+<dd>list of labels on the node.</dd>
+</dl></div>
+</dd>
+</dl>
 <h3>Methods</h3>
 <dl>
 <dt id="nerve_lib.manage_labels.MSLabel.add_dut_label"><code class="name flex">
@@ -323,6 +464,59 @@ el.replaceWith(d);
 <dd>value of the label.</dd>
 </dl></div>
 </dd>
+<dt id="nerve_lib.manage_labels.MSLabel.add_node_label"><code class="name flex">
+<span>def <span class="ident">add_node_label</span></span>(<span>self, node, key: str, value: str, suppress_log: bool = False)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_node_label(self, node, key: str, value: str, suppress_log: bool = False):
+    &#34;&#34;&#34;Add a label to a node.
+
+    Parameters
+    ----------
+    node : TYPE
+        node handle.
+    key : str
+        key of the label.
+    value : str
+        value of the label.
+    &#34;&#34;&#34;
+    node_info = node.get_details()
+    label_id = None
+    try:
+        label_id = self.get_label(key, value)[&#34;_id&#34;]
+    except ValueError:
+        pass
+    labels_add = {&#34;key&#34;: key, &#34;value&#34;: value}
+    if label_id:
+        labels_add = {&#34;_id&#34;: label_id, &#34;key&#34;: key, &#34;value&#34;: value}
+        if next((label for label in node_info.get(&#34;labels&#34;, []) if label[&#34;_id&#34;] == label_id), None):
+            self._log.info(
+                &#34;Label &#39;%s=%s&#39; already exists on node %s&#34;, key, value, node_info[&#34;serialNumber&#34;]
+            )
+            return
+    self.ms.patch(
+        f&#34;/nerve/node/{node_info[&#39;serialNumber&#39;]}/labels/assign&#34;,
+        json={&#34;labels&#34;: [labels_add]},
+        accepted_status=[requests.codes.ok],
+    )
+    if not suppress_log:
+        self._log.info(&#34;Label &#39;%s=%s&#39; added to node %s&#34;, key, value, node_info[&#34;serialNumber&#34;])</code></pre>
+</details>
+<div class="desc"><p>Add a label to a node.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>node</code></strong> :&ensp;<code>TYPE</code></dt>
+<dd>node handle.</dd>
+<dt><strong><code>key</code></strong> :&ensp;<code>str</code></dt>
+<dd>key of the label.</dd>
+<dt><strong><code>value</code></strong> :&ensp;<code>str</code></dt>
+<dd>value of the label.</dd>
+</dl></div>
+</dd>
 <dt id="nerve_lib.manage_labels.MSLabel.create_label"><code class="name flex">
 <span>def <span class="ident">create_label</span></span>(<span>self, key: str, value: str) ‑> dict</span>
 </code></dt>
@@ -351,7 +545,7 @@ el.replaceWith(d);
         json={&#34;key&#34;: key, &#34;value&#34;: value},
         accepted_status=[requests.codes.ok, requests.codes.conflict],
     )
-    self.ms._log.info(
+    self._log.info(
         &#34;Label %s:%s created&#34;
         if response.status_code == requests.codes.ok
         else &#34;Label %s:%s already created&#34;,
@@ -374,6 +568,46 @@ el.replaceWith(d);
 <dd>label creation response as dict.</dd>
 </dl></div>
 </dd>
+<dt id="nerve_lib.manage_labels.MSLabel.del_node_label"><code class="name flex">
+<span>def <span class="ident">del_node_label</span></span>(<span>self, node, key: str, suppress_log: bool = False)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def del_node_label(self, node, key: str, suppress_log: bool = False):
+    &#34;&#34;&#34;Delete a label from a node.
+
+    Parameters
+    ----------
+    node : TYPE
+        node handle.
+    key : str
+        key of the label.
+    &#34;&#34;&#34;
+    node_info = node.get_details()
+    label_id = next((label[&#34;_id&#34;] for label in node_info.get(&#34;labels&#34;, []) if label[&#34;key&#34;] == key), None)
+    if label_id:
+        self.ms.patch(
+            f&#34;/nerve/node/{node_info[&#39;serialNumber&#39;]}/labels/unassign&#34;,
+            json={&#34;labels&#34;: [label_id]},
+            accepted_status=[requests.codes.ok],
+        )
+        if not suppress_log:
+            self._log.info(&#34;Label &#39;%s&#39; deleted from node %s&#34;, key, node_info[&#34;serialNumber&#34;])
+    else:
+        raise ValueError(f&#34;Label &#39;{key}&#39; does not exist on node {node_info[&#39;serialNumber&#39;]}&#34;)</code></pre>
+</details>
+<div class="desc"><p>Delete a label from a node.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>node</code></strong> :&ensp;<code>TYPE</code></dt>
+<dd>node handle.</dd>
+<dt><strong><code>key</code></strong> :&ensp;<code>str</code></dt>
+<dd>key of the label.</dd>
+</dl></div>
+</dd>
 <dt id="nerve_lib.manage_labels.MSLabel.delete"><code class="name flex">
 <span>def <span class="ident">delete</span></span>(<span>self, label_key, label_value)</span>
 </code></dt>
@@ -388,10 +622,10 @@ el.replaceWith(d);
         response = self.get_label(label_key, label_value)
         label_id = response[&#34;_id&#34;]
 
-        self.ms._log.info(&#34;Deleting Label %s:%s&#34;, response[&#34;key&#34;], response[&#34;value&#34;])
+        self._log.info(&#34;Deleting Label %s:%s&#34;, response[&#34;key&#34;], response[&#34;value&#34;])
         self.ms.delete(f&#34;/nerve/labels/{label_id}&#34;, accepted_status=[requests.codes.ok])
     except ValueError as ex_msg:
-        self.ms._log.warning(&#34;Label with %s:%s does not exist: %s&#34;, label_key, label_value, ex_msg)</code></pre>
+        self._log.warning(&#34;Label with %s:%s does not exist: %s&#34;, label_key, label_value, ex_msg)</code></pre>
 </details>
 <div class="desc"><p>Delete a label from the MS.</p></div>
 </dd>
@@ -408,10 +642,85 @@ el.replaceWith(d);
     labels = self.fetch_labels()
     for label in labels.get(&#34;data&#34;, []):
         self.delete(label.get(&#34;key&#34;), label.get(&#34;value&#34;))
-    self.ms._log.info(&#34;All labels deleted&#34;)
+    self._log.info(&#34;All labels deleted&#34;)
     return True</code></pre>
 </details>
 <div class="desc"><p>Delete all labels from the MS.</p></div>
+</dd>
+<dt id="nerve_lib.manage_labels.MSLabel.edit_node_label"><code class="name flex">
+<span>def <span class="ident">edit_node_label</span></span>(<span>self, node, key: str, value: str)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def edit_node_label(self, node, key: str, value: str):
+    &#34;&#34;&#34;Edit a label on a node.
+
+    Parameters
+    ----------
+    node : TYPE
+        node handle.
+    key : str
+        key of the label.
+    value : str
+        value of the label.
+    &#34;&#34;&#34;
+    self.del_node_label(node, key, suppress_log=True)
+    self.add_node_label(node, key, value, suppress_log=True)
+    self._log.info(&#34;Label &#39;%s&#39; edited to &#39;%s&#39; on node %s&#34;, key, value, node.get_details()[&#34;serialNumber&#34;])</code></pre>
+</details>
+<div class="desc"><p>Edit a label on a node.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>node</code></strong> :&ensp;<code>TYPE</code></dt>
+<dd>node handle.</dd>
+<dt><strong><code>key</code></strong> :&ensp;<code>str</code></dt>
+<dd>key of the label.</dd>
+<dt><strong><code>value</code></strong> :&ensp;<code>str</code></dt>
+<dd>value of the label.</dd>
+</dl></div>
+</dd>
+<dt id="nerve_lib.manage_labels.MSLabel.export_node_labels"><code class="name flex">
+<span>def <span class="ident">export_node_labels</span></span>(<span>self, node) ‑> dict</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def export_node_labels(self, node) -&gt; dict:
+    &#34;&#34;&#34;Export all labels from a node.
+
+    Parameters
+    ----------
+    node : TYPE
+        node handle.
+
+    Returns
+    -------
+    dict
+        Exported labels as a dictionary.
+    &#34;&#34;&#34;
+    node_info = node.get_details()
+    response = self.ms.get(
+        f&#34;/nerve/node/{node_info[&#39;serialNumber&#39;]}/labels/export&#34;, accepted_status=[requests.codes.ok]
+    )
+    self._log.info(&#34;Labels exported from node %s&#34;, node_info[&#34;serialNumber&#34;])
+    return yaml.safe_load(response.content.decode(&#34;utf-8&#34;))</code></pre>
+</details>
+<div class="desc"><p>Export all labels from a node.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>node</code></strong> :&ensp;<code>TYPE</code></dt>
+<dd>node handle.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>dict</code></dt>
+<dd>Exported labels as a dictionary.</dd>
+</dl></div>
 </dd>
 <dt id="nerve_lib.manage_labels.MSLabel.fetch_labels"><code class="name flex">
 <span>def <span class="ident">fetch_labels</span></span>(<span>self) ‑> dict</span>
@@ -509,6 +818,43 @@ el.replaceWith(d);
 <dd>if key/value exists, dict containing _id, key, value is returned.</dd>
 </dl></div>
 </dd>
+<dt id="nerve_lib.manage_labels.MSLabel.import_node_labels"><code class="name flex">
+<span>def <span class="ident">import_node_labels</span></span>(<span>self, node, labels: dict)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def import_node_labels(self, node, labels: dict):
+    &#34;&#34;&#34;Import labels to a node.
+
+    Parameters
+    ----------
+    node : TYPE
+        node handle.
+    labels : dict
+        Labels as a dictionary to be imported.
+    &#34;&#34;&#34;
+    node_info = node.get_details()
+
+    m_enc_data = {&#34;data&#34;: (&#34;file.yaml&#34;, yaml.dump(labels), &#34;application/x-yaml&#34;)}
+    self.ms.patch(
+        f&#34;/nerve/node/{node_info[&#39;serialNumber&#39;]}/labels/import&#34;,
+        m_enc_data=m_enc_data,
+        accepted_status=[requests.codes.ok],
+    )
+    self._log.info(&#34;Labels imported to node %s&#34;, node_info[&#34;serialNumber&#34;])</code></pre>
+</details>
+<div class="desc"><p>Import labels to a node.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>node</code></strong> :&ensp;<code>TYPE</code></dt>
+<dd>node handle.</dd>
+<dt><strong><code>labels</code></strong> :&ensp;<code>dict</code></dt>
+<dd>Labels as a dictionary to be imported.</dd>
+</dl></div>
+</dd>
 <dt id="nerve_lib.manage_labels.MSLabel.merge"><code class="name flex">
 <span>def <span class="ident">merge</span></span>(<span>self, keys: list, new_key_name: str)</span>
 </code></dt>
@@ -590,7 +936,7 @@ el.replaceWith(d);
     if self.ms.version_smaller_than(&#34;2.10.0&#34;):
         payload[&#34;secureId&#34;] = node_list_info.get(&#34;secureId&#34;)
     self.ms.patch(&#34;/nerve/node&#34;, json=payload)
-    self.ms._log.info(
+    self._log.info(
         &#34;Labels %s set on node %s&#34;,
         [f&#34;{label[&#39;key&#39;]}:{label[&#39;value&#39;]}&#34; for label in labels],
         node_list_info.get(&#34;name&#34;),
@@ -637,9 +983,7 @@ el.replaceWith(d);
 </article>
 <nav id="sidebar">
 <div class="toc">
-<ul>
-<li><a href="#example">Example:</a></li>
-</ul>
+<ul></ul>
 </div>
 <ul id="index">
 <li><h3>Super-module</h3>
@@ -653,11 +997,17 @@ el.replaceWith(d);
 <h4><code><a title="nerve_lib.manage_labels.MSLabel" href="#nerve_lib.manage_labels.MSLabel">MSLabel</a></code></h4>
 <ul class="two-column">
 <li><code><a title="nerve_lib.manage_labels.MSLabel.add_dut_label" href="#nerve_lib.manage_labels.MSLabel.add_dut_label">add_dut_label</a></code></li>
+<li><code><a title="nerve_lib.manage_labels.MSLabel.add_node_label" href="#nerve_lib.manage_labels.MSLabel.add_node_label">add_node_label</a></code></li>
 <li><code><a title="nerve_lib.manage_labels.MSLabel.create_label" href="#nerve_lib.manage_labels.MSLabel.create_label">create_label</a></code></li>
+<li><code><a title="nerve_lib.manage_labels.MSLabel.del_node_label" href="#nerve_lib.manage_labels.MSLabel.del_node_label">del_node_label</a></code></li>
 <li><code><a title="nerve_lib.manage_labels.MSLabel.delete" href="#nerve_lib.manage_labels.MSLabel.delete">delete</a></code></li>
 <li><code><a title="nerve_lib.manage_labels.MSLabel.delete_all" href="#nerve_lib.manage_labels.MSLabel.delete_all">delete_all</a></code></li>
+<li><code><a title="nerve_lib.manage_labels.MSLabel.edit_node_label" href="#nerve_lib.manage_labels.MSLabel.edit_node_label">edit_node_label</a></code></li>
+<li><code><a title="nerve_lib.manage_labels.MSLabel.export_node_labels" href="#nerve_lib.manage_labels.MSLabel.export_node_labels">export_node_labels</a></code></li>
 <li><code><a title="nerve_lib.manage_labels.MSLabel.fetch_labels" href="#nerve_lib.manage_labels.MSLabel.fetch_labels">fetch_labels</a></code></li>
 <li><code><a title="nerve_lib.manage_labels.MSLabel.get_label" href="#nerve_lib.manage_labels.MSLabel.get_label">get_label</a></code></li>
+<li><code><a title="nerve_lib.manage_labels.MSLabel.get_node_labels" href="#nerve_lib.manage_labels.MSLabel.get_node_labels">get_node_labels</a></code></li>
+<li><code><a title="nerve_lib.manage_labels.MSLabel.import_node_labels" href="#nerve_lib.manage_labels.MSLabel.import_node_labels">import_node_labels</a></code></li>
 <li><code><a title="nerve_lib.manage_labels.MSLabel.merge" href="#nerve_lib.manage_labels.MSLabel.merge">merge</a></code></li>
 <li><code><a title="nerve_lib.manage_labels.MSLabel.set_dut_labels" href="#nerve_lib.manage_labels.MSLabel.set_dut_labels">set_dut_labels</a></code></li>
 <li><code><a title="nerve_lib.manage_labels.MSLabel.update" href="#nerve_lib.manage_labels.MSLabel.update">update</a></code></li>

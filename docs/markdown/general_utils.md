@@ -50,7 +50,7 @@ Classes
     * builtins.Exception
     * builtins.BaseException
 
-`MSHandle(ms_url: str, user: str = '', password: str = '')`
+`MSHandle(ms_url: str, user: str = '', password: str = '', access_token: str = '')`
 :   Connect to a MS and handle requests.
     
     Parameters
@@ -61,6 +61,9 @@ Classes
         username to login on MS. The default is ENV-var MS_USR.
     password : str, optional
         password to logon on MS. The default is ENV-var MS_PSW.
+    access_token : str, optional
+        access token to logon on MS. The default is ENV-var MS_ACCESS_TOKEN.
+        If an access token is provided, the user and password will be ignored.
 
     ### Ancestors (in MRO)
 
@@ -69,6 +72,9 @@ Classes
     * requests.sessions.SessionRedirectMixin
 
     ### Instance variables
+
+    `login_content`
+    :   Return the content of the last login response.
 
     `version: str`
     :   Get the version of the MS.
@@ -122,9 +128,18 @@ Classes
     log : logging.Logger, optional
         handle of logging.getLogger(...). The default is None.
 
+    ### Static methods
+
+    `get_shared(user: str | None = None, password: str | None = None, log: logging.Logger | None = None) ‑> nerve_lib.general_utils.ManageSshTunnel`
+    :   Return a process-wide shared tunnel manager.
+        
+        Multiple node handles reuse a single manager so that tunnels sharing the
+        same connection path are reference-counted and only closed once every
+        user has released them.
+
     ### Methods
 
-    `create_tunnel(self, ip_address, remote_bind: tuple[str, int], local_port: int | None = None) ‑> type`
+    `create_tunnel(self, ip_address, remote_bind: tuple[str, int], local_port: int | None = None, user: str | None = None, password: str | None = None) ‑> type`
     :   Create a specific ssh-tunnel to a node.
         
         Example:
@@ -154,6 +169,22 @@ Classes
         -------
         bool
             If false: Refreshing tunnel failed, a warning is printed in addition.
+
+    `release_tunnel(self, ip_address, remote_bind: tuple[str, int], local_port: int | None = None) ‑> None`
+    :   Release one reference to a tunnel and close it when unreferenced.
+        
+        Multiple node handles can share the same tunnel path. The tunnel is only
+        closed once every handle that acquired it via ``create_tunnel`` has
+        released it again.
+        
+        Parameters
+        ----------
+        ip_address : str | tuple[str, int]
+            ip-address (or (ip, port) tuple) of the node the tunnel connects to.
+        remote_bind : tuple[str, int]
+            remote bind information (ip-address, port).
+        local_port : int, optional
+            local bind port. Defaults to the remote port when not provided.
 
     `remove_tunnel(self, local_port: int) ‑> None`
     :   Remove a tunnel and close the connection.
@@ -207,6 +238,9 @@ Classes
 
     ### Methods
 
+    `create_tunnel(self, remote_bind=None, local_port=None)`
+    :   Create a tunnel to a service of the node.
+
     `create_tunnel_node(self)`
     :   Create a ssh-tunnel to the localUI of a node.
 
@@ -223,6 +257,12 @@ Classes
 
     `logout(self)`
     :   Logout from Node.
+
+    `release_tunnels(self)`
+    :   Release all tunnels which had been created by this node.
+        
+        After releasing, the localUI tunnel state is reset so a subsequent
+        request re-establishes a fresh tunnel of the same kind.
 
     `request(self, method, url, *args, **kwargs) ‑> type`
     :   Execute a request on the node.

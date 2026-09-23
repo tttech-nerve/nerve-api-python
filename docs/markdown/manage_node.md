@@ -369,6 +369,14 @@ Classes
     `get_nodes_filtered(self, node_name: str | None = None, serial_number: str | None = None) ‑> dict`
     :   Read node list of MS filtered by name and/or serial number.
 
+    `get_nodes_info(self) ‑> dict`
+    :   Read node list of MS with additional information.
+        
+        Returns
+        -------
+        dict
+            Node list informatnion from MS API.
+
     `remove_active_remote_connections(self, remote_ids: list | None = None) ‑> type`
     :   Remove established remote connections from MS.
         

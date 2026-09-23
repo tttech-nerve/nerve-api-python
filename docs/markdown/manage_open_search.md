@@ -72,7 +72,7 @@ Classes
     :   Get filebeat logs from open search.
 
     `get_fluentbit(self, past_hours: int = 5, search_filters: list | None = None)`
-    :   Get filebeat logs from open search.
+    :   Get fluentbit logs from open search.
 
     `get_nerve(self, past_hours: int = 5, search_filters: list | None = None)`
     :   Get nerve logs from open search.

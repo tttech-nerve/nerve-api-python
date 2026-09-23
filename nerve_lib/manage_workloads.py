@@ -154,7 +154,13 @@ class LocalWorkloads:
             accepted_status=[requests.codes.ok],
         ).json()
 
-    def control(self, workload_name: str, command: str, remove_images: bool = True) -> None:
+    def control(
+        self,
+        workload_name: str,
+        command: str,
+        remove_images: bool = True,
+        service_name: str | None = None,
+    ) -> None:
         """Control the workload status.
 
         Parameters
@@ -162,7 +168,11 @@ class LocalWorkloads:
         workload_name : str
             Workload to be controlled.
         command : str
-            Command can be one of START, STOP, SUSPEND, RESUME, RESTART, UNDEPLOY".
+            Command can be one of START, STOP, SUSPEND, RESUME, RESTART, UNDEPLOY.
+        remove_images : bool, optional
+            If command is UNDEPLOY, controls whether workload images are removed.
+        service_name : str | None, optional
+            If set, command is applied only to the specified docker-compose service.
         """
         workloads_data = self.get_workload_list()
         workload = next(wrkld for wrkld in workloads_data["workloads"] if workload_name == wrkld.get("name"))
@@ -172,6 +182,8 @@ class LocalWorkloads:
         }
         if command.upper() == "UNDEPLOY":
             payload["removeImages"] = remove_images
+        if service_name:
+            payload["serviceName"] = service_name
 
         return self.node.put(f"/api/workloads/{device_id}/control/{command.upper()}", json=payload)
 
@@ -269,7 +281,7 @@ class MSWorkloads:
                 }
                 self._log.debug("Reformatted 'files' from list to dict with keys '0', '1', ...")
 
-        if api_version == self.API_V1:  # noqa: PLR1702
+        if api_version == self.API_V1:  # ruff:ignore[too-many-nested-blocks]
             self.__send_provision_workload("/nerve/workload", file_paths, payload, False)
         elif api_version in {self.API_V2, self.API_V3}:
             update_workload = False
@@ -382,7 +394,7 @@ class MSWorkloads:
 
                 # Step4: Upload image file(s)
                 for file_path in file_paths:
-                    if type(file_path) is str and os.path.splitext(file_path)[-1] == ".tar":
+                    if type(file_path) is str and file_path.endswith((".tar", ".gz")):
                         wl_version.set_compose_image(file_path, patch_version, image_names)
                     elif type(file_path) is dict:
                         wl_version.set_compose_repo(
@@ -630,7 +642,7 @@ class MSWorkloads:
             vm_memory = {"unit": memory[0][1], "value": int(memory[0][0])}
         return vm_memory
 
-    def gen_workload_configuration(  # noqa: PLR0913, PLR0915, PLR0917
+    def gen_workload_configuration(  # ruff:ignore[too-many-arguments, too-many-statements, too-many-positional-arguments]
         self,
         provision_type: str,
         file_paths: str | list[str] = "",
@@ -1205,7 +1217,7 @@ class MSWorkloads:
         return _WorkloadVersion(self, workload_name, version, release_version)
 
 
-class _WorkloadVersion:  # noqa: PLR0904
+class _WorkloadVersion:  # ruff:ignore[too-many-public-methods]
     """Handle to specific workload of a MS.
 
     Parameters
@@ -1510,6 +1522,30 @@ class _WorkloadVersion:  # noqa: PLR0904
             ).text
         )
 
+    def __detect_tar_upload_name(self, image_path: str) -> str:
+        """Detect actual tar compression (like the `file` command) and return a matching file name.
+
+        The file extension of `image_path` does not always match the actual content (e.g. a gzip
+        compressed archive named "*.tar"). Since the MS relies on the uploaded file name's extension
+        to decide how to decompress it, the name is corrected here based on the real file content.
+        """
+        with open(image_path, "rb") as fh:
+            magic = fh.read(2)
+        is_gzip = magic == b"\x1f\x8b"
+
+        base_name = os.path.basename(image_path)
+        name_without_ext = re.sub(r"\.(tar\.gz|tgz|tar|gz)$", "", base_name, flags=re.IGNORECASE)
+        correct_name = f"{name_without_ext}.tar.gz" if is_gzip else f"{name_without_ext}.tar"
+
+        if correct_name != base_name:
+            self._log.warning(
+                "File '%s' extension does not match its actual content (%s), uploading as '%s'",
+                base_name,
+                "gzip-compressed tar" if is_gzip else "plain tar",
+                correct_name,
+            )
+        return correct_name
+
     def set_compose_image(self, image_path: str, patch_version=True, image_names: list | None = None) -> None:
         """Upload an compose image.
 
@@ -1523,8 +1559,9 @@ class _WorkloadVersion:  # noqa: PLR0904
         self._get_workload_type("docker-compose")  # check if the workload type is a docker-compose workload
         workload_id, version_id = self._get_ids()
 
+        upload_name = self.__detect_tar_upload_name(image_path)
         repo_tags = []
-        with tarfile.open(image_path, "r") as tar_file:  # noqa: PLR1702
+        with tarfile.open(image_path, "r") as tar_file:  # ruff:ignore[too-many-nested-blocks]
             for member in tar_file.getmembers():
                 if member.name == "manifest.json":
                     manifest = json.load(tar_file.extractfile(member))
@@ -1564,7 +1601,7 @@ class _WorkloadVersion:  # noqa: PLR0904
                 "type": "docker-image",
                 "origin": "upload",
                 "source": f"file;{source_tag}",
-                "file": (os.path.split(image_path)[-1], bin_file, "form-data"),
+                "file": (upload_name, bin_file, "form-data"),
             }
 
             if file_id:
