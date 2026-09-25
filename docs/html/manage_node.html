@@ -2165,10 +2165,12 @@ Returns: response object</p></div>
     def get_nodes_filtered(self, node_name: str | None = None, serial_number: str | None = None) -&gt; dict:
         &#34;&#34;&#34;Read node list of MS filtered by name and/or serial number.&#34;&#34;&#34;
         parameters = {&#34;limit&#34;: 50, &#34;page&#34;: 1, &#34;order[created]&#34;: &#34;asc&#34;}
-        if node_name:
-            parameters[&#34;filterBy[name]&#34;] = node_name
-        if serial_number:
-            parameters[&#34;filterBy[serialNumber]&#34;] = serial_number
+        if not self.ms.version_smaller_than(&#34;3.1.1&#34;):
+            # Filtering does not work with version &lt; 3.1.1
+            if node_name:
+                parameters[&#34;filterBy[name]&#34;] = node_name
+            if serial_number:
+                parameters[&#34;filterBy[serialNumber]&#34;] = serial_number
         nodes = {&#34;count&#34;: 0, &#34;data&#34;: []}
         while True:
             nodes_single_read = self.ms.get(
@@ -2179,6 +2181,26 @@ Returns: response object</p></div>
             nodes[&#34;count&#34;] = nodes_single_read[&#34;count&#34;]
             if len(nodes[&#34;data&#34;]) == nodes_single_read[&#34;count&#34;]:
                 break
+
+        if self.ms.version_smaller_than(&#34;3.1.1&#34;):
+            filtered_nodes = {&#34;count&#34;: 0, &#34;data&#34;: []}
+            for node in nodes[&#34;data&#34;]:
+                if node_name:
+                    if node_name in node.get(&#34;name&#34;, &#34;&#34;):
+                        filtered_nodes[&#34;data&#34;].append(node)
+                        filtered_nodes[&#34;count&#34;] += 1
+                else:
+                    filtered_nodes[&#34;data&#34;].append(node)
+                    filtered_nodes[&#34;count&#34;] += 1
+                if serial_number:
+                    if serial_number in node.get(&#34;serialNumber&#34;, &#34;&#34;):
+                        filtered_nodes[&#34;data&#34;].append(node)
+                        filtered_nodes[&#34;count&#34;] += 1
+                else:
+                    filtered_nodes[&#34;data&#34;].append(node)
+                    filtered_nodes[&#34;count&#34;] += 1
+
+            nodes = filtered_nodes
 
         return nodes[&#34;data&#34;]
 
@@ -2747,10 +2769,12 @@ The default is None.</dd>
 <pre><code class="python">def get_nodes_filtered(self, node_name: str | None = None, serial_number: str | None = None) -&gt; dict:
     &#34;&#34;&#34;Read node list of MS filtered by name and/or serial number.&#34;&#34;&#34;
     parameters = {&#34;limit&#34;: 50, &#34;page&#34;: 1, &#34;order[created]&#34;: &#34;asc&#34;}
-    if node_name:
-        parameters[&#34;filterBy[name]&#34;] = node_name
-    if serial_number:
-        parameters[&#34;filterBy[serialNumber]&#34;] = serial_number
+    if not self.ms.version_smaller_than(&#34;3.1.1&#34;):
+        # Filtering does not work with version &lt; 3.1.1
+        if node_name:
+            parameters[&#34;filterBy[name]&#34;] = node_name
+        if serial_number:
+            parameters[&#34;filterBy[serialNumber]&#34;] = serial_number
     nodes = {&#34;count&#34;: 0, &#34;data&#34;: []}
     while True:
         nodes_single_read = self.ms.get(
@@ -2761,6 +2785,26 @@ The default is None.</dd>
         nodes[&#34;count&#34;] = nodes_single_read[&#34;count&#34;]
         if len(nodes[&#34;data&#34;]) == nodes_single_read[&#34;count&#34;]:
             break
+
+    if self.ms.version_smaller_than(&#34;3.1.1&#34;):
+        filtered_nodes = {&#34;count&#34;: 0, &#34;data&#34;: []}
+        for node in nodes[&#34;data&#34;]:
+            if node_name:
+                if node_name in node.get(&#34;name&#34;, &#34;&#34;):
+                    filtered_nodes[&#34;data&#34;].append(node)
+                    filtered_nodes[&#34;count&#34;] += 1
+            else:
+                filtered_nodes[&#34;data&#34;].append(node)
+                filtered_nodes[&#34;count&#34;] += 1
+            if serial_number:
+                if serial_number in node.get(&#34;serialNumber&#34;, &#34;&#34;):
+                    filtered_nodes[&#34;data&#34;].append(node)
+                    filtered_nodes[&#34;count&#34;] += 1
+            else:
+                filtered_nodes[&#34;data&#34;].append(node)
+                filtered_nodes[&#34;count&#34;] += 1
+
+        nodes = filtered_nodes
 
     return nodes[&#34;data&#34;]</code></pre>
 </details>
