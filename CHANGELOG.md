@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.5.1
+- Fixed issue with node filtering for versions < 3.1.1 in `get_nodes_filtered` function.
+
 ## 1.5.0
 - refactored ssh-tunnel creation
 - Added support for logging in to the Management System with an access token instead of username/password:

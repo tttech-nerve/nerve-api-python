@@ -881,10 +881,12 @@ class MSNode:
     def get_nodes_filtered(self, node_name: str | None = None, serial_number: str | None = None) -> dict:
         """Read node list of MS filtered by name and/or serial number."""
         parameters = {"limit": 50, "page": 1, "order[created]": "asc"}
-        if node_name:
-            parameters["filterBy[name]"] = node_name
-        if serial_number:
-            parameters["filterBy[serialNumber]"] = serial_number
+        if not self.ms.version_smaller_than("3.1.1"):
+            # Filtering does not work with version < 3.1.1
+            if node_name:
+                parameters["filterBy[name]"] = node_name
+            if serial_number:
+                parameters["filterBy[serialNumber]"] = serial_number
         nodes = {"count": 0, "data": []}
         while True:
             nodes_single_read = self.ms.get(
@@ -895,6 +897,26 @@ class MSNode:
             nodes["count"] = nodes_single_read["count"]
             if len(nodes["data"]) == nodes_single_read["count"]:
                 break
+
+        if self.ms.version_smaller_than("3.1.1"):
+            filtered_nodes = {"count": 0, "data": []}
+            for node in nodes["data"]:
+                if node_name:
+                    if node_name in node.get("name", ""):
+                        filtered_nodes["data"].append(node)
+                        filtered_nodes["count"] += 1
+                else:
+                    filtered_nodes["data"].append(node)
+                    filtered_nodes["count"] += 1
+                if serial_number:
+                    if serial_number in node.get("serialNumber", ""):
+                        filtered_nodes["data"].append(node)
+                        filtered_nodes["count"] += 1
+                else:
+                    filtered_nodes["data"].append(node)
+                    filtered_nodes["count"] += 1
+
+            nodes = filtered_nodes
 
         return nodes["data"]
 
